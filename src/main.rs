@@ -6,6 +6,7 @@ use crate::util::events::{Event, Events};
 
 use std::io;
 use std::env;
+use std::usize;
 use tui::Terminal;
 use tui::backend::TermionBackend;
 use tui::widgets::StatefulWidget;
@@ -33,9 +34,6 @@ impl<'a> CsvTable<'a> {
 
 }
 
-pub struct CsvTableState {
-}
-
 impl<'a> CsvTable<'a> {
 
     fn get_column_widths(&self) -> Vec<u16> {
@@ -57,6 +55,20 @@ impl<'a> CsvTable<'a> {
         }
         column_widths
     }
+
+    fn render_row_number(&self, buf: &mut Buffer, state: &mut CsvTableState, row_index: usize, y: u16, is_header: bool) -> u16 {
+        let row_num_width = 8;
+        if is_header {
+            return row_num_width
+        }
+        let row_num = row_index + state.rows_offset as usize;
+        let row_num_formatted = format!("{}", row_num);
+        let style = Style::default()
+            .fg(Color::LightRed);
+        let span = Span::styled(row_num_formatted, style);
+        buf.set_span(0, y, &span, row_num_width);
+        row_num_width
+    }
 }
 
 impl<'a> StatefulWidget for CsvTable<'a> {
@@ -70,7 +82,7 @@ impl<'a> StatefulWidget for CsvTable<'a> {
 
         let column_widths = self.get_column_widths();
 
-        let mut x_offset_header = 0;
+        let mut x_offset_header = self.render_row_number(buf, state, 0, 0, true);
         for (hname, hlen) in self.header.iter().zip(&column_widths) {
             let style = Style::default()
                 .add_modifier(Modifier::BOLD);
@@ -80,8 +92,8 @@ impl<'a> StatefulWidget for CsvTable<'a> {
         }
 
         let mut y_offset = 1;
-        for row in self.rows.iter() {
-            let mut x_offset_header = 0;
+        for (row_index, row) in self.rows.iter().enumerate() {
+            let mut x_offset_header = self.render_row_number(buf, state, row_index, y_offset, false);
             for (value, hlen) in row.iter().zip(&column_widths) {
                 let span = Span::from((*value).as_str());
                 buf.set_span(x_offset_header, y_offset, &span, *hlen);
@@ -91,6 +103,23 @@ impl<'a> StatefulWidget for CsvTable<'a> {
         }
 
     }
+}
+pub struct CsvTableState {
+    rows_offset: u64,
+}
+
+impl CsvTableState {
+
+    fn new() -> Self {
+        Self {
+            rows_offset: 0,
+        }
+    }
+
+    fn set_rows_offset(&mut self, offset: u64) {
+        self.rows_offset = offset;
+    }
+
 }
 
 fn main() {
@@ -111,6 +140,7 @@ fn main() {
     let mut terminal = Terminal::new(backend).unwrap();
 
     let events = Events::new();
+    let mut csv_table_state = CsvTableState::new();
 
     loop {
         terminal.draw(|f| {
@@ -118,7 +148,6 @@ fn main() {
             let size = f.size();
 
             let csv_table = CsvTable::new(&headers, &rows);
-            let mut csv_table_state = CsvTableState {};
 
             f.render_stateful_widget(csv_table, size, &mut csv_table_state);
 
@@ -141,6 +170,7 @@ fn main() {
                 }
                 _ => {}
             }
+            csv_table_state.set_rows_offset(rows_from);
         };
     }
 }
