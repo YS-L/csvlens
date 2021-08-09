@@ -99,9 +99,11 @@ fn main() {
     println!("filename: {}", filename);
 
     let inner_rdr = sushi_csv::Reader::from_path(filename).unwrap();
+    let num_rows = 50;
+    let mut rows_from = 0;
     let mut csvlens_reader = csv::CsvLensReader::new(inner_rdr);
-    let rows = csvlens_reader.get_rows(0, 30).unwrap();
-    let headers = &csvlens_reader.headers;
+    let mut rows = csvlens_reader.get_rows(rows_from, num_rows).unwrap();
+    let headers = csvlens_reader.headers.clone();
 
     let stdout = io::stdout().into_raw_mode().unwrap();
     let stdout = AlternateScreen::from(stdout);
@@ -126,6 +128,16 @@ fn main() {
             match key {
                 Key::Char('q') => {
                     break;
+                }
+                Key::Char('j') => {
+                    rows_from = rows_from + 1;
+                    rows = csvlens_reader.get_rows(rows_from, num_rows).unwrap();
+                }
+                Key::Char('k') => {
+                    if rows_from > 0 {
+                        rows_from = rows_from - 1;
+                        rows = csvlens_reader.get_rows(rows_from, num_rows).unwrap();
+                    }
                 }
                 _ => {}
             }
