@@ -62,7 +62,7 @@ impl<'a> CsvTable<'a> {
         if is_header {
             return row_num_width
         }
-        let row_num = row_index + state.rows_offset as usize;
+        let row_num = row_index + state.rows_offset as usize + 1;
         let row_num_formatted = format!("{}", row_num);
         let style = Style::default()
             .fg(Color::LightRed);
