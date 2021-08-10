@@ -44,7 +44,7 @@ impl<R: io::Read + io::Seek> CsvLensReader<R> {
             }
             // rows_from is 0-based
             let i = i - 1;
-            if i  >= rows_from as usize && i < rows_to as usize {
+            if i >= rows_from as usize && i < rows_to as usize {
                 let string_record = r.unwrap();
                 let mut row = Vec::new();
                 for field in string_record.iter() {
@@ -52,6 +52,11 @@ impl<R: io::Read + io::Seek> CsvLensReader<R> {
                 }
                 res.push(row);
             }
+
+            if i >= rows_to as usize {
+                break;
+            }
+
         }
         Ok(res)
     }
