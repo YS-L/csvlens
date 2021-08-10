@@ -10,7 +10,9 @@ use std::env;
 use std::usize;
 use tui::Terminal;
 use tui::backend::TermionBackend;
-use tui::widgets::StatefulWidget;
+use tui::symbols::line;
+use tui::widgets::Widget;
+use tui::widgets::{StatefulWidget, Block, Borders};
 use tui::buffer::Buffer;
 use tui::layout::Rect;
 use tui::text::Span;
@@ -65,7 +67,7 @@ impl<'a> CsvTable<'a> {
         let row_num = row_index + state.rows_offset as usize + 1;
         let row_num_formatted = format!("{}", row_num);
         let style = Style::default()
-            .fg(Color::LightRed);
+            .fg(Color::Rgb(64, 64, 64));
         let span = Span::styled(row_num_formatted, style);
         buf.set_span(0, y, &span, row_num_width);
         row_num_width
@@ -108,6 +110,12 @@ impl<'a> StatefulWidget for CsvTable<'a> {
             y_offset += 1;
         }
 
+        // TODO: render together with line numbers
+        let line_number_block = Block::default()
+            .borders(Borders::RIGHT)
+            .border_style(Style::default().fg(Color::Rgb(64, 64, 64)));
+        let line_number_area = Rect::new(0, 0, 5, area.height);
+        line_number_block.render(line_number_area, buf);
     }
 }
 pub struct CsvTableState {
