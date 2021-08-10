@@ -77,6 +77,8 @@ impl<'a> StatefulWidget for CsvTable<'a> {
 
     fn render(mut self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
 
+        // TODO: draw relative to the provided area
+
         if area.area() == 0 {
             return;
         }
@@ -94,6 +96,9 @@ impl<'a> StatefulWidget for CsvTable<'a> {
 
         let mut y_offset = 1;
         for (row_index, row) in self.rows.iter().enumerate() {
+            if y_offset >= area.height {
+                break;
+            }
             let mut x_offset_header = self.render_row_number(buf, state, row_index, y_offset, false);
             for (value, hlen) in row.iter().zip(&column_widths) {
                 let span = Span::from((*value).as_str());
@@ -129,7 +134,7 @@ fn main() {
     println!("filename: {}", filename);
 
     let inner_rdr = sushi_csv::Reader::from_path(filename).unwrap();
-    let num_rows = 50;
+    let mut num_rows = 50;
     let mut rows_from = 0;
     let mut csvlens_reader = csv::CsvLensReader::new(inner_rdr);
     let mut rows = csvlens_reader.get_rows(rows_from, num_rows).unwrap();
@@ -147,6 +152,12 @@ fn main() {
         terminal.draw(|f| {
 
             let size = f.size();
+
+            // TODO: check type of num_rows too big?
+            if num_rows < size.height as u64 {
+                num_rows = size.height as u64;
+                rows = csvlens_reader.get_rows(rows_from, num_rows).unwrap();
+            }
 
             let csv_table = CsvTable::new(&headers, &rows);
 
