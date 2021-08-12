@@ -10,7 +10,6 @@ use std::env;
 use std::usize;
 use tui::Terminal;
 use tui::backend::TermionBackend;
-use tui::symbols::line;
 use tui::widgets::Widget;
 use tui::widgets::{StatefulWidget, Block, Borders};
 use tui::buffer::Buffer;
@@ -105,30 +104,41 @@ impl<'a> StatefulWidget for CsvTable<'a> {
         }
 
         let column_widths = self.get_column_widths();
-
         let row_num_section_width = self.render_row_numbers(buf, state, area, self.rows.len());
 
         let mut x_offset_header = row_num_section_width;
+        let mut remaining_width = area.width.saturating_sub(row_num_section_width);
         for (hname, hlen) in self.header.iter().zip(&column_widths) {
+            // TODO: why all the *hlen deferences; any easier way?
+            if remaining_width < *hlen {
+                break;
+            }
             let style = Style::default()
                 .add_modifier(Modifier::BOLD);
             let span = Span::styled((*hname).as_str(), style);
             buf.set_span(x_offset_header, 0, &span, *hlen);
             x_offset_header += hlen;
+            remaining_width = remaining_width.saturating_sub(*hlen);
         }
 
         let mut y_offset = 1;
         for row in self.rows.iter() {
-            if y_offset >= area.height {
-                break;
-            }
+            // TODO: duplicate with rendering of headers
             let mut x_offset_header = row_num_section_width;
+            let mut remaining_width = area.width.saturating_sub(row_num_section_width);
             for (value, hlen) in row.iter().zip(&column_widths) {
+                if remaining_width < *hlen {
+                    break;
+                }
                 let span = Span::from((*value).as_str());
                 buf.set_span(x_offset_header, y_offset, &span, *hlen);
                 x_offset_header += hlen;
+                remaining_width = remaining_width.saturating_sub(*hlen);
             }
             y_offset += 1;
+            if y_offset >= area.height {
+                break;
+            }
         }
     }
 }
