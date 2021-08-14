@@ -117,7 +117,7 @@ impl<'a> CsvTable<'a> {
     fn render_row(
         &self,
         buf: &mut Buffer,
-        state: &CsvTableState,
+        state: &mut CsvTableState,
         column_widths: &[u16],
         area: Rect,
         x: u16,
@@ -128,11 +128,13 @@ impl<'a> CsvTable<'a> {
         let mut x_offset_header = x;
         let mut remaining_width = area.width.saturating_sub(x);
         let cols_offset = state.cols_offset as usize;
+        let mut has_more_cols_to_show = false;
         for (col_index, (hname, &hlen)) in row.iter().zip(column_widths).enumerate() {
             if col_index < cols_offset {
                 continue;
             }
             if remaining_width < hlen {
+                has_more_cols_to_show = true;
                 break;
             }
             let mut style = Style::default();
@@ -145,6 +147,7 @@ impl<'a> CsvTable<'a> {
             x_offset_header += hlen;
             remaining_width = remaining_width.saturating_sub(hlen);
         }
+        state.set_more_cols_to_show(has_more_cols_to_show);
     }
 }
 
@@ -203,6 +206,7 @@ pub struct CsvTableState {
     // TODO: types appropriate?
     rows_offset: u64,
     cols_offset: u64,
+    more_cols_to_show: bool,
 }
 
 impl CsvTableState {
@@ -211,6 +215,7 @@ impl CsvTableState {
         Self {
             rows_offset: 0,
             cols_offset: 0,
+            more_cols_to_show: true,
         }
     }
 
@@ -220,6 +225,14 @@ impl CsvTableState {
 
     fn set_cols_offset(&mut self, offset: u64) {
         self.cols_offset = offset;
+    }
+
+    fn set_more_cols_to_show(&mut self, value: bool) {
+        self.more_cols_to_show = value;
+    }
+
+    fn has_more_cols_to_show(&mut self) -> bool {
+        self.more_cols_to_show
     }
 
 }
@@ -277,8 +290,10 @@ fn main() {
                     }
                 }
                 Key::Char('l') => {
-                    let new_cols_offset = csv_table_state.cols_offset.saturating_add(1);
-                    csv_table_state.set_cols_offset(new_cols_offset);
+                    if csv_table_state.has_more_cols_to_show() {
+                        let new_cols_offset = csv_table_state.cols_offset.saturating_add(1);
+                        csv_table_state.set_cols_offset(new_cols_offset);
+                    }
                 }
                 Key::Char('h') => {
                     let new_cols_offset = csv_table_state.cols_offset.saturating_sub(1);
