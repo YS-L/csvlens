@@ -114,10 +114,24 @@ impl<'a> CsvTable<'a> {
         (height.saturating_sub(2), height)
     }
 
-    fn render_row(&self, buf: &mut Buffer, column_widths: &[u16], area: Rect, x: u16, y: u16, is_header: bool, row: &Vec<String>) {
+    fn render_row(
+        &self,
+        buf: &mut Buffer,
+        state: &CsvTableState,
+        column_widths: &[u16],
+        area: Rect,
+        x: u16,
+        y: u16,
+        is_header: bool,
+        row: &Vec<String>,
+    ) {
         let mut x_offset_header = x;
         let mut remaining_width = area.width.saturating_sub(x);
-        for (hname, hlen) in row.iter().zip(column_widths) {
+        let cols_offset = state.cols_offset as usize;
+        for (col_index, (hname, hlen)) in row.iter().zip(column_widths).enumerate() {
+            if col_index < cols_offset {
+                continue;
+            }
             // TODO: why all the *hlen deferences; any easier way?
             if remaining_width < *hlen {
                 break;
@@ -158,6 +172,7 @@ impl<'a> StatefulWidget for CsvTable<'a> {
 
         self.render_row(
             buf,
+            state,
             &column_widths,
             area,
             row_num_section_width,
@@ -170,6 +185,7 @@ impl<'a> StatefulWidget for CsvTable<'a> {
         for row in self.rows.iter() {
             self.render_row(
                 buf,
+                state,
                 &column_widths,
                 area,
                 row_num_section_width,
@@ -201,6 +217,10 @@ impl CsvTableState {
 
     fn set_rows_offset(&mut self, offset: u64) {
         self.rows_offset = offset;
+    }
+
+    fn set_cols_offset(&mut self, offset: u64) {
+        self.cols_offset = offset;
     }
 
 }
@@ -256,6 +276,14 @@ fn main() {
                         rows_from = rows_from - 1;
                         rows = csvlens_reader.get_rows(rows_from, num_rows).unwrap();
                     }
+                }
+                Key::Char('l') => {
+                    let new_cols_offset = csv_table_state.cols_offset.saturating_add(1);
+                    csv_table_state.set_cols_offset(new_cols_offset);
+                }
+                Key::Char('h') => {
+                    let new_cols_offset = csv_table_state.cols_offset.saturating_sub(1);
+                    csv_table_state.set_cols_offset(new_cols_offset);
                 }
                 _ => {}
             }
