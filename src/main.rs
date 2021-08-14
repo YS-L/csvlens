@@ -128,12 +128,11 @@ impl<'a> CsvTable<'a> {
         let mut x_offset_header = x;
         let mut remaining_width = area.width.saturating_sub(x);
         let cols_offset = state.cols_offset as usize;
-        for (col_index, (hname, hlen)) in row.iter().zip(column_widths).enumerate() {
+        for (col_index, (hname, &hlen)) in row.iter().zip(column_widths).enumerate() {
             if col_index < cols_offset {
                 continue;
             }
-            // TODO: why all the *hlen deferences; any easier way?
-            if remaining_width < *hlen {
+            if remaining_width < hlen {
                 break;
             }
             let mut style = Style::default();
@@ -142,9 +141,9 @@ impl<'a> CsvTable<'a> {
 
             }
             let span = Span::styled((*hname).as_str(), style);
-            buf.set_span(x_offset_header, y, &span, *hlen);
+            buf.set_span(x_offset_header, y, &span, hlen);
             x_offset_header += hlen;
-            remaining_width = remaining_width.saturating_sub(*hlen);
+            remaining_width = remaining_width.saturating_sub(hlen);
         }
     }
 }
