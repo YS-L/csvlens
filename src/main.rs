@@ -64,7 +64,6 @@ impl<'a> CsvTable<'a> {
         state: &CsvTableState,
         area: Rect,
         num_rows: usize,
-        y_first_record: u16,
     ) -> u16 {
 
         // TODO: better to derminte width from total number of records, so this is always fixed
@@ -72,7 +71,8 @@ impl<'a> CsvTable<'a> {
         let mut section_width = format!("{}", max_row_num).len() as u16;
 
         // Render line numbers
-        let mut y = y_first_record;
+        let y_first_record = area.y;
+        let mut y = area.y;
         for i in 0..num_rows {
             let row_num = i + state.rows_offset as usize + 1;
             let row_num_formatted = format!("{}", row_num);
@@ -81,7 +81,7 @@ impl<'a> CsvTable<'a> {
             let span = Span::styled(row_num_formatted, style);
             buf.set_span(0, y, &span, section_width);
             y += 1;
-            if y >= area.height {
+            if y >= area.bottom() {
                 break;
             }
         }
@@ -95,7 +95,7 @@ impl<'a> CsvTable<'a> {
             0,
             y_first_record,
             section_width,
-            area.height.saturating_sub(y_first_record)
+            area.height,
         );
         line_number_block.render(line_number_area, buf);
         section_width = section_width + 2;
@@ -149,6 +149,16 @@ impl<'a> CsvTable<'a> {
         }
         state.set_more_cols_to_show(has_more_cols_to_show);
     }
+
+    fn render_status(&self, area: Rect, buf: &mut Buffer, state: &mut CsvTableState) {
+        let block = Block::default()
+            .borders(Borders::TOP)
+            .border_style(Style::default().fg(Color::Rgb(64, 64, 64)));
+        block.render(area, buf);
+        let style = Style::default().fg(Color::Rgb(64, 64, 64));
+        let span = Span::styled("OK", style);
+        buf.set_span(area.x, area.bottom().saturating_sub(1), &span, area.width);
+    }
 }
 
 impl<'a> StatefulWidget for CsvTable<'a> {
@@ -162,21 +172,30 @@ impl<'a> StatefulWidget for CsvTable<'a> {
             return;
         }
 
+        let status_height = 2;
         let column_widths = self.get_column_widths();
         let (y_header, y_first_record) = self.render_header_borders(buf, area);
+
+        // row area: including row numbers and row content
+        let rows_area = Rect::new(
+            area.x,
+            y_first_record,
+            area.width,
+            area.height.saturating_sub(y_first_record).saturating_sub(status_height),
+        );
+
         let row_num_section_width = self.render_row_numbers(
             buf,
             state,
-            area,
+            rows_area,
             self.rows.len(),
-            y_first_record,
         );
 
         self.render_row(
             buf,
             state,
             &column_widths,
-            area,
+            rows_area,
             row_num_section_width,
             y_header,
             true,
@@ -189,17 +208,25 @@ impl<'a> StatefulWidget for CsvTable<'a> {
                 buf,
                 state,
                 &column_widths,
-                area,
+                rows_area,
                 row_num_section_width,
                 y_offset,
                 false,
                 row,
             );
             y_offset += 1;
-            if y_offset >= area.height {
+            if y_offset >= rows_area.bottom() {
                 break;
             }
         }
+
+        let status_area = Rect::new(
+            area.x,
+            area.bottom().saturating_sub(status_height),
+            area.width,
+            status_height,
+        );
+        self.render_status(status_area, buf, state);
     }
 }
 pub struct CsvTableState {
