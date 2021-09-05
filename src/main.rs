@@ -156,7 +156,14 @@ impl<'a> CsvTable<'a> {
             .border_style(Style::default().fg(Color::Rgb(64, 64, 64)));
         block.render(area, buf);
         let style = Style::default().fg(Color::Rgb(64, 64, 64));
-        let span = Span::styled(state.filename.as_str(), style);
+        let mut content = format!("{}", state.filename.as_str());
+        if let Some(n) = state.total_line_number {
+            content += format!(" ({} total lines)", n).as_str();
+        }
+        else {
+            content += " (calculating line numbers...)";
+        }
+        let span = Span::styled(content, style);
         buf.set_span(area.x, area.bottom().saturating_sub(1), &span, area.width);
     }
 }
@@ -235,6 +242,7 @@ pub struct CsvTableState {
     cols_offset: u64,
     more_cols_to_show: bool,
     filename: String,
+    total_line_number: Option<u64>,
 }
 
 impl CsvTableState {
@@ -245,6 +253,7 @@ impl CsvTableState {
             cols_offset: 0,
             more_cols_to_show: true,
             filename,
+            total_line_number: None,
         }
     }
 
@@ -262,6 +271,10 @@ impl CsvTableState {
 
     fn has_more_cols_to_show(&mut self) -> bool {
         self.more_cols_to_show
+    }
+
+    fn set_total_line_number(&mut self, n: u64) {
+        self.total_line_number = Some(n);
     }
 
 }
@@ -331,5 +344,9 @@ fn main() {
             }
             csv_table_state.set_rows_offset(rows_from);
         };
+
+        if let Some(n) = csvlens_reader.get_total_line_numbers() {
+            csv_table_state.set_total_line_number(n);
+        }
     }
 }

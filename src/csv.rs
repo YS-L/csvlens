@@ -2,6 +2,8 @@ extern crate csv;
 
 use csv::{Position, Reader};
 use std::fs::File;
+use std::sync::{Arc, Mutex};
+use std::thread;
 
 fn string_record_to_vec(record: &csv::StringRecord) -> Vec<String> {
     let mut string_vec= Vec::new();
@@ -14,17 +16,36 @@ fn string_record_to_vec(record: &csv::StringRecord) -> Vec<String> {
 pub struct CsvLensReader {
     reader: Reader<File>,
     pub headers: Vec<String>,
+    total_line_number: Arc<Mutex<Option<u64>>>,
+    bg_handle: thread::JoinHandle<()>,
 }
 
 impl CsvLensReader {
 
     pub fn new(filename: &str) -> Self {
+
         let mut reader = Reader::from_path(filename).unwrap();
         let headers_record = reader.headers().unwrap();
         let headers = string_record_to_vec(headers_record);
+
+        let m_total_line_number = Arc::new(Mutex::new(None));
+        let _m = m_total_line_number.clone();
+        let _filename = filename.to_string();
+        let handle = thread::spawn(move || {
+            let mut bg_reader = Reader::from_path(_filename.as_str()).unwrap();
+            let mut n = 0;
+            for _ in bg_reader.records() {
+                n += 1;
+            }
+            let mut num = _m.lock().unwrap();
+            *num = Some(n);
+        });
+
         Self {
             reader: reader,
             headers: headers,
+            total_line_number: m_total_line_number,
+            bg_handle: handle,
         }
     }
 
@@ -60,5 +81,10 @@ impl CsvLensReader {
 
         }
         Ok(res)
+    }
+
+    pub fn get_total_line_numbers(&self) -> Option<u64> {
+        let res = *self.total_line_number.lock().unwrap();
+        res
     }
 }
