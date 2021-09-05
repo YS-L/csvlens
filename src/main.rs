@@ -156,7 +156,7 @@ impl<'a> CsvTable<'a> {
             .border_style(Style::default().fg(Color::Rgb(64, 64, 64)));
         block.render(area, buf);
         let style = Style::default().fg(Color::Rgb(64, 64, 64));
-        let span = Span::styled("OK", style);
+        let span = Span::styled(state.filename.as_str(), style);
         buf.set_span(area.x, area.bottom().saturating_sub(1), &span, area.width);
     }
 }
@@ -234,15 +234,17 @@ pub struct CsvTableState {
     rows_offset: u64,
     cols_offset: u64,
     more_cols_to_show: bool,
+    filename: String,
 }
 
 impl CsvTableState {
 
-    fn new() -> Self {
+    fn new(filename: String) -> Self {
         Self {
             rows_offset: 0,
             cols_offset: 0,
             more_cols_to_show: true,
+            filename,
         }
     }
 
@@ -282,7 +284,7 @@ fn main() {
     let mut terminal = Terminal::new(backend).unwrap();
 
     let events = Events::new();
-    let mut csv_table_state = CsvTableState::new();
+    let mut csv_table_state = CsvTableState::new(filename.to_string());
 
     loop {
         terminal.draw(|f| {
