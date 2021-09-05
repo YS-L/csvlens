@@ -1,7 +1,7 @@
 extern crate csv;
 
-use csv::{Position};
-use std::io;
+use csv::{Position, Reader};
+use std::fs::File;
 
 fn string_record_to_vec(record: &csv::StringRecord) -> Vec<String> {
     let mut string_vec= Vec::new();
@@ -11,14 +11,15 @@ fn string_record_to_vec(record: &csv::StringRecord) -> Vec<String> {
     string_vec
 }
 
-pub struct CsvLensReader<R: io::Read + io::Seek> {
-    reader: csv::Reader<R>,
+pub struct CsvLensReader {
+    reader: Reader<File>,
     pub headers: Vec<String>,
 }
 
-impl<R: io::Read + io::Seek> CsvLensReader<R> {
+impl CsvLensReader {
 
-    pub fn new(mut reader: csv::Reader<R>) -> Self {
+    pub fn new(filename: &str) -> Self {
+        let mut reader = Reader::from_path(filename).unwrap();
         let headers_record = reader.headers().unwrap();
         let headers = string_record_to_vec(headers_record);
         Self {

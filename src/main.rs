@@ -271,10 +271,9 @@ fn main() {
     let filename = args.get(1).expect("Filename not provided");
     println!("filename: {}", filename);
 
-    let inner_rdr = sushi_csv::Reader::from_path(filename).unwrap();
     let mut num_rows = 50;
     let mut rows_from = 0;
-    let mut csvlens_reader = csv::CsvLensReader::new(inner_rdr);
+    let mut csvlens_reader = csv::CsvLensReader::new(filename);
     let mut rows = csvlens_reader.get_rows(rows_from, num_rows).unwrap();
     let headers = csvlens_reader.headers.clone();
 
