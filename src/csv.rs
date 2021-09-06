@@ -2,6 +2,7 @@ extern crate csv;
 
 use csv::{Position, Reader};
 use std::fs::File;
+use std::io::{BufRead, BufReader};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 
@@ -72,22 +73,29 @@ impl CsvLensReader {
         Ok(res)
     }
 
-    pub fn get_total_line_numbers(&self) -> Option<u64> {
+    pub fn get_total_line_numbers(&self) -> Option<usize> {
         let res = (*self.internal.lock().unwrap()).total_line_number;
+        res
+    }
+
+    pub fn get_total_line_numbers_approx(&self) -> Option<usize> {
+        let res = (*self.internal.lock().unwrap()).total_line_number_approx;
         res
     }
 }
 
 struct ReaderInternalState {
-    total_line_number: Option<u64>,
+    total_line_number: Option<usize>,
+    total_line_number_approx: Option<usize>,
 }
 
 impl ReaderInternalState {
 
-    pub fn init_internal(filename: &str) -> (Arc<Mutex<ReaderInternalState>>, JoinHandle<()>) {
+    fn init_internal(filename: &str) -> (Arc<Mutex<ReaderInternalState>>, JoinHandle<()>) {
 
         let internal = ReaderInternalState {
             total_line_number: None,
+            total_line_number_approx: None,
         };
 
         let m_state = Arc::new(Mutex::new(internal));
@@ -95,16 +103,25 @@ impl ReaderInternalState {
         let _m = m_state.clone();
         let _filename = filename.to_string();
         let handle = thread::spawn(move || {
-            let mut bg_reader = Reader::from_path(_filename.as_str()).unwrap();
 
-            // TODO: would be faster to count lines as wc without csv parsing
-            // and update the actual count later
+            // quick line count
+            {
+                let file = File::open(_filename.as_str()).unwrap();
+                let buf_reader = BufReader::new(file);
+                let total_line_number_approx = buf_reader.lines().count();
+
+                let mut m= _m.lock().unwrap();
+                (*m).total_line_number_approx = Some(total_line_number_approx);
+            }
+
+            // full csv parsing
+            let mut bg_reader = Reader::from_path(_filename.as_str()).unwrap();
             let mut n = 0;
             for _ in bg_reader.records() {
                 n += 1;
             }
-            let mut num = _m.lock().unwrap();
-            (*num).total_line_number = Some(n);
+            let mut m= _m.lock().unwrap();
+            (*m).total_line_number = Some(n);
         });
 
         (m_state, handle)

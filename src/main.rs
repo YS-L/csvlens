@@ -242,7 +242,7 @@ pub struct CsvTableState {
     cols_offset: u64,
     more_cols_to_show: bool,
     filename: String,
-    total_line_number: Option<u64>,
+    total_line_number: Option<usize>,
 }
 
 impl CsvTableState {
@@ -273,7 +273,7 @@ impl CsvTableState {
         self.more_cols_to_show
     }
 
-    fn set_total_line_number(&mut self, n: u64) {
+    fn set_total_line_number(&mut self, n: usize) {
         self.total_line_number = Some(n);
     }
 
@@ -346,6 +346,9 @@ fn main() {
         };
 
         if let Some(n) = csvlens_reader.get_total_line_numbers() {
+            csv_table_state.set_total_line_number(n);
+        }
+        else if let Some(n) = csvlens_reader.get_total_line_numbers_approx() {
             csv_table_state.set_total_line_number(n);
         }
     }
