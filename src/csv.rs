@@ -16,7 +16,7 @@ fn string_record_to_vec(record: &csv::StringRecord) -> Vec<String> {
 pub struct CsvLensReader {
     reader: Reader<File>,
     pub headers: Vec<String>,
-    total_line_number: Arc<Mutex<Option<u64>>>,
+    internal: Arc<Mutex<ReaderInternalState>>,
     bg_handle: thread::JoinHandle<()>,
 }
 
@@ -28,23 +28,26 @@ impl CsvLensReader {
         let headers_record = reader.headers().unwrap();
         let headers = string_record_to_vec(headers_record);
 
-        let m_total_line_number = Arc::new(Mutex::new(None));
-        let _m = m_total_line_number.clone();
+        let m_state = Arc::new(Mutex::new(ReaderInternalState::new()));
+        let _m = m_state.clone();
         let _filename = filename.to_string();
         let handle = thread::spawn(move || {
             let mut bg_reader = Reader::from_path(_filename.as_str()).unwrap();
+
+            // TODO: would be faster to count lines as wc without csv parsing
+            // and update the actual count later
             let mut n = 0;
             for _ in bg_reader.records() {
                 n += 1;
             }
             let mut num = _m.lock().unwrap();
-            *num = Some(n);
+            (*num).total_line_number = Some(n);
         });
 
         Self {
             reader: reader,
             headers: headers,
-            total_line_number: m_total_line_number,
+            internal: m_state,
             bg_handle: handle,
         }
     }
@@ -84,7 +87,21 @@ impl CsvLensReader {
     }
 
     pub fn get_total_line_numbers(&self) -> Option<u64> {
-        let res = *self.total_line_number.lock().unwrap();
+        let res = (*self.internal.lock().unwrap()).total_line_number;
         res
     }
+}
+
+struct ReaderInternalState {
+    total_line_number: Option<u64>,
+}
+
+impl ReaderInternalState {
+
+    pub fn new() -> ReaderInternalState {
+        ReaderInternalState {
+            total_line_number: None,
+        }
+    }
+
 }
