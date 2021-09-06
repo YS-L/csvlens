@@ -3,7 +3,7 @@ extern crate csv;
 use csv::{Position, Reader};
 use std::fs::File;
 use std::sync::{Arc, Mutex};
-use std::thread;
+use std::thread::{self, JoinHandle};
 
 fn string_record_to_vec(record: &csv::StringRecord) -> Vec<String> {
     let mut string_vec= Vec::new();
@@ -28,26 +28,12 @@ impl CsvLensReader {
         let headers_record = reader.headers().unwrap();
         let headers = string_record_to_vec(headers_record);
 
-        let m_state = Arc::new(Mutex::new(ReaderInternalState::new()));
-        let _m = m_state.clone();
-        let _filename = filename.to_string();
-        let handle = thread::spawn(move || {
-            let mut bg_reader = Reader::from_path(_filename.as_str()).unwrap();
-
-            // TODO: would be faster to count lines as wc without csv parsing
-            // and update the actual count later
-            let mut n = 0;
-            for _ in bg_reader.records() {
-                n += 1;
-            }
-            let mut num = _m.lock().unwrap();
-            (*num).total_line_number = Some(n);
-        });
+        let (m_internal, handle) = ReaderInternalState::init_internal(filename);
 
         Self {
             reader: reader,
             headers: headers,
-            internal: m_state,
+            internal: m_internal,
             bg_handle: handle,
         }
     }
@@ -98,10 +84,30 @@ struct ReaderInternalState {
 
 impl ReaderInternalState {
 
-    pub fn new() -> ReaderInternalState {
-        ReaderInternalState {
+    pub fn init_internal(filename: &str) -> (Arc<Mutex<ReaderInternalState>>, JoinHandle<()>) {
+
+        let internal = ReaderInternalState {
             total_line_number: None,
-        }
+        };
+
+        let m_state = Arc::new(Mutex::new(internal));
+
+        let _m = m_state.clone();
+        let _filename = filename.to_string();
+        let handle = thread::spawn(move || {
+            let mut bg_reader = Reader::from_path(_filename.as_str()).unwrap();
+
+            // TODO: would be faster to count lines as wc without csv parsing
+            // and update the actual count later
+            let mut n = 0;
+            for _ in bg_reader.records() {
+                n += 1;
+            }
+            let mut num = _m.lock().unwrap();
+            (*num).total_line_number = Some(n);
+        });
+
+        (m_state, handle)
     }
 
 }
