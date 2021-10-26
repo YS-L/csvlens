@@ -284,6 +284,13 @@ impl CsvTableState {
 
 }
 
+fn is_already_at_bottom(total_num_lines: Option<usize>, rows_from: u64, num_rows: u64) -> bool {
+    if let Some(n) = total_num_lines {
+        return rows_from.saturating_add(num_rows) >= n as u64;
+    };
+    false
+}
+
 fn main() {
     let args: Vec<String> = env::args().collect();
     let filename = args.get(1).expect("Filename not provided");
@@ -331,8 +338,10 @@ fn main() {
                     break;
                 }
                 Key::Char('j') => {
-                    rows_from = rows_from + 1;
-                    rows = csvlens_reader.get_rows(rows_from, num_rows).unwrap();
+                    if !is_already_at_bottom(csvlens_reader.get_total_line_numbers(), rows_from, num_rows) {
+                        rows_from = rows_from + 1;
+                        rows = csvlens_reader.get_rows(rows_from, num_rows).unwrap();
+                    }
                 }
                 Key::Char('k') => {
                     if rows_from > 0 {
