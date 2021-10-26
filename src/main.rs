@@ -155,13 +155,16 @@ impl<'a> CsvTable<'a> {
             .borders(Borders::TOP)
             .border_style(Style::default().fg(Color::Rgb(64, 64, 64)));
         block.render(area, buf);
-        let style = Style::default().fg(Color::Rgb(64, 64, 64));
+        let style = Style::default().fg(Color::Rgb(128, 128, 128));
         let mut content = format!("{}", state.filename.as_str());
         if let Some(n) = state.total_line_number {
             content += format!(" ({} total lines)", n).as_str();
         }
         else {
             content += " (calculating line numbers...)";
+        }
+        if state.debug.len() > 0 {
+            content += format!(" (debug: {})", state.debug).as_str();
         }
         let span = Span::styled(content, style);
         buf.set_span(area.x, area.bottom().saturating_sub(1), &span, area.width);
@@ -243,6 +246,7 @@ pub struct CsvTableState {
     more_cols_to_show: bool,
     filename: String,
     total_line_number: Option<usize>,
+    debug: String,
 }
 
 impl CsvTableState {
@@ -254,6 +258,7 @@ impl CsvTableState {
             more_cols_to_show: true,
             filename,
             total_line_number: None,
+            debug: "".into(),
         }
     }
 
@@ -284,7 +289,11 @@ fn main() {
     let filename = args.get(1).expect("Filename not provided");
     println!("filename: {}", filename);
 
-    let mut num_rows = 50;
+    // Some lines are reserved for plotting headers (3 lines for headers + 2 lines for status bar)
+    let num_rows_not_visible = 5;
+
+    // Number of rows that are visible in the current frame
+    let mut num_rows = 50 - num_rows_not_visible;
     let mut rows_from = 0;
     let mut csvlens_reader = csv::CsvLensReader::new(filename);
     let mut rows = csvlens_reader.get_rows(rows_from, num_rows).unwrap();
@@ -304,8 +313,9 @@ fn main() {
             let size = f.size();
 
             // TODO: check type of num_rows too big?
-            if num_rows < size.height as u64 {
-                num_rows = size.height as u64;
+            let frame_size_adjusted_num_rows = size.height.saturating_sub(num_rows_not_visible as u16) as u64;
+            if num_rows != frame_size_adjusted_num_rows {
+                num_rows = frame_size_adjusted_num_rows;
                 rows = csvlens_reader.get_rows(rows_from, num_rows).unwrap();
             }
 
@@ -339,6 +349,13 @@ fn main() {
                 Key::Char('h') => {
                     let new_cols_offset = csv_table_state.cols_offset.saturating_sub(1);
                     csv_table_state.set_cols_offset(new_cols_offset);
+                }
+                Key::Char('G') => {
+                    if let Some(total) = csvlens_reader.get_total_line_numbers().or(csvlens_reader.get_total_line_numbers_approx()) {
+                        // TODO: fix type conversion craziness
+                        rows_from = total.saturating_sub(num_rows as usize) as u64;
+                        rows = csvlens_reader.get_rows(rows_from, num_rows).unwrap();
+                    }
                 }
                 _ => {}
             }

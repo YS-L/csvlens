@@ -105,10 +105,11 @@ impl ReaderInternalState {
         let handle = thread::spawn(move || {
 
             // quick line count
+            let total_line_number_approx;
             {
                 let file = File::open(_filename.as_str()).unwrap();
                 let buf_reader = BufReader::new(file);
-                let total_line_number_approx = buf_reader.lines().count();
+                total_line_number_approx = buf_reader.lines().count();
 
                 let mut m= _m.lock().unwrap();
                 (*m).total_line_number_approx = Some(total_line_number_approx);
