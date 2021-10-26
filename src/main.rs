@@ -8,6 +8,7 @@ use crate::util::events::{Event, Events};
 use std::io;
 use std::env;
 use std::usize;
+use std::time::Instant;
 use tui::Terminal;
 use tui::backend::TermionBackend;
 use tui::widgets::Widget;
@@ -163,6 +164,9 @@ impl<'a> CsvTable<'a> {
         else {
             content += " (calculating line numbers...)";
         }
+        if let Some(elapsed) = state.elapsed {
+            content += format!(" (elapsed: {}ms)", elapsed).as_str();
+        }
         if state.debug.len() > 0 {
             content += format!(" (debug: {})", state.debug).as_str();
         }
@@ -246,6 +250,7 @@ pub struct CsvTableState {
     more_cols_to_show: bool,
     filename: String,
     total_line_number: Option<usize>,
+    elapsed: Option<f64>,
     debug: String,
 }
 
@@ -258,6 +263,7 @@ impl CsvTableState {
             more_cols_to_show: true,
             filename,
             total_line_number: None,
+            elapsed: None,
             debug: "".into(),
         }
     }
@@ -291,6 +297,13 @@ fn is_already_at_bottom(total_num_lines: Option<usize>, rows_from: u64, num_rows
     false
 }
 
+fn get_rows_timed(csvlens_reader: &mut csv::CsvLensReader, rows_from: u64, num_rows: u64) -> (Vec<Vec<String>>, u128) {
+    let start = Instant::now();
+    let rows = csvlens_reader.get_rows(rows_from, num_rows).unwrap();
+    let elapsed = start.elapsed().as_micros();
+    (rows, elapsed)
+}
+
 fn main() {
     let args: Vec<String> = env::args().collect();
     let filename = args.get(1).expect("Filename not provided");
@@ -304,6 +317,7 @@ fn main() {
     let mut rows_from = 0;
     let mut csvlens_reader = csv::CsvLensReader::new(filename);
     let mut rows = csvlens_reader.get_rows(rows_from, num_rows).unwrap();
+    let mut elapsed = 0;
     let headers = csvlens_reader.headers.clone();
 
     let stdout = io::stdout().into_raw_mode().unwrap();
@@ -332,6 +346,7 @@ fn main() {
 
         }).unwrap();
 
+        let mut rows_result = None;
         if let Event::Input(key) = events.next().unwrap() {
             match key {
                 Key::Char('q') => {
@@ -340,13 +355,13 @@ fn main() {
                 Key::Char('j') => {
                     if !is_already_at_bottom(csvlens_reader.get_total_line_numbers(), rows_from, num_rows) {
                         rows_from = rows_from + 1;
-                        rows = csvlens_reader.get_rows(rows_from, num_rows).unwrap();
+                        rows_result = Some(get_rows_timed(&mut csvlens_reader, rows_from, num_rows));
                     }
                 }
                 Key::Char('k') => {
                     if rows_from > 0 {
                         rows_from = rows_from - 1;
-                        rows = csvlens_reader.get_rows(rows_from, num_rows).unwrap();
+                        rows_result = Some(get_rows_timed(&mut csvlens_reader, rows_from, num_rows));
                     }
                 }
                 Key::Char('l') => {
@@ -363,10 +378,18 @@ fn main() {
                     if let Some(total) = csvlens_reader.get_total_line_numbers().or(csvlens_reader.get_total_line_numbers_approx()) {
                         // TODO: fix type conversion craziness
                         rows_from = total.saturating_sub(num_rows as usize) as u64;
-                        rows = csvlens_reader.get_rows(rows_from, num_rows).unwrap();
+                        rows_result = Some(get_rows_timed(&mut csvlens_reader, rows_from, num_rows));
                     }
                 }
                 _ => {}
+            }
+            if let Some(res) = rows_result {
+                rows = res.0;
+                elapsed = res.1;
+                csv_table_state.elapsed = Some(elapsed as f64 / 1000.0);
+            }
+            else {
+                csv_table_state.elapsed = None;
             }
             csv_table_state.set_rows_offset(rows_from);
         };
