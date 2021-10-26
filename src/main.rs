@@ -400,5 +400,7 @@ fn main() {
         else if let Some(n) = csvlens_reader.get_total_line_numbers_approx() {
             csv_table_state.set_total_line_number(n);
         }
+
+        //csv_table_state.debug = format!("{:?}", csvlens_reader.get_pos_table());
     }
 }
