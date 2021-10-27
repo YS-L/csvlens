@@ -5,7 +5,6 @@ mod input;
 use crate::input::{InputHandler, Control};
 
 extern crate csv as sushi_csv;
-use crate::util::events::{Event, Events};
 
 use std::io;
 use std::env;
@@ -19,7 +18,7 @@ use tui::buffer::Buffer;
 use tui::layout::Rect;
 use tui::text::Span;
 use tui::style::{Style, Modifier, Color};
-use termion::{raw::IntoRawMode, screen::AlternateScreen, event::Key};
+use termion::{raw::IntoRawMode, screen::AlternateScreen};
 
 #[derive(Debug)]
 pub struct CsvTable<'a> {
@@ -154,23 +153,31 @@ impl<'a> CsvTable<'a> {
     }
 
     fn render_status(&self, area: Rect, buf: &mut Buffer, state: &mut CsvTableState) {
+
         let block = Block::default()
             .borders(Borders::TOP)
             .border_style(Style::default().fg(Color::Rgb(64, 64, 64)));
         block.render(area, buf);
         let style = Style::default().fg(Color::Rgb(128, 128, 128));
-        let mut content = format!("{}", state.filename.as_str());
-        if let Some(n) = state.total_line_number {
-            content += format!(" ({} total lines)", n).as_str();
+
+        let mut content: String;
+        if let Some(buf) = &state.buffer_content {
+            content = buf.to_owned();
         }
         else {
-            content += " (calculating line numbers...)";
-        }
-        if let Some(elapsed) = state.elapsed {
-            content += format!(" (elapsed: {}ms)", elapsed).as_str();
-        }
-        if state.debug.len() > 0 {
-            content += format!(" (debug: {})", state.debug).as_str();
+            content = format!("{}", state.filename.as_str());
+            if let Some(n) = state.total_line_number {
+                content += format!(" ({} total lines)", n).as_str();
+            }
+            else {
+                content += " (calculating line numbers...)";
+            }
+            if let Some(elapsed) = state.elapsed {
+                content += format!(" (elapsed: {}ms)", elapsed).as_str();
+            }
+            if state.debug.len() > 0 {
+                content += format!(" (debug: {})", state.debug).as_str();
+            }
         }
         let span = Span::styled(content, style);
         buf.set_span(area.x, area.bottom().saturating_sub(1), &span, area.width);
@@ -253,6 +260,7 @@ pub struct CsvTableState {
     filename: String,
     total_line_number: Option<usize>,
     elapsed: Option<f64>,
+    buffer_content: Option<String>,
     debug: String,
 }
 
@@ -266,6 +274,7 @@ impl CsvTableState {
             filename,
             total_line_number: None,
             elapsed: None,
+            buffer_content: None,
             debug: "".into(),
         }
     }
@@ -288,6 +297,14 @@ impl CsvTableState {
 
     fn set_total_line_number(&mut self, n: usize) {
         self.total_line_number = Some(n);
+    }
+
+    fn set_buffer(&mut self, buf: &str) {
+        self.buffer_content = Some(buf.to_owned());
+    }
+
+    fn reset_buffer(&mut self) {
+        self.buffer_content = None;
     }
 
 }
@@ -327,7 +344,7 @@ fn main() {
     let backend = TermionBackend::new(stdout);
     let mut terminal = Terminal::new(backend).unwrap();
 
-    let input_handler = InputHandler::new();
+    let mut input_handler = InputHandler::new();
     let mut csv_table_state = CsvTableState::new(filename.to_string());
 
     loop {
@@ -367,6 +384,12 @@ fn main() {
                     rows_result = Some(get_rows_timed(&mut csvlens_reader, rows_from, num_rows));
                 }
             }
+            Control::ScrollTo(n) => {
+                // TODO: handle value larger than total number of records
+                rows_from = n.saturating_sub(1) as u64;
+                rows_result = Some(get_rows_timed(&mut csvlens_reader, rows_from, num_rows));
+                csv_table_state.reset_buffer();
+            }
             Control::ScrollLeft => {
                 if csv_table_state.has_more_cols_to_show() {
                     let new_cols_offset = csv_table_state.cols_offset.saturating_add(1);
@@ -383,6 +406,12 @@ fn main() {
                     rows_from = total.saturating_sub(num_rows as usize) as u64;
                     rows_result = Some(get_rows_timed(&mut csvlens_reader, rows_from, num_rows));
                 }
+            }
+            Control::BufferContent(buf) => {
+                csv_table_state.set_buffer(buf.as_str());
+            }
+            Control::BufferReset => {
+                csv_table_state.buffer_content = None;
             }
             _ => {}
         }
