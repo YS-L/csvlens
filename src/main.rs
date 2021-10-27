@@ -1,6 +1,8 @@
 #[allow(dead_code)]
 mod util;
 mod csv;
+mod input;
+use crate::input::{InputHandler, Control};
 
 extern crate csv as sushi_csv;
 use crate::util::events::{Event, Events};
@@ -325,7 +327,7 @@ fn main() {
     let backend = TermionBackend::new(stdout);
     let mut terminal = Terminal::new(backend).unwrap();
 
-    let events = Events::new();
+    let input_handler = InputHandler::new();
     let mut csv_table_state = CsvTableState::new(filename.to_string());
 
     loop {
@@ -347,52 +349,52 @@ fn main() {
         }).unwrap();
 
         let mut rows_result = None;
-        if let Event::Input(key) = events.next().unwrap() {
-            match key {
-                Key::Char('q') => {
-                    break;
+        let control = input_handler.next();
+
+        match control {
+            Control::Quit => {
+                break;
+            }
+            Control::ScrollDown => {
+                if !is_already_at_bottom(csvlens_reader.get_total_line_numbers(), rows_from, num_rows) {
+                    rows_from = rows_from + 1;
+                    rows_result = Some(get_rows_timed(&mut csvlens_reader, rows_from, num_rows));
                 }
-                Key::Char('j') => {
-                    if !is_already_at_bottom(csvlens_reader.get_total_line_numbers(), rows_from, num_rows) {
-                        rows_from = rows_from + 1;
-                        rows_result = Some(get_rows_timed(&mut csvlens_reader, rows_from, num_rows));
-                    }
+            }
+            Control::ScrollUp => {
+                if rows_from > 0 {
+                    rows_from = rows_from - 1;
+                    rows_result = Some(get_rows_timed(&mut csvlens_reader, rows_from, num_rows));
                 }
-                Key::Char('k') => {
-                    if rows_from > 0 {
-                        rows_from = rows_from - 1;
-                        rows_result = Some(get_rows_timed(&mut csvlens_reader, rows_from, num_rows));
-                    }
-                }
-                Key::Char('l') => {
-                    if csv_table_state.has_more_cols_to_show() {
-                        let new_cols_offset = csv_table_state.cols_offset.saturating_add(1);
-                        csv_table_state.set_cols_offset(new_cols_offset);
-                    }
-                }
-                Key::Char('h') => {
-                    let new_cols_offset = csv_table_state.cols_offset.saturating_sub(1);
+            }
+            Control::ScrollLeft => {
+                if csv_table_state.has_more_cols_to_show() {
+                    let new_cols_offset = csv_table_state.cols_offset.saturating_add(1);
                     csv_table_state.set_cols_offset(new_cols_offset);
                 }
-                Key::Char('G') => {
-                    if let Some(total) = csvlens_reader.get_total_line_numbers().or(csvlens_reader.get_total_line_numbers_approx()) {
-                        // TODO: fix type conversion craziness
-                        rows_from = total.saturating_sub(num_rows as usize) as u64;
-                        rows_result = Some(get_rows_timed(&mut csvlens_reader, rows_from, num_rows));
-                    }
+            }
+            Control::ScrollRight => {
+                let new_cols_offset = csv_table_state.cols_offset.saturating_sub(1);
+                csv_table_state.set_cols_offset(new_cols_offset);
+            }
+            Control::ScrollBottom => {
+                if let Some(total) = csvlens_reader.get_total_line_numbers().or(csvlens_reader.get_total_line_numbers_approx()) {
+                    // TODO: fix type conversion craziness
+                    rows_from = total.saturating_sub(num_rows as usize) as u64;
+                    rows_result = Some(get_rows_timed(&mut csvlens_reader, rows_from, num_rows));
                 }
-                _ => {}
             }
-            if let Some(res) = rows_result {
-                rows = res.0;
-                elapsed = res.1;
-                csv_table_state.elapsed = Some(elapsed as f64 / 1000.0);
-            }
-            else {
-                csv_table_state.elapsed = None;
-            }
-            csv_table_state.set_rows_offset(rows_from);
-        };
+            _ => {}
+        }
+
+        // update rows and elapsed time if there are new results
+        if let Some(res) = rows_result {
+            rows = res.0;
+            elapsed = res.1;
+            csv_table_state.elapsed = Some(elapsed as f64 / 1000.0);
+        }
+
+        csv_table_state.set_rows_offset(rows_from);
 
         if let Some(n) = csvlens_reader.get_total_line_numbers() {
             csv_table_state.set_total_line_number(n);
