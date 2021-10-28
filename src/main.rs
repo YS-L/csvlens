@@ -187,7 +187,7 @@ impl<'a> CsvTable<'a> {
 impl<'a> StatefulWidget for CsvTable<'a> {
     type State = CsvTableState;
 
-    fn render(mut self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
+    fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
 
         // TODO: draw relative to the provided area
 
@@ -336,7 +336,7 @@ fn main() {
     let mut rows_from = 0;
     let mut csvlens_reader = csv::CsvLensReader::new(filename);
     let mut rows = csvlens_reader.get_rows(rows_from, num_rows).unwrap();
-    let mut elapsed = 0;
+    let mut elapsed;
     let headers = csvlens_reader.headers.clone();
 
     let stdout = io::stdout().into_raw_mode().unwrap();
