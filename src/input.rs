@@ -7,6 +7,8 @@ pub enum Control {
     ScrollLeft,
     ScrollRight,
     ScrollBottom,
+    ScrollPageUp,
+    ScrollPageDown,
     ScrollTo(usize),
     Quit,
     BufferContent(String),
@@ -51,6 +53,7 @@ impl InputHandler {
             Key::Char('q') => {
                 return Control::Quit;
             }
+            // TODO: support arrow keys
             Key::Char('j') => {
                 return Control::ScrollDown;
             }
@@ -65,6 +68,12 @@ impl InputHandler {
             }
             Key::Char('G') => {
                 return Control::ScrollBottom;
+            }
+            Key::Ctrl('f') | Key::PageDown => {
+                return Control::ScrollPageDown;
+            }
+            Key::Ctrl('b') | Key::PageUp => {
+                return Control::ScrollPageUp;
             }
             Key::Char(x) if "0123456789".contains(x.to_string().as_str()) => {
                 let init_buffer = x.to_string();

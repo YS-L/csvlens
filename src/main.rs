@@ -372,6 +372,7 @@ fn main() {
             Control::Quit => {
                 break;
             }
+            // TODO: refactor scrolling actions (consolidate bounds checking etc)
             Control::ScrollDown => {
                 if !is_already_at_bottom(csvlens_reader.get_total_line_numbers(), rows_from, num_rows) {
                     rows_from = rows_from + 1;
@@ -381,6 +382,16 @@ fn main() {
             Control::ScrollUp => {
                 if rows_from > 0 {
                     rows_from = rows_from - 1;
+                    rows_result = Some(get_rows_timed(&mut csvlens_reader, rows_from, num_rows));
+                }
+            }
+            Control::ScrollPageUp => {
+                rows_from = rows_from.saturating_sub(num_rows);
+                rows_result = Some(get_rows_timed(&mut csvlens_reader, rows_from, num_rows));
+            }
+            Control::ScrollPageDown => {
+                if !is_already_at_bottom(csvlens_reader.get_total_line_numbers(), rows_from, num_rows) {
+                    rows_from = rows_from.saturating_add(num_rows);
                     rows_result = Some(get_rows_timed(&mut csvlens_reader, rows_from, num_rows));
                 }
             }
