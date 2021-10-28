@@ -127,7 +127,8 @@ impl ReaderInternalState {
             {
                 let file = File::open(_filename.as_str()).unwrap();
                 let buf_reader = BufReader::new(file);
-                total_line_number_approx = buf_reader.lines().count();
+                // subtract 1 for headers
+                total_line_number_approx = buf_reader.lines().count().saturating_sub(1);
 
                 let mut m= _m.lock().unwrap();
                 (*m).total_line_number_approx = Some(total_line_number_approx);
