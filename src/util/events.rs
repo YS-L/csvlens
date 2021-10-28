@@ -46,7 +46,7 @@ impl Events {
 
     pub fn with_config(config: Config) -> Events {
         let (tx, rx) = mpsc::channel();
-        let ignore_exit_key = Arc::new(AtomicBool::new(false));
+        let ignore_exit_key = Arc::new(AtomicBool::new(true));
         let input_handle = {
             let tx = tx.clone();
             let ignore_exit_key = ignore_exit_key.clone();
