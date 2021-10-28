@@ -5,6 +5,7 @@ use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
+use std::cmp::max;
 
 fn string_record_to_vec(record: &csv::StringRecord) -> Vec<String> {
     let mut string_vec= Vec::new();
@@ -135,7 +136,10 @@ impl ReaderInternalState {
             }
 
             let pos_table_num_entries = 1000;
-            let pos_table_update_every = total_line_number_approx / pos_table_num_entries;
+            let minimum_interval = 100;  // handle small csv (don't keep pos every line)
+            let pos_table_update_every = max(
+                minimum_interval, total_line_number_approx / pos_table_num_entries
+            );
 
             // full csv parsing
             let bg_reader = Reader::from_path(_filename.as_str()).unwrap();
