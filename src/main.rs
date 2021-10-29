@@ -2,6 +2,7 @@
 mod util;
 mod csv;
 mod input;
+mod view;
 use crate::input::{InputHandler, Control};
 
 extern crate csv as sushi_csv;
@@ -9,7 +10,6 @@ extern crate csv as sushi_csv;
 use std::io;
 use std::env;
 use std::usize;
-use std::time::Instant;
 use tui::Terminal;
 use tui::backend::TermionBackend;
 use tui::widgets::Widget;
@@ -309,20 +309,6 @@ impl CsvTableState {
 
 }
 
-fn is_already_at_bottom(total_num_lines: Option<usize>, rows_from: u64, num_rows: u64) -> bool {
-    if let Some(n) = total_num_lines {
-        return rows_from.saturating_add(num_rows) >= n as u64;
-    };
-    false
-}
-
-fn get_rows_timed(csvlens_reader: &mut csv::CsvLensReader, rows_from: u64, num_rows: u64) -> (Vec<Vec<String>>, u128) {
-    let start = Instant::now();
-    let rows = csvlens_reader.get_rows(rows_from, num_rows).unwrap();
-    let elapsed = start.elapsed().as_micros();
-    (rows, elapsed)
-}
-
 fn main() {
     let args: Vec<String> = env::args().collect();
     let filename = args.get(1).expect("Filename not provided");
@@ -332,12 +318,10 @@ fn main() {
     let num_rows_not_visible = 5;
 
     // Number of rows that are visible in the current frame
-    let mut num_rows = 50 - num_rows_not_visible;
-    let mut rows_from = 0;
-    let mut csvlens_reader = csv::CsvLensReader::new(filename);
-    let mut rows = csvlens_reader.get_rows(rows_from, num_rows).unwrap();
-    let mut elapsed;
-    let headers = csvlens_reader.headers.clone();
+    let num_rows = 50 - num_rows_not_visible;
+    let csvlens_reader = csv::CsvLensReader::new(filename);
+    let mut rows_view = view::RowsView::new(csvlens_reader, num_rows);
+    let headers = rows_view.headers().clone();
 
     let stdout = io::stdout().into_raw_mode().unwrap();
     let stdout = AlternateScreen::from(stdout);
@@ -354,51 +338,24 @@ fn main() {
 
             // TODO: check type of num_rows too big?
             let frame_size_adjusted_num_rows = size.height.saturating_sub(num_rows_not_visible as u16) as u64;
-            if num_rows != frame_size_adjusted_num_rows {
-                num_rows = frame_size_adjusted_num_rows;
-                rows = csvlens_reader.get_rows(rows_from, num_rows).unwrap();
-            }
+            rows_view.set_num_rows(frame_size_adjusted_num_rows);
 
-            let csv_table = CsvTable::new(&headers, &rows);
+            let rows = rows_view.rows();
+            let csv_table = CsvTable::new(&headers, rows);
 
             f.render_stateful_widget(csv_table, size, &mut csv_table_state);
 
         }).unwrap();
 
-        let mut rows_result = None;
         let control = input_handler.next();
+
+        rows_view.handle_control(&control);
 
         match control {
             Control::Quit => {
                 break;
             }
-            // TODO: refactor scrolling actions (consolidate bounds checking etc)
-            Control::ScrollDown => {
-                if !is_already_at_bottom(csvlens_reader.get_total_line_numbers(), rows_from, num_rows) {
-                    rows_from = rows_from + 1;
-                    rows_result = Some(get_rows_timed(&mut csvlens_reader, rows_from, num_rows));
-                }
-            }
-            Control::ScrollUp => {
-                if rows_from > 0 {
-                    rows_from = rows_from - 1;
-                    rows_result = Some(get_rows_timed(&mut csvlens_reader, rows_from, num_rows));
-                }
-            }
-            Control::ScrollPageUp => {
-                rows_from = rows_from.saturating_sub(num_rows);
-                rows_result = Some(get_rows_timed(&mut csvlens_reader, rows_from, num_rows));
-            }
-            Control::ScrollPageDown => {
-                if !is_already_at_bottom(csvlens_reader.get_total_line_numbers(), rows_from, num_rows) {
-                    rows_from = rows_from.saturating_add(num_rows);
-                    rows_result = Some(get_rows_timed(&mut csvlens_reader, rows_from, num_rows));
-                }
-            }
-            Control::ScrollTo(n) => {
-                // TODO: handle value larger than total number of records
-                rows_from = n.saturating_sub(1) as u64;
-                rows_result = Some(get_rows_timed(&mut csvlens_reader, rows_from, num_rows));
+            Control::ScrollTo(_) => {
                 csv_table_state.reset_buffer();
             }
             Control::ScrollLeft => {
@@ -411,13 +368,6 @@ fn main() {
                 let new_cols_offset = csv_table_state.cols_offset.saturating_sub(1);
                 csv_table_state.set_cols_offset(new_cols_offset);
             }
-            Control::ScrollBottom => {
-                if let Some(total) = csvlens_reader.get_total_line_numbers().or(csvlens_reader.get_total_line_numbers_approx()) {
-                    // TODO: fix type conversion craziness
-                    rows_from = total.saturating_sub(num_rows as usize) as u64;
-                    rows_result = Some(get_rows_timed(&mut csvlens_reader, rows_from, num_rows));
-                }
-            }
             Control::BufferContent(buf) => {
                 csv_table_state.set_buffer(buf.as_str());
             }
@@ -428,18 +378,16 @@ fn main() {
         }
 
         // update rows and elapsed time if there are new results
-        if let Some(res) = rows_result {
-            rows = res.0;
-            elapsed = res.1;
+        if let Some(elapsed) = rows_view.elapsed() {
             csv_table_state.elapsed = Some(elapsed as f64 / 1000.0);
         }
 
-        csv_table_state.set_rows_offset(rows_from);
+        csv_table_state.set_rows_offset(rows_view.rows_from());
 
-        if let Some(n) = csvlens_reader.get_total_line_numbers() {
+        if let Some(n) = rows_view.get_total_line_numbers() {
             csv_table_state.set_total_line_number(n);
         }
-        else if let Some(n) = csvlens_reader.get_total_line_numbers_approx() {
+        else if let Some(n) = rows_view.get_total_line_numbers_approx() {
             csv_table_state.set_total_line_number(n);
         }
 
