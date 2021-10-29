@@ -2,6 +2,7 @@ use crate::csv::CsvLensReader;
 use crate::input::Control;
 
 use std::time::Instant;
+use std::cmp::min;
 
 pub struct RowsView {
     reader: CsvLensReader,
@@ -97,8 +98,10 @@ impl RowsView {
                 }
            }
            Control::ScrollTo(n) => {
-                // TODO: handle value larger than total number of records
-                let rows_from = n.saturating_sub(1) as u64;
+                let mut rows_from = n.saturating_sub(1) as u64;
+                if let Some(n) = self.bottom_rows_from() {
+                    rows_from = min(rows_from, n);
+                }
                 self.set_rows_from(rows_from);
            }
            _ => {}
@@ -108,10 +111,13 @@ impl RowsView {
    fn increase_rows_from(&mut self, delta: u64) {
        let mut new_rows_from = self.rows_from.saturating_add(delta);
        if let Some(n) = self.bottom_rows_from() {
-           if new_rows_from >= n {
-               new_rows_from = n;
-           }
+           new_rows_from = min(new_rows_from, n);
        }
+       self.set_rows_from(new_rows_from);
+   }
+
+   fn decrease_rows_from(&mut self, delta: u64) {
+       let new_rows_from = self.rows_from.saturating_sub(delta);
        self.set_rows_from(new_rows_from);
    }
 
@@ -121,11 +127,6 @@ impl RowsView {
            return Some(n.saturating_sub(self.num_rows as usize) as u64);
        }
        None
-   }
-
-   fn decrease_rows_from(&mut self, delta: u64) {
-       let new_rows_from = self.rows_from.saturating_sub(delta);
-       self.set_rows_from(new_rows_from);
    }
 
    fn do_get_rows(&mut self) {
