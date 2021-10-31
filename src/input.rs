@@ -92,6 +92,24 @@ impl InputHandler {
                 self.reset_buffer();
                 return Control::BufferReset;
             }
+            Key::Backspace => {
+                let new_buffer = match &self.buffer_state {
+                    BufferState::Active(buffer) => {
+                        let mut chars = buffer.chars();
+                        chars.next_back();
+                        chars.as_str().to_owned()
+                    }
+                    _ => "".to_owned()
+                };
+                if new_buffer.len() > 0 {
+                    self.buffer_state = BufferState::Active(new_buffer.clone());
+                    return Control::BufferContent(new_buffer);
+                }
+                else {
+                    self.reset_buffer();
+                    return Control::BufferReset;
+                }
+            }
             Key::Char('G') => {
                 let goto_line = match &self.buffer_state {
                     BufferState::Active(buf) => buf.parse::<usize>().ok(),
