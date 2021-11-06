@@ -19,6 +19,7 @@ use tui::layout::Rect;
 use tui::text::Span;
 use tui::style::{Style, Modifier, Color};
 use termion::{raw::IntoRawMode, screen::AlternateScreen};
+use anyhow::Result;
 
 #[derive(Debug)]
 pub struct CsvTable<'a> {
@@ -309,10 +310,10 @@ impl CsvTableState {
 
 }
 
-fn main() {
+fn run_csvlens() -> Result<()> {
+
     let args: Vec<String> = env::args().collect();
     let filename = args.get(1).expect("Filename not provided");
-    println!("filename: {}", filename);
 
     // Some lines are reserved for plotting headers (3 lines for headers + 2 lines for status bar)
     let num_rows_not_visible = 5;
@@ -320,7 +321,8 @@ fn main() {
     // Number of rows that are visible in the current frame
     let num_rows = 50 - num_rows_not_visible;
     let csvlens_reader = csv::CsvLensReader::new(filename);
-    let mut rows_view = view::RowsView::new(csvlens_reader, num_rows);
+    let mut rows_view = view::RowsView::new(csvlens_reader, num_rows)?;
+
     let headers = rows_view.headers().clone();
 
     let stdout = io::stdout().into_raw_mode().unwrap();
@@ -338,7 +340,7 @@ fn main() {
 
             // TODO: check type of num_rows too big?
             let frame_size_adjusted_num_rows = size.height.saturating_sub(num_rows_not_visible as u16) as u64;
-            rows_view.set_num_rows(frame_size_adjusted_num_rows);
+            rows_view.set_num_rows(frame_size_adjusted_num_rows).unwrap();
 
             let rows = rows_view.rows();
             let csv_table = CsvTable::new(&headers, rows);
@@ -349,7 +351,7 @@ fn main() {
 
         let control = input_handler.next();
 
-        rows_view.handle_control(&control);
+        rows_view.handle_control(&control)?;
 
         match control {
             Control::Quit => {
@@ -392,5 +394,14 @@ fn main() {
         }
 
         //csv_table_state.debug = format!("{:?}", csvlens_reader.get_pos_table());
+    }
+
+    Ok(())
+}
+
+fn main() {
+    if let Err(e) = run_csvlens() {
+        println!("{:?}", e);
+        std::process::exit(1);
     }
 }

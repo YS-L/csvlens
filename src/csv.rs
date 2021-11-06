@@ -1,11 +1,13 @@
 extern crate csv;
 
+use anyhow::Result;
 use csv::{Position, Reader};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use std::cmp::max;
+
 
 fn string_record_to_vec(record: &csv::StringRecord) -> Vec<String> {
     let mut string_vec= Vec::new();
@@ -40,7 +42,7 @@ impl CsvLensReader {
         }
     }
 
-    pub fn get_rows(&mut self, rows_from: u64, num_rows: u64) -> csv::Result<Vec<Vec<String>>> {
+    pub fn get_rows(&mut self, rows_from: u64, num_rows: u64) -> Result<Vec<Vec<String>>> {
 
         // seek to the closest previously known position
         let mut pos = Position::new();
@@ -66,7 +68,7 @@ impl CsvLensReader {
                 }
                 // rows_from is 0-based
                 if next_record_index - 1 >= rows_from {
-                    let string_record = r.unwrap();
+                    let string_record = r?;
                     let mut row = Vec::new();
                     for field in string_record.iter() {
                         row.push(String::from(field));
