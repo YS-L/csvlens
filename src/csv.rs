@@ -26,20 +26,21 @@ pub struct CsvLensReader {
 
 impl CsvLensReader {
 
-    pub fn new(filename: &str) -> Self {
+    pub fn new(filename: &str) -> Result<Self> {
 
-        let mut reader = Reader::from_path(filename).unwrap();
+        let mut reader = Reader::from_path(filename)?;
         let headers_record = reader.headers().unwrap();
         let headers = string_record_to_vec(headers_record);
 
         let (m_internal, handle) = ReaderInternalState::init_internal(filename);
 
-        Self {
+        let reader = Self {
             reader: reader,
             headers: headers,
             internal: m_internal,
             bg_handle: handle,
-        }
+        };
+        Ok(reader)
     }
 
     pub fn get_rows(&mut self, rows_from: u64, num_rows: u64) -> Result<Vec<Vec<String>>> {

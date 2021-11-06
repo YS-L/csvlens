@@ -19,7 +19,7 @@ use tui::layout::Rect;
 use tui::text::Span;
 use tui::style::{Style, Modifier, Color};
 use termion::{raw::IntoRawMode, screen::AlternateScreen};
-use anyhow::Result;
+use anyhow::{Context, Result};
 
 #[derive(Debug)]
 pub struct CsvTable<'a> {
@@ -320,7 +320,8 @@ fn run_csvlens() -> Result<()> {
 
     // Number of rows that are visible in the current frame
     let num_rows = 50 - num_rows_not_visible;
-    let csvlens_reader = csv::CsvLensReader::new(filename);
+    let csvlens_reader = csv::CsvLensReader::new(filename)
+        .context(format!("Failed to open file: {}", filename))?;
     let mut rows_view = view::RowsView::new(csvlens_reader, num_rows)?;
 
     let headers = rows_view.headers().clone();
@@ -401,7 +402,7 @@ fn run_csvlens() -> Result<()> {
 
 fn main() {
     if let Err(e) = run_csvlens() {
-        println!("{:?}", e);
+        println!("{}", e.to_string());
         std::process::exit(1);
     }
 }
