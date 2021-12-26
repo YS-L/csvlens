@@ -17,7 +17,7 @@ use tui::widgets::Widget;
 use tui::widgets::{StatefulWidget, Block, Borders};
 use tui::buffer::Buffer;
 use tui::layout::Rect;
-use tui::text::Span;
+use tui::text::{Span, Spans};
 use tui::style::{Style, Modifier, Color};
 use termion::{raw::IntoRawMode, screen::AlternateScreen};
 use anyhow::{Context, Result};
@@ -146,8 +146,26 @@ impl<'a> CsvTable<'a> {
                 style = style.add_modifier(Modifier::BOLD);
 
             }
-            let span = Span::styled((*hname).as_str(), style);
-            buf.set_span(x_offset_header, y, &span, hlen);
+            match &state.highlight_mode {
+                HighlightMode::Pattern(p) if (*hname).contains(p) => {
+                    let highlight_style = Style::default().fg(Color::Rgb(200, 0, 0));
+                    let p_span = Span::styled((*p).as_str(), highlight_style);
+                    let splitted = (*hname).split((*p).as_str());
+                    let mut spans = vec![];
+                    for part in splitted {
+                        let span = Span::styled(part, style);
+                        spans.push(span);
+                        spans.push(p_span.clone());
+                    }
+                    spans.pop();
+                    let spans = Spans::from(spans);
+                    buf.set_spans(x_offset_header, y, &spans, hlen);
+                }
+                _ => {
+                    let span = Span::styled((*hname).as_str(), style);
+                    buf.set_span(x_offset_header, y, &span, hlen);
+                }
+            };
             x_offset_header += hlen;
             remaining_width = remaining_width.saturating_sub(hlen);
         }
@@ -254,6 +272,12 @@ impl<'a> StatefulWidget for CsvTable<'a> {
         self.render_status(status_area, buf, state);
     }
 }
+
+pub enum HighlightMode {
+    Nothing,
+    Pattern(String),
+}
+
 pub struct CsvTableState {
     // TODO: types appropriate?
     rows_offset: u64,
@@ -263,6 +287,7 @@ pub struct CsvTableState {
     total_line_number: Option<usize>,
     elapsed: Option<f64>,
     buffer_content: Option<String>,
+    highlight_mode: HighlightMode,
     debug: String,
 }
 
@@ -277,6 +302,7 @@ impl CsvTableState {
             total_line_number: None,
             elapsed: None,
             buffer_content: None,
+            highlight_mode: HighlightMode::Nothing,
             debug: "".into(),
         }
     }
@@ -393,6 +419,7 @@ fn run_csvlens() -> Result<()> {
                 finder = Some(find::Finder::new(filename, s.as_str()).unwrap());
                 first_found_scrolled = false;
                 csv_table_state.reset_buffer();
+                csv_table_state.highlight_mode = HighlightMode::Pattern(s);
             }
             Control::BufferContent(buf) => {
                 csv_table_state.set_buffer(buf.as_str());
