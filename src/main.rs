@@ -336,6 +336,7 @@ fn run_csvlens() -> Result<()> {
     let mut csv_table_state = CsvTableState::new(filename.to_string());
 
     let mut finder: Option<find::Finder> = None;
+    let mut first_found_scrolled = false;
 
     loop {
         terminal.draw(|f| {
@@ -390,6 +391,7 @@ fn run_csvlens() -> Result<()> {
             }
             Control::Find(s) => {
                 finder = Some(find::Finder::new(filename, s.as_str()).unwrap());
+                first_found_scrolled = false;
                 csv_table_state.reset_buffer();
             }
             Control::BufferContent(buf) => {
@@ -399,6 +401,16 @@ fn run_csvlens() -> Result<()> {
                 csv_table_state.buffer_content = None;
             }
             _ => {}
+        }
+
+        // scroll to first result once ready
+        if let Some(fdr) = finder.as_mut() {
+            if !first_found_scrolled && fdr.count() > 0 {
+                if let Some(found_record) = fdr.next() {
+                    rows_view.set_rows_from(found_record.row_index() as u64).unwrap();
+                }
+                first_found_scrolled = true;
+            }
         }
 
         // update rows and elapsed time if there are new results
