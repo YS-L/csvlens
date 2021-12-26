@@ -335,7 +335,7 @@ fn run_csvlens() -> Result<()> {
     let mut input_handler = InputHandler::new();
     let mut csv_table_state = CsvTableState::new(filename.to_string());
 
-    let mut finder = None;
+    let mut finder: Option<find::Finder> = None;
 
     loop {
         terminal.draw(|f| {
@@ -373,6 +373,20 @@ fn run_csvlens() -> Result<()> {
             Control::ScrollRight => {
                 let new_cols_offset = csv_table_state.cols_offset.saturating_sub(1);
                 csv_table_state.set_cols_offset(new_cols_offset);
+            }
+            Control::ScrollToNextFound => {
+                if let Some(fdr) = finder.as_mut() {
+                    if let Some(found_record) = fdr.next() {
+                        rows_view.set_rows_from(found_record.row_index() as u64).unwrap();
+                    }
+                }
+            }
+            Control::ScrollToPrevFound => {
+                if let Some(fdr) = finder.as_mut() {
+                    if let Some(found_record) = fdr.prev() {
+                        rows_view.set_rows_from(found_record.row_index() as u64).unwrap();
+                    }
+                }
             }
             Control::Find(s) => {
                 finder = Some(find::Finder::new(filename, s.as_str()).unwrap());

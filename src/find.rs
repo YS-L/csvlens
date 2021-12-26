@@ -18,6 +18,12 @@ pub struct FoundRecord {
     field: String,
 }
 
+impl FoundRecord {
+    pub fn row_index(&self) -> usize{
+        self.row_index
+    }
+}
+
 impl Finder {
 
     pub fn new(filename: &str, target: &str) -> Result<Self> {
@@ -56,9 +62,7 @@ impl Finder {
 
     pub fn prev(&mut self) -> Option<FoundRecord> {
         if let Some(n) = self.cursor {
-            if n - 1 > 0 {
-                self.cursor = Some(n + 1);
-            }
+            self.cursor = Some(n.saturating_sub(1));
         }
         else {
             let count = self.count();
