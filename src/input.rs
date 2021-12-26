@@ -10,6 +10,9 @@ pub enum Control {
     ScrollPageUp,
     ScrollPageDown,
     ScrollTo(usize),
+    ScrollToNextFound,
+    ScrollToPrevFound,
+    Find(String),
     Quit,
     BufferContent(String),
     BufferReset,
@@ -21,8 +24,16 @@ enum BufferState {
     Inactive,
 }
 
+#[derive(PartialEq)]
+enum InputMode {
+    Default,
+    GotoLine,
+    Find,
+}
+
 pub struct InputHandler {
     events: Events,
+    mode: InputMode,
     buffer_state: BufferState,
 }
 
@@ -31,6 +42,7 @@ impl InputHandler {
     pub fn new() -> InputHandler {
         InputHandler {
             events: Events::new(),
+            mode: InputMode::Default,
             buffer_state: BufferState::Inactive,
         }
     }
@@ -69,6 +81,12 @@ impl InputHandler {
             Key::Char('G') => {
                 return Control::ScrollBottom;
             }
+            Key::Char('n') => {
+                return Control::ScrollToNextFound;
+            }
+            Key::Char('N') => {
+                return Control::ScrollToPrevFound;
+            }
             Key::Ctrl('f') | Key::PageDown => {
                 return Control::ScrollPageDown;
             }
@@ -78,7 +96,13 @@ impl InputHandler {
             Key::Char(x) if "0123456789".contains(x.to_string().as_str()) => {
                 let init_buffer = x.to_string();
                 self.buffer_state = BufferState::Active(init_buffer.clone());
+                self.mode = InputMode::GotoLine;
                 return Control::BufferContent(init_buffer.clone());
+            }
+            Key::Char('/') => {
+                self.buffer_state = BufferState::Active("".to_owned());
+                self.mode = InputMode::Find;
+                return Control::BufferContent("".to_owned());
             }
             _ => {
                 return Control::Nothing;
@@ -110,7 +134,7 @@ impl InputHandler {
                     return Control::BufferReset;
                 }
             }
-            Key::Char('G') => {
+            Key::Char('G') if self.mode == InputMode::GotoLine => {
                 let goto_line = match &self.buffer_state {
                     BufferState::Active(buf) => buf.parse::<usize>().ok(),
                     _ => None,
@@ -124,6 +148,14 @@ impl InputHandler {
                 }
                 self.reset_buffer();
                 return res;
+            }
+            Key::Char('\n') if self.mode == InputMode::Find => {
+                let control = match &self.buffer_state {
+                    BufferState::Active(buf) => { Control::Find(buf.to_string()) }
+                    _ => { Control::BufferReset }
+                };
+                self.reset_buffer();
+                control
             }
             Key::Char(x) => {
                 let new_buffer = match &self.buffer_state {

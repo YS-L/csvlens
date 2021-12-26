@@ -335,8 +335,7 @@ fn run_csvlens() -> Result<()> {
     let mut input_handler = InputHandler::new();
     let mut csv_table_state = CsvTableState::new(filename.to_string());
 
-    let find_target = "Ya";
-    let mut finder = find::Finder::new(filename, find_target).unwrap();
+    let mut finder = None;
 
     loop {
         terminal.draw(|f| {
@@ -375,6 +374,10 @@ fn run_csvlens() -> Result<()> {
                 let new_cols_offset = csv_table_state.cols_offset.saturating_sub(1);
                 csv_table_state.set_cols_offset(new_cols_offset);
             }
+            Control::Find(s) => {
+                finder = Some(find::Finder::new(filename, s.as_str()).unwrap());
+                csv_table_state.reset_buffer();
+            }
             Control::BufferContent(buf) => {
                 csv_table_state.set_buffer(buf.as_str());
             }
@@ -398,7 +401,9 @@ fn run_csvlens() -> Result<()> {
             csv_table_state.set_total_line_number(n);
         }
 
-        csv_table_state.debug = format!("{:?}", finder.get_all_found());
+        if finder.is_some() {
+            csv_table_state.debug = format!("{:?}", finder.as_ref().unwrap().get_all_found());
+        }
     }
 
     Ok(())
