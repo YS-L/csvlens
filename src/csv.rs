@@ -56,6 +56,8 @@ impl CsvLensReader {
         }
         self.reader.seek(pos)?;
 
+        // note that records() excludes header by default, but here the first
+        // entry is header because of the seek() above.
         let records = self.reader.records();
         let mut res = Vec::new();
 

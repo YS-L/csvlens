@@ -3,6 +3,7 @@ mod util;
 mod csv;
 mod input;
 mod view;
+mod find;
 use crate::input::{InputHandler, Control};
 
 extern crate csv as sushi_csv;
@@ -334,6 +335,9 @@ fn run_csvlens() -> Result<()> {
     let mut input_handler = InputHandler::new();
     let mut csv_table_state = CsvTableState::new(filename.to_string());
 
+    let find_target = "Ya";
+    let mut finder = find::Finder::new(filename, find_target).unwrap();
+
     loop {
         terminal.draw(|f| {
 
@@ -394,7 +398,7 @@ fn run_csvlens() -> Result<()> {
             csv_table_state.set_total_line_number(n);
         }
 
-        //csv_table_state.debug = format!("{:?}", csvlens_reader.get_pos_table());
+        csv_table_state.debug = format!("{:?}", finder.get_all_found());
     }
 
     Ok(())
