@@ -134,6 +134,7 @@ impl<'a> CsvTable<'a> {
         let mut remaining_width = area.width.saturating_sub(x);
         let cols_offset = state.cols_offset as usize;
         let mut has_more_cols_to_show = false;
+        let mut num_cols_rendered = 0;
         for (col_index, (hname, &hlen)) in row.iter().zip(column_widths).enumerate() {
             if col_index < cols_offset {
                 continue;
@@ -176,7 +177,9 @@ impl<'a> CsvTable<'a> {
             };
             x_offset_header += hlen;
             remaining_width = remaining_width.saturating_sub(hlen);
+            num_cols_rendered += 1;
         }
+        state.set_num_cols_rendered(num_cols_rendered);
         state.set_more_cols_to_show(has_more_cols_to_show);
     }
 
@@ -308,6 +311,7 @@ pub struct CsvTableState {
     // TODO: types appropriate?
     rows_offset: u64,
     cols_offset: u64,
+    num_cols_rendered: u64,
     more_cols_to_show: bool,
     filename: String,
     total_line_number: Option<usize>,
@@ -323,6 +327,7 @@ impl CsvTableState {
         Self {
             rows_offset: 0,
             cols_offset: 0,
+            num_cols_rendered: 0,
             more_cols_to_show: true,
             filename,
             total_line_number: None,
@@ -349,6 +354,10 @@ impl CsvTableState {
         self.more_cols_to_show
     }
 
+    fn set_num_cols_rendered(&mut self, n: u64) {
+        self.num_cols_rendered = n;
+    }
+
     fn set_total_line_number(&mut self, n: usize) {
         self.total_line_number = Some(n);
     }
@@ -367,6 +376,57 @@ impl CsvTableState {
         }
     }
 
+}
+
+fn get_offsets_to_make_visible(
+    found_record: find::FoundRecord,
+    rows_view: &view::RowsView,
+    csv_table_state: &CsvTableState,
+) -> (Option<u64>, Option<u64>) {
+
+    let mut new_rows_offset;
+    // TODO: row_index() should probably be u64
+    if rows_view.in_view(found_record.row_index() as u64) {
+        new_rows_offset = None;
+    }
+    else {
+        new_rows_offset = Some(found_record.row_index() as u64);
+    }
+
+    let mut new_cols_offset;
+    let cols_offset = csv_table_state.cols_offset;
+    let last_rendered_col = cols_offset.saturating_add(csv_table_state.num_cols_rendered);
+    let column_index = found_record.column_index() as u64;
+    if column_index >= cols_offset && column_index < last_rendered_col {
+        new_cols_offset = None;
+    }
+    else {
+        new_cols_offset = Some(column_index)
+    }
+
+    (new_rows_offset, new_cols_offset)
+}
+
+fn scroll_to_found_record(
+    found_record: find::FoundRecord,
+    rows_view: &mut view::RowsView,
+    csv_table_state: &mut CsvTableState,
+) {
+
+    let (new_rows_offset, new_cols_offset) = get_offsets_to_make_visible(
+        found_record.clone(), rows_view, csv_table_state
+    );
+
+    if let Some(rows_offset) = new_rows_offset {
+        rows_view.set_rows_from(rows_offset).unwrap();
+        csv_table_state.set_rows_offset(rows_offset);
+    }
+
+    if let Some(cols_offset) = new_cols_offset {
+        csv_table_state.set_cols_offset(cols_offset);
+    }
+
+    csv_table_state.set_hightlight_record(found_record);
 }
 
 fn run_csvlens() -> Result<()> {
@@ -436,16 +496,14 @@ fn run_csvlens() -> Result<()> {
             Control::ScrollToNextFound => {
                 if let Some(fdr) = finder.as_mut() {
                     if let Some(found_record) = fdr.next() {
-                        rows_view.set_rows_from(found_record.row_index() as u64).unwrap();
-                        csv_table_state.set_hightlight_record(found_record);
+                        scroll_to_found_record(found_record, &mut rows_view, &mut csv_table_state);
                     }
                 }
             }
             Control::ScrollToPrevFound => {
                 if let Some(fdr) = finder.as_mut() {
                     if let Some(found_record) = fdr.prev() {
-                        rows_view.set_rows_from(found_record.row_index() as u64).unwrap();
-                        csv_table_state.set_hightlight_record(found_record);
+                        scroll_to_found_record(found_record, &mut rows_view, &mut csv_table_state);
                     }
                 }
             }
@@ -480,6 +538,7 @@ fn run_csvlens() -> Result<()> {
             csv_table_state.elapsed = Some(elapsed as f64 / 1000.0);
         }
 
+        // TODO: is this update too late?
         csv_table_state.set_rows_offset(rows_view.rows_from());
 
         if let Some(n) = rows_view.get_total_line_numbers() {

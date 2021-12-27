@@ -77,6 +77,14 @@ impl RowsView {
        self.reader.get_total_line_numbers_approx()
    }
 
+   pub fn in_view(&self, row_index: u64) -> bool {
+       let last_row = self.rows_from().saturating_add(self.num_rows());
+       if row_index >= self.rows_from() && row_index < last_row {
+           return true;
+       }
+       return false;
+   }
+
    pub fn handle_control(&mut self, control: &Control) -> Result<()> {
        match control {
            Control::ScrollDown => {
