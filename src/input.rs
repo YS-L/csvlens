@@ -57,55 +57,55 @@ impl InputHandler {
             }
         }
         // tick event, no need to distinguish it for now
-        return Control::Nothing;
+        Control::Nothing
     }
 
     fn handler_default(&mut self, key: Key) -> Control {
         match key {
             Key::Char('q') => {
-                return Control::Quit;
+                Control::Quit
             }
             // TODO: support arrow keys
             Key::Char('j') => {
-                return Control::ScrollDown;
+                Control::ScrollDown
             }
             Key::Char('k') => {
-                return Control::ScrollUp;
+                Control::ScrollUp
             }
             Key::Char('l') => {
-                return Control::ScrollLeft;
+                Control::ScrollLeft
             }
             Key::Char('h') => {
-                return Control::ScrollRight;
+                Control::ScrollRight
             }
             Key::Char('G') => {
-                return Control::ScrollBottom;
+                Control::ScrollBottom
             }
             Key::Char('n') => {
-                return Control::ScrollToNextFound;
+                Control::ScrollToNextFound
             }
             Key::Char('N') => {
-                return Control::ScrollToPrevFound;
+                Control::ScrollToPrevFound
             }
             Key::Ctrl('f') | Key::PageDown => {
-                return Control::ScrollPageDown;
+                Control::ScrollPageDown
             }
             Key::Ctrl('b') | Key::PageUp => {
-                return Control::ScrollPageUp;
+                Control::ScrollPageUp
             }
             Key::Char(x) if "0123456789".contains(x.to_string().as_str()) => {
                 let init_buffer = x.to_string();
                 self.buffer_state = BufferState::Active(init_buffer.clone());
                 self.mode = InputMode::GotoLine;
-                return Control::BufferContent(init_buffer.clone());
+                Control::BufferContent(init_buffer)
             }
             Key::Char('/') => {
                 self.buffer_state = BufferState::Active("".to_owned());
                 self.mode = InputMode::Find;
-                return Control::BufferContent("".to_owned());
+                Control::BufferContent("".to_owned())
             }
             _ => {
-                return Control::Nothing;
+                Control::Nothing
             }
         }
     }
@@ -114,7 +114,7 @@ impl InputHandler {
         match key {
             Key::Esc => {
                 self.reset_buffer();
-                return Control::BufferReset;
+                Control::BufferReset
             }
             Key::Backspace => {
                 let new_buffer = match &self.buffer_state {
@@ -125,13 +125,13 @@ impl InputHandler {
                     }
                     _ => "".to_owned()
                 };
-                if new_buffer.len() > 0 {
+                if !new_buffer.is_empty() {
                     self.buffer_state = BufferState::Active(new_buffer.clone());
-                    return Control::BufferContent(new_buffer);
+                    Control::BufferContent(new_buffer)
                 }
                 else {
                     self.reset_buffer();
-                    return Control::BufferReset;
+                    Control::BufferReset
                 }
             }
             Key::Char('G') if self.mode == InputMode::GotoLine => {
@@ -147,7 +147,7 @@ impl InputHandler {
                     res = Control::BufferReset;
                 }
                 self.reset_buffer();
-                return res;
+                res
             }
             Key::Char('\n') if self.mode == InputMode::Find => {
                 let control = match &self.buffer_state {
@@ -163,10 +163,10 @@ impl InputHandler {
                     _ => x.to_string(),
                 };
                 self.buffer_state = BufferState::Active(new_buffer.clone());
-                return Control::BufferContent(new_buffer.clone());
+                Control::BufferContent(new_buffer)
             }
             _ => {
-                return Control::Nothing;
+                Control::Nothing
             }
         }
     }
@@ -174,10 +174,10 @@ impl InputHandler {
     fn is_input_buffering(&self) -> bool {
         match self.buffer_state {
             BufferState::Active(_) => {
-                return true;
+                true
             }
             _ => {
-                return false;
+                false
             }
         }
     }

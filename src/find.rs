@@ -2,7 +2,6 @@ extern crate csv;
 
 use anyhow::Result;
 use csv::Reader;
-use std::fs::File;
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 
@@ -83,10 +82,10 @@ impl Finder {
             // TODO: this weird ref massaging really needed?
             let res = m_guard.founds.get(n);
             if let Some(r) = res {
-                return Some(r.clone());
+                Some(r.clone())
             }
             else {
-                return None;
+                None
             }
         }
         else {

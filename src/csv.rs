@@ -35,8 +35,8 @@ impl CsvLensReader {
         let (m_internal, handle) = ReaderInternalState::init_internal(filename);
 
         let reader = Self {
-            reader: reader,
-            headers: headers,
+            reader,
+            headers,
             internal: m_internal,
             bg_handle: handle,
         };

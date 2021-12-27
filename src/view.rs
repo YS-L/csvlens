@@ -82,7 +82,7 @@ impl RowsView {
        if row_index >= self.rows_from() && row_index < last_row {
            return true;
        }
-       return false;
+       false
    }
 
    pub fn handle_control(&mut self, control: &Control) -> Result<()> {
@@ -150,7 +150,7 @@ impl RowsView {
        let elapsed = start.elapsed().as_micros();
        self.rows = rows;
        self.elapsed = Some(elapsed);
-       return Ok(());
+       Ok(())
    }
 
 }

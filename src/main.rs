@@ -34,7 +34,7 @@ impl<'a> CsvTable<'a> {
         let _header = header.to_vec();
         Self {
             header: _header,
-            rows: rows,
+            rows,
         }
     }
 
@@ -57,7 +57,7 @@ impl<'a> CsvTable<'a> {
             }
         }
         for w in column_widths.iter_mut() {
-            *w = *w + 4;
+            *w += 4;
         }
         column_widths
     }
@@ -102,7 +102,7 @@ impl<'a> CsvTable<'a> {
             area.height,
         );
         line_number_block.render(line_number_area, buf);
-        section_width = section_width + 2;
+        section_width += 2;
 
         section_width
     }
@@ -205,7 +205,7 @@ impl<'a> CsvTable<'a> {
             }
         }
         else {
-            content = format!("{}", state.filename.as_str());
+            content = state.filename.to_string();
             if let Some(n) = state.total_line_number {
                 content += format!(" ({} total lines)", n).as_str();
             }
@@ -215,7 +215,7 @@ impl<'a> CsvTable<'a> {
             if let Some(elapsed) = state.elapsed {
                 content += format!(" (elapsed: {}ms)", elapsed).as_str();
             }
-            if state.debug.len() > 0 {
+            if !state.debug.is_empty() {
                 content += format!(" (debug: {})", state.debug).as_str();
             }
         }
@@ -384,7 +384,7 @@ fn get_offsets_to_make_visible(
     csv_table_state: &CsvTableState,
 ) -> (Option<u64>, Option<u64>) {
 
-    let mut new_rows_offset;
+    let new_rows_offset;
     // TODO: row_index() should probably be u64
     if rows_view.in_view(found_record.row_index() as u64) {
         new_rows_offset = None;
@@ -393,7 +393,7 @@ fn get_offsets_to_make_visible(
         new_rows_offset = Some(found_record.row_index() as u64);
     }
 
-    let mut new_cols_offset;
+    let new_cols_offset;
     let cols_offset = csv_table_state.cols_offset;
     let last_rendered_col = cols_offset.saturating_add(csv_table_state.num_cols_rendered);
     let column_index = found_record.column_index() as u64;
