@@ -146,8 +146,9 @@ impl<'a> CsvTable<'a> {
                 style = style.add_modifier(Modifier::BOLD);
 
             }
-            match &state.highlight_mode {
-                HighlightMode::Pattern(p) if (*hname).contains(p) => {
+            match &state.highlight_state {
+                HighlightState::Enabled(p, _highlighted) if (*hname).contains(p) => {
+                    // TODO: use _highlighted once actual row_index becomes known here
                     let highlight_style = Style::default().fg(Color::Rgb(200, 0, 0));
                     let p_span = Span::styled((*p).as_str(), highlight_style);
                     let splitted = (*hname).split((*p).as_str());
@@ -273,9 +274,9 @@ impl<'a> StatefulWidget for CsvTable<'a> {
     }
 }
 
-pub enum HighlightMode {
-    Nothing,
-    Pattern(String),
+pub enum HighlightState {
+    Disabled,
+    Enabled(String, Option<find::FoundRecord>),
 }
 
 pub struct CsvTableState {
@@ -287,7 +288,7 @@ pub struct CsvTableState {
     total_line_number: Option<usize>,
     elapsed: Option<f64>,
     buffer_content: Option<String>,
-    highlight_mode: HighlightMode,
+    highlight_state: HighlightState,
     debug: String,
 }
 
@@ -302,7 +303,7 @@ impl CsvTableState {
             total_line_number: None,
             elapsed: None,
             buffer_content: None,
-            highlight_mode: HighlightMode::Nothing,
+            highlight_state: HighlightState::Disabled,
             debug: "".into(),
         }
     }
@@ -333,6 +334,12 @@ impl CsvTableState {
 
     fn reset_buffer(&mut self) {
         self.buffer_content = None;
+    }
+
+    fn set_hightlight_record(&mut self, found_record: find::FoundRecord) {
+        if let HighlightState::Enabled(p, None) = &self.highlight_state {
+            self.highlight_state = HighlightState::Enabled(p.to_string(), Some(found_record));
+        }
     }
 
 }
@@ -405,6 +412,7 @@ fn run_csvlens() -> Result<()> {
                 if let Some(fdr) = finder.as_mut() {
                     if let Some(found_record) = fdr.next() {
                         rows_view.set_rows_from(found_record.row_index() as u64).unwrap();
+                        csv_table_state.set_hightlight_record(found_record);
                     }
                 }
             }
@@ -412,6 +420,7 @@ fn run_csvlens() -> Result<()> {
                 if let Some(fdr) = finder.as_mut() {
                     if let Some(found_record) = fdr.prev() {
                         rows_view.set_rows_from(found_record.row_index() as u64).unwrap();
+                        csv_table_state.set_hightlight_record(found_record);
                     }
                 }
             }
@@ -419,7 +428,7 @@ fn run_csvlens() -> Result<()> {
                 finder = Some(find::Finder::new(filename, s.as_str()).unwrap());
                 first_found_scrolled = false;
                 csv_table_state.reset_buffer();
-                csv_table_state.highlight_mode = HighlightMode::Pattern(s);
+                csv_table_state.highlight_state = HighlightState::Enabled(s, None);
             }
             Control::BufferContent(buf) => {
                 csv_table_state.set_buffer(buf.as_str());
@@ -435,6 +444,7 @@ fn run_csvlens() -> Result<()> {
             if !first_found_scrolled && fdr.count() > 0 {
                 if let Some(found_record) = fdr.next() {
                     rows_view.set_rows_from(found_record.row_index() as u64).unwrap();
+                    csv_table_state.set_hightlight_record(found_record);
                 }
                 first_found_scrolled = true;
             }
