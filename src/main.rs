@@ -4,7 +4,7 @@ mod csv;
 mod input;
 mod view;
 mod find;
-use crate::input::{InputHandler, Control};
+use crate::input::{InputHandler, Control, InputMode};
 
 extern crate csv as sushi_csv;
 
@@ -182,8 +182,17 @@ impl<'a> CsvTable<'a> {
         let style = Style::default().fg(Color::Rgb(128, 128, 128));
 
         let mut content: String;
-        if let Some(buf) = &state.buffer_content {
+        if let BufferState::Enabled(buffer_mode, buf) = &state.buffer_content {
             content = buf.to_owned();
+            match buffer_mode {
+                InputMode::GotoLine => {
+                    content = format!("Go to line: {}", content);
+                }
+                InputMode::Find => {
+                    content = format!("Find: {}", content);
+                }
+                _ => {}
+            }
         }
         else {
             content = format!("{}", state.filename.as_str());
@@ -279,6 +288,11 @@ pub enum HighlightState {
     Enabled(String, Option<find::FoundRecord>),
 }
 
+pub enum BufferState {
+    Disabled,
+    Enabled(InputMode, String),
+}
+
 pub struct CsvTableState {
     // TODO: types appropriate?
     rows_offset: u64,
@@ -287,7 +301,7 @@ pub struct CsvTableState {
     filename: String,
     total_line_number: Option<usize>,
     elapsed: Option<f64>,
-    buffer_content: Option<String>,
+    buffer_content: BufferState,
     highlight_state: HighlightState,
     debug: String,
 }
@@ -302,7 +316,7 @@ impl CsvTableState {
             filename,
             total_line_number: None,
             elapsed: None,
-            buffer_content: None,
+            buffer_content: BufferState::Disabled,
             highlight_state: HighlightState::Disabled,
             debug: "".into(),
         }
@@ -328,12 +342,12 @@ impl CsvTableState {
         self.total_line_number = Some(n);
     }
 
-    fn set_buffer(&mut self, buf: &str) {
-        self.buffer_content = Some(buf.to_owned());
+    fn set_buffer(&mut self, mode: InputMode, buf: &str) {
+        self.buffer_content = BufferState::Enabled(mode, buf.to_string());
     }
 
     fn reset_buffer(&mut self) {
-        self.buffer_content = None;
+        self.buffer_content = BufferState::Disabled;
     }
 
     fn set_hightlight_record(&mut self, found_record: find::FoundRecord) {
@@ -431,10 +445,10 @@ fn run_csvlens() -> Result<()> {
                 csv_table_state.highlight_state = HighlightState::Enabled(s, None);
             }
             Control::BufferContent(buf) => {
-                csv_table_state.set_buffer(buf.as_str());
+                csv_table_state.set_buffer(input_handler.mode(), buf.as_str());
             }
             Control::BufferReset => {
-                csv_table_state.buffer_content = None;
+                csv_table_state.reset_buffer();
             }
             _ => {}
         }

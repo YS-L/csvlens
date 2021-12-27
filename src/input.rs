@@ -24,8 +24,8 @@ enum BufferState {
     Inactive,
 }
 
-#[derive(PartialEq)]
-enum InputMode {
+#[derive(Clone, PartialEq)]
+pub enum InputMode {
     Default,
     GotoLine,
     Find,
@@ -184,6 +184,10 @@ impl InputHandler {
 
     fn reset_buffer(&mut self) {
         self.buffer_state = BufferState::Inactive;
+    }
+
+    pub fn mode(&self) -> InputMode {
+        self.mode.clone()
     }
 
 }
