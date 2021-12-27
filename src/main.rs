@@ -526,8 +526,7 @@ fn run_csvlens() -> Result<()> {
         if let Some(fdr) = finder.as_mut() {
             if !first_found_scrolled && fdr.count() > 0 {
                 if let Some(found_record) = fdr.next() {
-                    rows_view.set_rows_from(found_record.row_index() as u64).unwrap();
-                    csv_table_state.set_hightlight_record(found_record);
+                    scroll_to_found_record(found_record, &mut rows_view, &mut csv_table_state);
                 }
                 first_found_scrolled = true;
             }
