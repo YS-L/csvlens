@@ -128,6 +128,7 @@ impl<'a> CsvTable<'a> {
         y: u16,
         is_header: bool,
         row: &Vec<String>,
+        row_index: Option<usize>,
     ) {
         let mut x_offset_header = x;
         let mut remaining_width = area.width.saturating_sub(x);
@@ -148,8 +149,14 @@ impl<'a> CsvTable<'a> {
             }
             match &state.highlight_state {
                 HighlightState::Enabled(p, _highlighted) if (*hname).contains(p) => {
-                    // TODO: use _highlighted once actual row_index becomes known here
-                    let highlight_style = Style::default().fg(Color::Rgb(200, 0, 0));
+                    let mut highlight_style = Style::default().fg(Color::Rgb(200, 0, 0));
+                    if let Some(hl) = _highlighted {
+                        if let Some(row_index) = row_index {
+                            if row_index == hl.row_index() && col_index == hl.column_index() {
+                                highlight_style = highlight_style.bg(Color::LightYellow);
+                            }
+                        }
+                    }
                     let p_span = Span::styled((*p).as_str(), highlight_style);
                     let splitted = (*hname).split((*p).as_str());
                     let mut spans = vec![];
@@ -253,10 +260,12 @@ impl<'a> StatefulWidget for CsvTable<'a> {
             y_header,
             true,
             &self.header,
+            None,
         );
 
         let mut y_offset = y_first_record;
-        for row in self.rows.iter() {
+        for (rel_row_index, row) in self.rows.iter().enumerate() {
+            let row_index = rel_row_index.saturating_add(state.rows_offset as usize);
             self.render_row(
                 buf,
                 state,
@@ -266,6 +275,7 @@ impl<'a> StatefulWidget for CsvTable<'a> {
                 y_offset,
                 false,
                 row,
+                Some(row_index),
             );
             y_offset += 1;
             if y_offset >= rows_area.bottom() {
@@ -283,6 +293,7 @@ impl<'a> StatefulWidget for CsvTable<'a> {
     }
 }
 
+#[derive(Debug)]
 pub enum HighlightState {
     Disabled,
     Enabled(String, Option<find::FoundRecord>),
@@ -351,7 +362,7 @@ impl CsvTableState {
     }
 
     fn set_hightlight_record(&mut self, found_record: find::FoundRecord) {
-        if let HighlightState::Enabled(p, None) = &self.highlight_state {
+        if let HighlightState::Enabled(p, _) = &self.highlight_state {
             self.highlight_state = HighlightState::Enabled(p.to_string(), Some(found_record));
         }
     }
@@ -479,7 +490,7 @@ fn run_csvlens() -> Result<()> {
         }
 
         if finder.is_some() {
-            csv_table_state.debug = format!("{:?}", finder.as_ref().unwrap().get_all_found());
+            csv_table_state.debug = format!("{:?}", finder.as_ref().unwrap().count());
         }
     }
 

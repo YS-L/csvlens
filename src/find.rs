@@ -19,8 +19,12 @@ pub struct FoundRecord {
 }
 
 impl FoundRecord {
-    pub fn row_index(&self) -> usize{
+    pub fn row_index(&self) -> usize {
         self.row_index
+    }
+
+    pub fn column_index(&self) -> usize {
+        self.column_index
     }
 }
 
