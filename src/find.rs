@@ -14,7 +14,6 @@ pub struct Finder {
 pub struct FoundRecord {
     row_index: usize,
     column_index: usize,
-    field: String,
 }
 
 impl FoundRecord {
@@ -46,6 +45,10 @@ impl Finder {
 
     pub fn done(&self) -> bool {
         (self.internal.lock().unwrap()).done
+    }
+
+    pub fn cursor(&self) -> Option<usize> {
+        self.cursor
     }
 
     pub fn next(&mut self) -> Option<FoundRecord> {
@@ -137,7 +140,6 @@ impl FinderInternalState {
                             let found = FoundRecord {
                                 row_index,
                                 column_index,
-                                field: field.to_owned(),
                             };
                             let mut m = _m.lock().unwrap();
                             (*m).found_one(found);
