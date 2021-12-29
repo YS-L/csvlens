@@ -353,9 +353,10 @@ impl FinderState {
         else {
             plus_marker = "+";
         }
+        // TODO: better handle when not found
         let formatted_status = format!(
             "[Found {}/{}{}]",
-            self.cursor_index.unwrap_or(0),
+            self.cursor_index.unwrap_or(0) + 1,
             self.total_found.unwrap_or(0),
             plus_marker,
         );
@@ -373,6 +374,7 @@ pub struct CsvTableState {
     total_line_number: Option<usize>,
     elapsed: Option<f64>,
     buffer_content: BufferState,
+    // TODO: highlight_state and finder_state should be combined?
     highlight_state: HighlightState,
     finder_state: FinderState,
     debug: String,
@@ -576,6 +578,11 @@ fn run_csvlens() -> Result<()> {
             }
             Control::BufferReset => {
                 csv_table_state.reset_buffer();
+                if finder.is_some() {
+                    finder = None;
+                    csv_table_state.finder_state.deactivate();
+                    csv_table_state.highlight_state = HighlightState::Disabled;
+                }
             }
             _ => {}
         }
