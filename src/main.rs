@@ -153,7 +153,8 @@ impl<'a> CsvTable<'a> {
                     let mut highlight_style = Style::default().fg(Color::Rgb(200, 0, 0));
                     if let Some(hl) = _highlighted {
                         if let Some(row_index) = row_index {
-                            if row_index == hl.row_index() && col_index == hl.column_index() {
+                            // TODO: vec::contains slow or does it even matter?
+                            if row_index == hl.row_index() && hl.column_indices().contains(&col_index) {
                                 highlight_style = highlight_style.bg(Color::LightYellow);
                             }
                         }
@@ -456,7 +457,7 @@ fn get_offsets_to_make_visible(
     let new_cols_offset;
     let cols_offset = csv_table_state.cols_offset;
     let last_rendered_col = cols_offset.saturating_add(csv_table_state.num_cols_rendered);
-    let column_index = found_record.column_index() as u64;
+    let column_index = found_record.first_column() as u64;
     if column_index >= cols_offset && column_index < last_rendered_col {
         new_cols_offset = None;
     }

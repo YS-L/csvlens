@@ -13,7 +13,7 @@ pub struct Finder {
 #[derive(Clone, Debug)]
 pub struct FoundRecord {
     row_index: usize,
-    column_index: usize,
+    column_indices: Vec<usize>,
 }
 
 impl FoundRecord {
@@ -21,8 +21,12 @@ impl FoundRecord {
         self.row_index
     }
 
-    pub fn column_index(&self) -> usize {
-        self.column_index
+    pub fn column_indices(&self) -> &Vec<usize> {
+        &self.column_indices
+    }
+
+    pub fn first_column(&self) -> usize {
+        *self.column_indices.first().unwrap()
     }
 }
 
@@ -134,17 +138,21 @@ impl FinderInternalState {
             let records = bg_reader.records();
 
             for (row_index, r) in records.enumerate() {
+                let mut column_indices = vec![];
                 if let Ok(valid_record) = r {
                     for (column_index, field) in valid_record.iter().enumerate() {
                         if field.contains(_target.as_str()) {
-                            let found = FoundRecord {
-                                row_index,
-                                column_index,
-                            };
-                            let mut m = _m.lock().unwrap();
-                            (*m).found_one(found);
+                            column_indices.push(column_index);
                         }
                     }
+                }
+                if !column_indices.is_empty() {
+                    let found = FoundRecord {
+                        row_index,
+                        column_indices,
+                    };
+                    let mut m = _m.lock().unwrap();
+                    (*m).found_one(found);
                 }
             }
 
