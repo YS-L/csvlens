@@ -25,12 +25,12 @@ use anyhow::{Context, Result};
 #[derive(Debug)]
 pub struct CsvTable<'a> {
     header: Vec<String>,
-    rows: &'a Vec<Vec<String>>,
+    rows: &'a [Vec<String>],
 }
 
 impl<'a> CsvTable<'a> {
 
-    fn new(header: &[String], rows: &'a Vec<Vec<String>>) -> Self {
+    fn new(header: &[String], rows: &'a [Vec<String>]) -> Self {
         let _header = header.to_vec();
         Self {
             header: _header,
@@ -127,7 +127,7 @@ impl<'a> CsvTable<'a> {
         x: u16,
         y: u16,
         is_header: bool,
-        row: &Vec<String>,
+        row: &[String],
         row_index: Option<usize>,
     ) {
         let mut x_offset_header = x;

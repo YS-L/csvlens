@@ -82,10 +82,8 @@ impl Finder {
                 self.cursor = Some(n + 1);
             }
         }
-        else {
-            if count > 0 {
-                self.cursor = Some(m_guard.next_from(self.row_hint));
-            }
+        else if count > 0 {
+            self.cursor = Some(m_guard.next_from(self.row_hint));
         }
         self.get_found_record_at_cursor(m_guard)
     }
@@ -109,12 +107,7 @@ impl Finder {
             // TODO: this weird ref massaging really needed?
             // TODO: really need to get a copy of the whole list of of mutex?
             let res = m_guard.founds.get(n);
-            if let Some(r) = res {
-                Some(r.clone())
-            }
-            else {
-                None
-            }
+            res.cloned()
         }
         else {
             None
@@ -151,8 +144,8 @@ impl FinderInternalState {
         let _filename = filename.to_owned();
         let _target = target.to_owned();
 
-        let handle = thread::spawn(move|| {
-            
+        let _handle = thread::spawn(move|| {
+
             let mut bg_reader = Reader::from_path(_filename.as_str()).unwrap();
 
             // note that records() exludes header
@@ -195,7 +188,7 @@ impl FinderInternalState {
             |r| r.row_index() < row_hint
         );
         if index >= self.founds.len() {
-            index = index - 1;
+            index -= 1;
         }
         index
     }

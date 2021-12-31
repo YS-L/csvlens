@@ -58,13 +58,12 @@ impl CsvLensReader {
 
         // note that records() excludes header by default, but here the first
         // entry is header because of the seek() above.
-        let records = self.reader.records();
+        let mut records = self.reader.records();
         let mut res = Vec::new();
 
-        let mut records_iter = records.into_iter();
         loop {
-            let next_record_index = records_iter.reader().position().record();
-            if let Some(r) = records_iter.next() {
+            let next_record_index = records.reader().position().record();
+            if let Some(r) = records.next() {
                 // no effective pre-seeking happened, this is still the header
                 if next_record_index == 0 {
                     continue;
@@ -152,7 +151,7 @@ impl ReaderInternalState {
             let mut iter = bg_reader.into_records();
             loop {
                 let next_pos = iter.reader().position().clone();
-                if let None = iter.next() {
+                if iter.next().is_none() {
                     break;
                 }
                 // must not include headers position here (n > 0)

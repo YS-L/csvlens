@@ -108,7 +108,7 @@ impl RowsView {
                 if let Some(total) =
                     self.reader
                         .get_total_line_numbers()
-                        .or(self.reader.get_total_line_numbers_approx()) {
+                        .or_else(|| self.reader.get_total_line_numbers_approx()) {
                     // TODO: fix type conversion craziness
                     let rows_from = total.saturating_sub(self.num_rows as usize) as u64;
                     self.set_rows_from(rows_from)?;
@@ -127,7 +127,7 @@ impl RowsView {
    }
 
    fn increase_rows_from(&mut self, delta: u64) -> Result<()> {
-       let mut new_rows_from = self.rows_from.saturating_add(delta);
+       let new_rows_from = self.rows_from.saturating_add(delta);
        self.set_rows_from(new_rows_from)?;
        Ok(())
    }
