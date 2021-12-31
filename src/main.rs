@@ -592,6 +592,8 @@ fn run_csvlens() -> Result<()> {
 
             // scroll to first result once ready
             if !first_found_scrolled && fdr.count() > 0 {
+                // set row_hint to 0 so that this always scrolls to first result
+                fdr.set_row_hint(0);
                 if let Some(found_record) = fdr.next() {
                     scroll_to_found_record(found_record, &mut rows_view, &mut csv_table_state);
                 }
