@@ -60,7 +60,12 @@ impl RowsView {
        if rows_from == self.rows_from {
            return Ok(());
        }
-       self.rows_from = rows_from;
+       if let Some(n) = self.bottom_rows_from() {
+           self.rows_from = min(rows_from, n);
+       }
+       else {
+           self.rows_from = rows_from;
+       }
        self.do_get_rows()?;
        Ok(())
    }
@@ -123,9 +128,6 @@ impl RowsView {
 
    fn increase_rows_from(&mut self, delta: u64) -> Result<()> {
        let mut new_rows_from = self.rows_from.saturating_add(delta);
-       if let Some(n) = self.bottom_rows_from() {
-           new_rows_from = min(new_rows_from, n);
-       }
        self.set_rows_from(new_rows_from)?;
        Ok(())
    }
