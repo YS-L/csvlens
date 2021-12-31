@@ -112,7 +112,12 @@ impl Finder {
         else {
             None
         }
-    }    
+    }
+
+    pub fn terminate(&self) {
+        let mut m_guard = self.internal.lock().unwrap();
+        m_guard.terminate();
+    }
 
     pub fn get_all_found(&self) -> Vec<FoundRecord> {
         let m_guard = self.internal.lock().unwrap();
@@ -125,6 +130,7 @@ struct FinderInternalState {
     count: usize,
     founds: Vec<FoundRecord>,
     done: bool,
+    should_terminate: bool,
 }
 
 impl FinderInternalState {
@@ -136,6 +142,7 @@ impl FinderInternalState {
             count: 0,
             founds: vec![],
             done: false,
+            should_terminate: false,
         };
 
         let m_state = Arc::new(Mutex::new(internal));
@@ -167,6 +174,10 @@ impl FinderInternalState {
                     };
                     let mut m = _m.lock().unwrap();
                     (*m).found_one(found);
+                }
+                let m = _m.lock().unwrap();
+                if m.should_terminate {
+                    break;
                 }
             }
 
@@ -201,5 +212,9 @@ impl FinderInternalState {
         else {
             next
         }
+    }
+
+    fn terminate(&mut self) {
+        self.should_terminate = true;
     }
 }
