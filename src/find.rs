@@ -114,7 +114,7 @@ impl Finder {
         }
     }
 
-    pub fn terminate(&self) {
+    fn terminate(&self) {
         let mut m_guard = self.internal.lock().unwrap();
         m_guard.terminate();
     }
@@ -122,6 +122,12 @@ impl Finder {
     pub fn get_all_found(&self) -> Vec<FoundRecord> {
         let m_guard = self.internal.lock().unwrap();
         m_guard.founds.clone()
+    }
+}
+
+impl Drop for Finder {
+    fn drop(&mut self) {
+        self.terminate();
     }
 }
 

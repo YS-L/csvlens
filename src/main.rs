@@ -569,9 +569,6 @@ fn run_csvlens() -> Result<()> {
                 }
             }
             Control::Find(s) => {
-                if let Some(f) = finder {
-                    f.terminate();
-                }
                 finder = Some(find::Finder::new(filename, s.as_str()).unwrap());
                 first_found_scrolled = false;
                 csv_table_state.reset_buffer();
@@ -582,8 +579,7 @@ fn run_csvlens() -> Result<()> {
             }
             Control::BufferReset => {
                 csv_table_state.reset_buffer();
-                if let Some(f) = finder {
-                    f.terminate();
+                if finder.is_some() {
                     finder = None;
                     csv_table_state.finder_state.deactivate();
                     csv_table_state.highlight_state = HighlightState::Disabled;
