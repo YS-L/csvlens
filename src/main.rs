@@ -588,14 +588,24 @@ fn run_csvlens() -> Result<()> {
             _ => {}
         }
 
-        // scroll to first result once ready
         if let Some(fdr) = finder.as_mut() {
+
+            // scroll to first result once ready
             if !first_found_scrolled && fdr.count() > 0 {
                 if let Some(found_record) = fdr.next() {
                     scroll_to_found_record(found_record, &mut rows_view, &mut csv_table_state);
                 }
                 first_found_scrolled = true;
             }
+
+            // reset cursor if out of view
+            if let Some(cursor_row_index) = fdr.cursor_row_index() {
+                if !rows_view.in_view(cursor_row_index as u64) {
+                    fdr.reset_cursor();
+                }
+            }
+
+            fdr.set_row_hint(rows_view.rows_from() as usize);
         }
 
         // update rows and elapsed time if there are new results
@@ -617,7 +627,9 @@ fn run_csvlens() -> Result<()> {
             csv_table_state.finder_state.update(f);
         }
 
-        // csv_table_state.debug = "debug something here".to_owned();
+        if let Some(f) = &finder {
+            csv_table_state.debug = format!("{:?}", f.row_hint());
+        }
     }
 
     Ok(())

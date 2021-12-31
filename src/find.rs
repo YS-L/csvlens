@@ -2,12 +2,13 @@ extern crate csv;
 
 use anyhow::Result;
 use csv::Reader;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard};
 use std::thread::{self, JoinHandle};
 
 pub struct Finder {
     internal: Arc<Mutex<FinderInternalState>>,
     cursor: Option<usize>,
+    row_hint: usize,
 }
 
 #[derive(Clone, Debug)]
@@ -39,6 +40,7 @@ impl Finder {
         let finder = Finder {
             internal,
             cursor: None,
+            row_hint: 0,
         };
         Ok(finder)
     }
@@ -55,8 +57,26 @@ impl Finder {
         self.cursor
     }
 
+    pub fn cursor_row_index(&self) -> Option<usize> {
+        let m_guard = self.internal.lock().unwrap();
+        self.get_found_record_at_cursor(m_guard).map(|x| x.row_index())
+    }
+
+    pub fn reset_cursor(&mut self) {
+        self.cursor = None;
+    }
+
+    pub fn set_row_hint(&mut self, row_hint: usize) {
+        self.row_hint = row_hint;
+    }
+
+    pub fn row_hint(&self) -> usize {
+        self.row_hint
+    }
+
     pub fn next(&mut self) -> Option<FoundRecord> {
-        let count = self.count();
+        let m_guard = self.internal.lock().unwrap();
+        let count = m_guard.count;
         if let Some(n) = self.cursor {
             if n + 1 < count {
                 self.cursor = Some(n + 1);
@@ -64,29 +84,30 @@ impl Finder {
         }
         else {
             if count > 0 {
-                self.cursor = Some(0);
+                self.cursor = Some(m_guard.next_from(self.row_hint));
             }
         }
-        self.get_found_record_at_cursor()
+        self.get_found_record_at_cursor(m_guard)
     }
 
     pub fn prev(&mut self) -> Option<FoundRecord> {
+        let m_guard = self.internal.lock().unwrap();
         if let Some(n) = self.cursor {
             self.cursor = Some(n.saturating_sub(1));
         }
         else {
-            let count = self.count();
+            let count = m_guard.count;
             if count > 0 {
-                self.cursor = Some(0);
+                self.cursor = Some(m_guard.prev_from(self.row_hint));
             }
         }
-        self.get_found_record_at_cursor()
+        self.get_found_record_at_cursor(m_guard)
     }
 
-    fn get_found_record_at_cursor(&self) -> Option<FoundRecord> {
+    fn get_found_record_at_cursor(&self, m_guard: MutexGuard<FinderInternalState>) -> Option<FoundRecord> {
         if let Some(n) = self.cursor {
-            let m_guard= self.internal.lock().unwrap();
             // TODO: this weird ref massaging really needed?
+            // TODO: really need to get a copy of the whole list of of mutex?
             let res = m_guard.founds.get(n);
             if let Some(r) = res {
                 Some(r.clone())
@@ -167,5 +188,25 @@ impl FinderInternalState {
     fn found_one(&mut self, found: FoundRecord) {
         self.founds.push(found);
         self.count += 1;
+    }
+
+    fn next_from(&self, row_hint: usize) -> usize {
+        let mut index = self.founds.partition_point(
+            |r| r.row_index() < row_hint
+        );
+        if index >= self.founds.len() {
+            index = index - 1;
+        }
+        index
+    }
+
+    fn prev_from(&self, row_hint: usize) -> usize {
+        let next = self.next_from(row_hint);
+        if next > 0 {
+            next - 1
+        }
+        else {
+            next
+        }
     }
 }
