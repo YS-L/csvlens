@@ -221,8 +221,8 @@ impl<'a> CsvTable<'a> {
                 state.total_cols,
             ).as_str();
 
-            if state.finder_state.active {
-                content += format!(" {}", state.finder_state.status_line()).as_str();
+            if let FinderState::FinderActive(s) = &state.finder_state {
+                content += format!(" {}", s.status_line()).as_str();
             }
 
             if let Some(elapsed) = state.elapsed {
@@ -321,44 +321,32 @@ pub enum BufferState {
     Enabled(InputMode, String),
 }
 
-pub struct FinderState {
-    active: bool,
-    find_complete: Option<bool>,
-    total_found: Option<u64>,
+pub enum FinderState {
+    FinderInactive,
+    FinderActive(FinderActiveState),
+}
+
+pub struct FinderActiveState {
+    find_complete: bool,
+    total_found: u64,
     cursor_index: Option<u64>,
 }
 
-impl FinderState {
+impl FinderActiveState {
 
-    fn new() -> Self {
-        FinderState {
-            active: false,
-            find_complete: None,
-            total_found: None,
-            cursor_index: None,
-        }
-    }
-
-    fn update(&mut self, finder: &find::Finder){
-        self.active = true;
-        self.find_complete = Some(finder.done());
-        self.total_found = Some(finder.count() as u64);
-        self.cursor_index = finder.cursor().map(|x| x as u64);
-    }
-
-    fn deactivate(&mut self) {
-        self.active = false;
-        self.find_complete = None;
-        self.total_found = None;
-        self.cursor_index = None;
+    fn from(finder: &find::Finder) -> FinderState {
+        FinderState::FinderActive(
+            FinderActiveState {
+                find_complete: finder.done(),
+                total_found: finder.count() as u64,
+                cursor_index: finder.cursor().map(|x| x as u64),
+            }
+        )
     }
 
     fn status_line(&self) -> String {
-        if !self.active {
-            return "".to_owned();
-        }
         let plus_marker;
-        if let Some(true) = self.find_complete {
+        if self.find_complete {
             plus_marker = "";
         }
         else {
@@ -368,7 +356,7 @@ impl FinderState {
         let formatted_status = format!(
             "[Found {}/{}{}]",
             self.cursor_index.unwrap_or(0) + 1,
-            self.total_found.unwrap_or(0),
+            self.total_found,
             plus_marker,
         );
         formatted_status
@@ -406,7 +394,7 @@ impl CsvTableState {
             elapsed: None,
             buffer_content: BufferState::Disabled,
             highlight_state: HighlightState::Disabled,
-            finder_state: FinderState::new(),
+            finder_state: FinderState::FinderInactive,
             debug: "".into(),
         }
     }
@@ -595,7 +583,7 @@ fn run_csvlens() -> Result<()> {
                 csv_table_state.reset_buffer();
                 if finder.is_some() {
                     finder = None;
-                    csv_table_state.finder_state.deactivate();
+                    csv_table_state.finder_state = FinderState::FinderInactive;
                     csv_table_state.highlight_state = HighlightState::Disabled;
                 }
             }
@@ -640,7 +628,7 @@ fn run_csvlens() -> Result<()> {
         }
 
         if let Some(f) = &finder {
-            csv_table_state.finder_state.update(f);
+            csv_table_state.finder_state = FinderActiveState::from(f);
         }
 
         //csv_table_state.debug = format!("{:?}", csv_table_state.cols_offset);
