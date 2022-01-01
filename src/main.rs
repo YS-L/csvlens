@@ -207,18 +207,28 @@ impl<'a> CsvTable<'a> {
         }
         else {
             content = state.filename.to_string();
-            if let Some(n) = state.total_line_number {
-                content += format!(" ({} total lines)", n).as_str();
-            }
-            else {
-                content += " (calculating line numbers...)";
-            }
-            if let Some(elapsed) = state.elapsed {
-                content += format!(" (elapsed: {}ms)", elapsed).as_str();
-            }
+
+            let total_str = if state.total_line_number.is_some() {
+                format!("{}", state.total_line_number.unwrap())
+            }  else {
+                "?".to_owned()
+            };
+            content += format!(
+                " [Row {}/{}, Col {}/{}]",
+                state.rows_offset + 1,
+                total_str,
+                state.cols_offset + 1,
+                state.total_cols,
+            ).as_str();
+
             if state.finder_state.active {
                 content += format!(" {}", state.finder_state.status_line()).as_str();
             }
+
+            if let Some(elapsed) = state.elapsed {
+                content += format!(" [{}ms]", elapsed).as_str();
+            }
+
             if !state.debug.is_empty() {
                 content += format!(" (debug: {})", state.debug).as_str();
             }
@@ -373,6 +383,7 @@ pub struct CsvTableState {
     more_cols_to_show: bool,
     filename: String,
     total_line_number: Option<usize>,
+    total_cols: usize,
     elapsed: Option<f64>,
     buffer_content: BufferState,
     // TODO: highlight_state and finder_state should be combined?
@@ -383,7 +394,7 @@ pub struct CsvTableState {
 
 impl CsvTableState {
 
-    fn new(filename: String) -> Self {
+    fn new(filename: String, total_cols: usize) -> Self {
         Self {
             rows_offset: 0,
             cols_offset: 0,
@@ -391,6 +402,7 @@ impl CsvTableState {
             more_cols_to_show: true,
             filename,
             total_line_number: None,
+            total_cols,
             elapsed: None,
             buffer_content: BufferState::Disabled,
             highlight_state: HighlightState::Disabled,
@@ -512,7 +524,9 @@ fn run_csvlens() -> Result<()> {
     let mut terminal = Terminal::new(backend).unwrap();
 
     let mut input_handler = InputHandler::new();
-    let mut csv_table_state = CsvTableState::new(filename.to_string());
+    let mut csv_table_state = CsvTableState::new(
+        filename.to_string(), headers.len()
+    );
 
     let mut finder: Option<find::Finder> = None;
     let mut first_found_scrolled = false;
