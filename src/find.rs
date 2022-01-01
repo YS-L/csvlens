@@ -138,7 +138,6 @@ impl Drop for Finder {
 }
 
 struct FinderInternalState {
-    target: String,
     count: usize,
     founds: Vec<FoundRecord>,
     done: bool,
@@ -150,7 +149,6 @@ impl FinderInternalState {
     pub fn init(filename: &str, target: &str) -> Arc<Mutex<FinderInternalState>> {
 
         let internal = FinderInternalState {
-            target: target.to_owned(),
             count: 0,
             founds: vec![],
             done: false,

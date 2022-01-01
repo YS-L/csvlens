@@ -351,10 +351,10 @@ impl FinderActiveState {
         let line;
         if self.total_found == 0 {
             if self.find_complete {
-                line = format!("Not found");
+                line = "Not found".to_owned();
             }
             else {
-                line = format!("Finding...");
+                line = "Finding...".to_owned();
             }
         }
         else {
