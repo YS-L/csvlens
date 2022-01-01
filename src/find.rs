@@ -9,6 +9,7 @@ pub struct Finder {
     internal: Arc<Mutex<FinderInternalState>>,
     cursor: Option<usize>,
     row_hint: usize,
+    target: String,
 }
 
 #[derive(Clone, Debug)]
@@ -41,6 +42,7 @@ impl Finder {
             internal,
             cursor: None,
             row_hint: 0,
+            target: target.to_owned(),
         };
         Ok(finder)
     }
@@ -60,6 +62,10 @@ impl Finder {
     pub fn cursor_row_index(&self) -> Option<usize> {
         let m_guard = self.internal.lock().unwrap();
         self.get_found_record_at_cursor(m_guard).map(|x| x.row_index())
+    }
+
+    pub fn target(&self) -> String {
+        self.target.clone()
     }
 
     pub fn reset_cursor(&mut self) {

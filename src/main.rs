@@ -330,6 +330,7 @@ pub struct FinderActiveState {
     find_complete: bool,
     total_found: u64,
     cursor_index: Option<u64>,
+    target: String,
 }
 
 impl FinderActiveState {
@@ -340,26 +341,42 @@ impl FinderActiveState {
                 find_complete: finder.done(),
                 total_found: finder.count() as u64,
                 cursor_index: finder.cursor().map(|x| x as u64),
+                target: finder.target(),
             }
         )
     }
 
     fn status_line(&self) -> String {
         let plus_marker;
-        if self.find_complete {
-            plus_marker = "";
+        let line;
+        if self.total_found == 0 {
+            if self.find_complete {
+                line = format!("Not found");
+            }
+            else {
+                line = format!("Finding...");
+            }
         }
         else {
-            plus_marker = "+";
+            if self.find_complete {
+                plus_marker = "";
+            }
+            else {
+                plus_marker = "+";
+            }
+            let cursor_str = if self.cursor_index.is_none() {
+                "-".to_owned()
+            } else {
+                (self.cursor_index.unwrap() + 1).to_string()
+            };
+            line = format!(
+                "{}/{}{}",
+                cursor_str,
+                self.total_found,
+                plus_marker,
+            );
         }
-        // TODO: better handle when not found
-        let formatted_status = format!(
-            "[Found {}/{}{}]",
-            self.cursor_index.unwrap_or(0) + 1,
-            self.total_found,
-            plus_marker,
-        );
-        formatted_status
+        format!("[\"{}\": {}]", self.target, line)
     }
 }
 
