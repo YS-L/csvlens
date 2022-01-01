@@ -65,18 +65,17 @@ impl InputHandler {
             Key::Char('q') => {
                 Control::Quit
             }
-            // TODO: support arrow keys
-            Key::Char('j') => {
+            Key::Char('j') | Key::Down => {
                 Control::ScrollDown
             }
-            Key::Char('k') => {
+            Key::Char('k') | Key::Up => {
                 Control::ScrollUp
             }
-            Key::Char('l') => {
-                Control::ScrollLeft
-            }
-            Key::Char('h') => {
+            Key::Char('l') | Key::Right => {
                 Control::ScrollRight
+            }
+            Key::Char('h') | Key::Left => {
+                Control::ScrollLeft
             }
             Key::Char('G') => {
                 Control::ScrollBottom

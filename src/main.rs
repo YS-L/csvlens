@@ -545,14 +545,14 @@ fn run_csvlens() -> Result<()> {
                 csv_table_state.reset_buffer();
             }
             Control::ScrollLeft => {
+                let new_cols_offset = csv_table_state.cols_offset.saturating_sub(1);
+                csv_table_state.set_cols_offset(new_cols_offset);
+            }
+            Control::ScrollRight => {
                 if csv_table_state.has_more_cols_to_show() {
                     let new_cols_offset = csv_table_state.cols_offset.saturating_add(1);
                     csv_table_state.set_cols_offset(new_cols_offset);
                 }
-            }
-            Control::ScrollRight => {
-                let new_cols_offset = csv_table_state.cols_offset.saturating_sub(1);
-                csv_table_state.set_cols_offset(new_cols_offset);
             }
             Control::ScrollToNextFound => {
                 if let Some(fdr) = finder.as_mut() {
@@ -629,9 +629,7 @@ fn run_csvlens() -> Result<()> {
             csv_table_state.finder_state.update(f);
         }
 
-        if let Some(f) = &finder {
-            csv_table_state.debug = format!("{:?}", f.row_hint());
-        }
+        //csv_table_state.debug = format!("{:?}", csv_table_state.cols_offset);
     }
 
     Ok(())
