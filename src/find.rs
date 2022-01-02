@@ -108,6 +108,11 @@ impl Finder {
         self.get_found_record_at_cursor(m_guard)
     }
 
+    pub fn current(&self) -> Option<FoundRecord> {
+        let m_guard = self.internal.lock().unwrap();
+        self.get_found_record_at_cursor(m_guard)
+    }
+
     fn get_found_record_at_cursor(&self, m_guard: MutexGuard<FinderInternalState>) -> Option<FoundRecord> {
         if let Some(n) = self.cursor {
             // TODO: this weird ref massaging really needed?
@@ -193,7 +198,7 @@ impl FinderInternalState {
 
             let mut m = _m.lock().unwrap();
             (*m).done = true;
-            
+
         });
 
         m_state

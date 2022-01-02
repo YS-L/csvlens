@@ -148,10 +148,10 @@ impl<'a> CsvTable<'a> {
                 style = style.add_modifier(Modifier::BOLD);
 
             }
-            match &state.highlight_state {
-                HighlightState::Enabled(p, _highlighted) if (*hname).contains(p) => {
+            match &state.finder_state {
+                FinderState::FinderActive(active) if (*hname).contains(active.target.as_str()) => {
                     let mut highlight_style = Style::default().fg(Color::Rgb(200, 0, 0));
-                    if let Some(hl) = _highlighted {
+                    if let Some(hl) = &active.found_record {
                         if let Some(row_index) = row_index {
                             // TODO: vec::contains slow or does it even matter?
                             if row_index == hl.row_index() && hl.column_indices().contains(&col_index) {
@@ -159,8 +159,8 @@ impl<'a> CsvTable<'a> {
                             }
                         }
                     }
-                    let p_span = Span::styled((*p).as_str(), highlight_style);
-                    let splitted = (*hname).split((*p).as_str());
+                    let p_span = Span::styled(active.target.as_str(), highlight_style);
+                    let splitted = (*hname).split(active.target.as_str());
                     let mut spans = vec![];
                     for part in splitted {
                         let span = Span::styled(part, style);
@@ -310,12 +310,6 @@ impl<'a> StatefulWidget for CsvTable<'a> {
     }
 }
 
-#[derive(Debug)]
-pub enum HighlightState {
-    Disabled,
-    Enabled(String, Option<find::FoundRecord>),
-}
-
 pub enum BufferState {
     Disabled,
     Enabled(InputMode, String),
@@ -340,6 +334,7 @@ pub struct FinderActiveState {
     total_found: u64,
     cursor_index: Option<u64>,
     target: String,
+    found_record: Option<find::FoundRecord>,
 }
 
 impl FinderActiveState {
@@ -350,6 +345,7 @@ impl FinderActiveState {
             total_found: finder.count() as u64,
             cursor_index: finder.cursor().map(|x| x as u64),
             target: finder.target(),
+            found_record: finder.current(),
         }
     }
 
@@ -398,8 +394,6 @@ pub struct CsvTableState {
     total_cols: usize,
     elapsed: Option<f64>,
     buffer_content: BufferState,
-    // TODO: highlight_state and finder_state should be combined?
-    highlight_state: HighlightState,
     finder_state: FinderState,
     debug: String,
 }
@@ -417,7 +411,6 @@ impl CsvTableState {
             total_cols,
             elapsed: None,
             buffer_content: BufferState::Disabled,
-            highlight_state: HighlightState::Disabled,
             finder_state: FinderState::FinderInactive,
             debug: "".into(),
         }
@@ -453,12 +446,6 @@ impl CsvTableState {
 
     fn reset_buffer(&mut self) {
         self.buffer_content = BufferState::Disabled;
-    }
-
-    fn set_hightlight_record(&mut self, found_record: find::FoundRecord) {
-        if let HighlightState::Enabled(p, _) = &self.highlight_state {
-            self.highlight_state = HighlightState::Enabled(p.to_string(), Some(found_record));
-        }
     }
 
 }
@@ -511,7 +498,6 @@ fn scroll_to_found_record(
         csv_table_state.set_cols_offset(cols_offset);
     }
 
-    csv_table_state.set_hightlight_record(found_record);
 }
 
 fn run_csvlens() -> Result<()> {
@@ -598,7 +584,6 @@ fn run_csvlens() -> Result<()> {
                 finder = Some(find::Finder::new(filename, s.as_str()).unwrap());
                 first_found_scrolled = false;
                 csv_table_state.reset_buffer();
-                csv_table_state.highlight_state = HighlightState::Enabled(s, None);
             }
             Control::BufferContent(buf) => {
                 csv_table_state.set_buffer(input_handler.mode(), buf.as_str());
@@ -608,7 +593,6 @@ fn run_csvlens() -> Result<()> {
                 if finder.is_some() {
                     finder = None;
                     csv_table_state.finder_state = FinderState::FinderInactive;
-                    csv_table_state.highlight_state = HighlightState::Disabled;
                 }
             }
             _ => {}
@@ -652,6 +636,7 @@ fn run_csvlens() -> Result<()> {
         }
 
         if let Some(f) = &finder {
+            // TODO: need to create a new finder every time?
             csv_table_state.finder_state = FinderState::from_finder(f);
         }
 
