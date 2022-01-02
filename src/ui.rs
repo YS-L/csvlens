@@ -6,6 +6,7 @@ use tui::buffer::Buffer;
 use tui::layout::Rect;
 use tui::text::{Span, Spans};
 use tui::style::{Style, Modifier, Color};
+use tui::symbols::line;
 
 #[derive(Debug)]
 pub struct CsvTable<'a> {
@@ -74,6 +75,7 @@ impl<'a> CsvTable<'a> {
         }
         section_width = section_width + 2 + 1;  // one char reserved for line; add one for symmetry
 
+        // TODO: probably should move all these lines rendering somewhere else
         // Render vertical separator
         let line_number_block = Block::default()
             .borders(Borders::RIGHT)
@@ -85,6 +87,28 @@ impl<'a> CsvTable<'a> {
             area.height,
         );
         line_number_block.render(line_number_area, buf);
+
+        // Intersection with header separator
+        buf.get_mut(section_width - 1, y_first_record - 1)
+            .set_symbol(line::HORIZONTAL_DOWN);
+
+        // Status separator at the bottom (rendered here first for the interesection)
+        let block = Block::default()
+            .borders(Borders::TOP)
+            .border_style(Style::default().fg(Color::Rgb(64, 64, 64)));
+        let status_separator_area = Rect::new(
+            0,
+            y_first_record + area.height,
+            area.width,
+            1,
+        );
+        block.render(status_separator_area, buf);
+
+        // Intersection with bottom separator
+        buf.get_mut(section_width - 1, y_first_record + area.height)
+            .set_symbol(line::HORIZONTAL_UP);
+
+        // Add more space before starting first column
         section_width += 2;
 
         section_width
@@ -169,12 +193,8 @@ impl<'a> CsvTable<'a> {
 
     fn render_status(&self, area: Rect, buf: &mut Buffer, state: &mut CsvTableState) {
 
-        let block = Block::default()
-            .borders(Borders::TOP)
-            .border_style(Style::default().fg(Color::Rgb(64, 64, 64)));
-        block.render(area, buf);
+        // Content of status line (separator already plotted elsewhere)
         let style = Style::default().fg(Color::Rgb(128, 128, 128));
-
         let mut content: String;
         if let BufferState::Enabled(buffer_mode, buf) = &state.buffer_content {
             content = buf.to_owned();
