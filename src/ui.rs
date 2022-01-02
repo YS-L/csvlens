@@ -49,7 +49,7 @@ impl<'a> CsvTable<'a> {
     fn render_row_numbers(
         &self,
         buf: &mut Buffer,
-        state: &CsvTableState,
+        state: &mut CsvTableState,
         area: Rect,
         num_rows: usize,
     ) -> u16 {
@@ -75,8 +75,41 @@ impl<'a> CsvTable<'a> {
         }
         section_width = section_width + 2 + 1;  // one char reserved for line; add one for symmetry
 
+        state.borders_state = Some(
+            BordersState {
+                x_row_separator: section_width,
+                y_first_record,
+            }
+        );
+
+        // Add more space before starting first column
+        section_width += 2;
+
+        section_width
+    }
+
+    fn render_header_borders(&self, buf: &mut Buffer, area: Rect) -> (u16, u16) {
+        let block = Block::default()
+            .borders(Borders::TOP | Borders::BOTTOM)
+            .border_style(Style::default().fg(Color::Rgb(64, 64, 64)));
+        let height = 3;
+        let area = Rect::new(0, 0, area.width, height);
+        block.render(area, buf);
+        // y pos of header text and next line
+        (height.saturating_sub(2), height)
+    }
+
+    fn render_other_borders(&self, buf: &mut Buffer, area: Rect, state: &CsvTableState) {
         // TODO: probably should move all these lines rendering somewhere else
         // Render vertical separator
+        if state.borders_state.is_none() {
+            return;
+        }
+
+        let borders_state = state.borders_state.as_ref().unwrap();
+        let y_first_record = borders_state.y_first_record;
+        let section_width = borders_state.x_row_separator;
+
         let line_number_block = Block::default()
             .borders(Borders::RIGHT)
             .border_style(Style::default().fg(Color::Rgb(64, 64, 64)));
@@ -107,22 +140,6 @@ impl<'a> CsvTable<'a> {
         // Intersection with bottom separator
         buf.get_mut(section_width - 1, y_first_record + area.height)
             .set_symbol(line::HORIZONTAL_UP);
-
-        // Add more space before starting first column
-        section_width += 2;
-
-        section_width
-    }
-
-    fn render_header_borders(&self, buf: &mut Buffer, area: Rect) -> (u16, u16) {
-        let block = Block::default()
-            .borders(Borders::TOP | Borders::BOTTOM)
-            .border_style(Style::default().fg(Color::Rgb(64, 64, 64)));
-        let height = 3;
-        let area = Rect::new(0, 0, area.width, height);
-        block.render(area, buf);
-        // y pos of header text and next line
-        (height.saturating_sub(2), height)
     }
 
     fn render_row(
@@ -310,6 +327,8 @@ impl<'a> StatefulWidget for CsvTable<'a> {
             status_height,
         );
         self.render_status(status_area, buf, state);
+
+        self.render_other_borders(buf, rows_area, state);
     }
 }
 
@@ -384,6 +403,11 @@ impl FinderActiveState {
     }
 }
 
+struct BordersState {
+    x_row_separator: u16,
+    y_first_record: u16,
+}
+
 pub struct CsvTableState {
     // TODO: types appropriate?
     pub rows_offset: u64,
@@ -396,6 +420,7 @@ pub struct CsvTableState {
     pub elapsed: Option<f64>,
     buffer_content: BufferState,
     pub finder_state: FinderState,
+    borders_state: Option<BordersState>,
     debug: String,
 }
 
@@ -413,6 +438,7 @@ impl CsvTableState {
             elapsed: None,
             buffer_content: BufferState::Disabled,
             finder_state: FinderState::FinderInactive,
+            borders_state: None,
             debug: "".into(),
         }
     }
