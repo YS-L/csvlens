@@ -326,6 +326,15 @@ pub enum FinderState {
     FinderActive(FinderActiveState),
 }
 
+impl FinderState {
+
+    fn from_finder(finder: &find::Finder) -> FinderState {
+        let active_state = FinderActiveState::new(finder);
+        FinderState::FinderActive(active_state)
+    }
+
+}
+
 pub struct FinderActiveState {
     find_complete: bool,
     total_found: u64,
@@ -335,15 +344,13 @@ pub struct FinderActiveState {
 
 impl FinderActiveState {
 
-    fn from(finder: &find::Finder) -> FinderState {
-        FinderState::FinderActive(
-            FinderActiveState {
-                find_complete: finder.done(),
-                total_found: finder.count() as u64,
-                cursor_index: finder.cursor().map(|x| x as u64),
-                target: finder.target(),
-            }
-        )
+    fn new(finder: &find::Finder) -> Self {
+        FinderActiveState {
+            find_complete: finder.done(),
+            total_found: finder.count() as u64,
+            cursor_index: finder.cursor().map(|x| x as u64),
+            target: finder.target(),
+        }
     }
 
     fn status_line(&self) -> String {
@@ -645,7 +652,7 @@ fn run_csvlens() -> Result<()> {
         }
 
         if let Some(f) = &finder {
-            csv_table_state.finder_state = FinderActiveState::from(f);
+            csv_table_state.finder_state = FinderState::from_finder(f);
         }
 
         //csv_table_state.debug = format!("{:?}", csv_table_state.cols_offset);
