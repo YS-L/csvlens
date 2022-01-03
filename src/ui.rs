@@ -100,7 +100,7 @@ impl<'a> CsvTable<'a> {
     }
 
     fn render_other_borders(&self, buf: &mut Buffer, area: Rect, state: &CsvTableState) {
-        // TODO: probably should move all these lines rendering somewhere else
+        // TODO: maybe should be combined with render_header_borders() above
         // Render vertical separator
         if state.borders_state.is_none() {
             return;
@@ -140,6 +140,25 @@ impl<'a> CsvTable<'a> {
         // Intersection with bottom separator
         buf.get_mut(section_width - 1, y_first_record + area.height)
             .set_symbol(line::HORIZONTAL_UP);
+
+        // Vertical line after last rendered column
+        // TODO: refactor
+        let col_ending_pos_x = state.col_ending_pos_x;
+        if !state.has_more_cols_to_show() && col_ending_pos_x < area.right() {
+            buf.get_mut(col_ending_pos_x, y_first_record.saturating_sub(1))
+                .set_style(Style::default().fg(Color::Rgb(64, 64, 64)))
+                .set_symbol(line::HORIZONTAL_DOWN);
+
+            for y in y_first_record..y_first_record + area.height {
+                buf.get_mut(col_ending_pos_x, y)
+                    .set_style(Style::default().fg(Color::Rgb(64, 64, 64)))
+                    .set_symbol(line::VERTICAL);
+            }
+
+            buf.get_mut(col_ending_pos_x, y_first_record + area.height)
+                .set_style(Style::default().fg(Color::Rgb(64, 64, 64)))
+                .set_symbol(line::HORIZONTAL_UP);
+        }
     }
 
     fn render_row(
@@ -157,7 +176,9 @@ impl<'a> CsvTable<'a> {
         let mut x_offset_header = x;
         let mut remaining_width = area.width.saturating_sub(x);
         let cols_offset = state.cols_offset as usize;
+        // TODO: seems strange that these have to be set every row
         let mut has_more_cols_to_show = false;
+        let mut col_ending_pos_x = 0;
         let mut num_cols_rendered = 0;
         for (col_index, (hname, &hlen)) in row.iter().zip(column_widths).enumerate() {
             if col_index < cols_offset {
@@ -192,6 +213,7 @@ impl<'a> CsvTable<'a> {
                         spans.push(p_span.clone());
                     }
                     spans.pop();
+                    // TODO: handle really long string
                     let spans = Spans::from(spans);
                     buf.set_spans(x_offset_header, y, &spans, hlen);
                 }
@@ -201,11 +223,13 @@ impl<'a> CsvTable<'a> {
                 }
             };
             x_offset_header += hlen;
+            col_ending_pos_x = x_offset_header;
             remaining_width = remaining_width.saturating_sub(hlen);
             num_cols_rendered += 1;
         }
         state.set_num_cols_rendered(num_cols_rendered);
         state.set_more_cols_to_show(has_more_cols_to_show);
+        state.col_ending_pos_x = col_ending_pos_x;
     }
 
     fn render_status(&self, area: Rect, buf: &mut Buffer, state: &mut CsvTableState) {
@@ -421,6 +445,8 @@ pub struct CsvTableState {
     buffer_content: BufferState,
     pub finder_state: FinderState,
     borders_state: Option<BordersState>,
+    // TODO: should probably be with BordersState
+    col_ending_pos_x: u16,
     debug: String,
 }
 
@@ -439,6 +465,7 @@ impl CsvTableState {
             buffer_content: BufferState::Disabled,
             finder_state: FinderState::FinderInactive,
             borders_state: None,
+            col_ending_pos_x: 0,
             debug: "".into(),
         }
     }
@@ -455,7 +482,7 @@ impl CsvTableState {
         self.more_cols_to_show = value;
     }
 
-    pub fn has_more_cols_to_show(&mut self) -> bool {
+    pub fn has_more_cols_to_show(&self) -> bool {
         self.more_cols_to_show
     }
 
