@@ -8,6 +8,8 @@ use tui::text::{Span, Spans};
 use tui::style::{Style, Modifier, Color};
 use tui::symbols::line;
 
+use std::cmp::min;
+
 #[derive(Debug)]
 pub struct CsvTable<'a> {
     header: Vec<String>,
@@ -26,7 +28,7 @@ impl<'a> CsvTable<'a> {
 
 impl<'a> CsvTable<'a> {
 
-    fn get_column_widths(&self) -> Vec<u16> {
+    fn get_column_widths(&self, area_width: u16) -> Vec<u16> {
         let mut column_widths = Vec::new();
         for s in self.header.iter() {
             column_widths.push(s.len() as u16);
@@ -42,6 +44,7 @@ impl<'a> CsvTable<'a> {
         }
         for w in column_widths.iter_mut() {
             *w += 4;
+            *w = min(*w, (area_width as f32 * 0.8) as u16);
         }
         column_widths
     }
@@ -184,6 +187,7 @@ impl<'a> CsvTable<'a> {
             if col_index < cols_offset {
                 continue;
             }
+            // TODO: maybe move down to end of iteration
             if remaining_width < hlen {
                 has_more_cols_to_show = true;
                 break;
@@ -213,13 +217,11 @@ impl<'a> CsvTable<'a> {
                         spans.push(p_span.clone());
                     }
                     spans.pop();
-                    // TODO: handle really long string
-                    let spans = Spans::from(spans);
-                    buf.set_spans(x_offset_header, y, &spans, hlen);
+                    self.set_spans(buf, &spans, x_offset_header, y, hlen);
                 }
                 _ => {
                     let span = Span::styled((*hname).as_str(), style);
-                    buf.set_span(x_offset_header, y, &span, hlen);
+                    self.set_spans(buf, &vec![span], x_offset_header, y, hlen);
                 }
             };
             x_offset_header += hlen;
@@ -230,6 +232,35 @@ impl<'a> CsvTable<'a> {
         state.set_num_cols_rendered(num_cols_rendered);
         state.set_more_cols_to_show(has_more_cols_to_show);
         state.col_ending_pos_x = col_ending_pos_x;
+    }
+
+    fn set_spans(&self, buf: &mut Buffer, spans: &[Span], x: u16, y: u16, width: u16) {
+
+        // Reserve some space before the next column (same number used in get_column_widths)
+        let mut remaining_width = width.saturating_sub(4);
+
+        // Pack as many spans as possible until hitting width limit
+        let mut cur_spans = vec![];
+        for span in spans {
+            if span.content.len() <= remaining_width.into() {
+                cur_spans.push(span.clone());
+                remaining_width = remaining_width.saturating_sub(span.content.len() as u16);
+            }
+            else {
+                let suffix = "...";
+                let truncated_content = &span.content[
+                    ..remaining_width.saturating_sub(suffix.len() as u16) as usize
+                ];
+                let truncated_span = Span::styled(truncated_content, span.style);
+                cur_spans.push(truncated_span);
+                cur_spans.push(Span::raw(suffix));
+                // TODO: handle breaking into multiple lines, for now don't care about remaining_width
+                break;
+            }
+        }
+
+        let spans = Spans::from(cur_spans);
+        buf.set_spans(x, y, &spans, width);
     }
 
     fn render_status(&self, area: Rect, buf: &mut Buffer, state: &mut CsvTableState) {
@@ -294,7 +325,7 @@ impl<'a> StatefulWidget for CsvTable<'a> {
         }
 
         let status_height = 2;
-        let column_widths = self.get_column_widths();
+        let column_widths = self.get_column_widths(area.width);
         let (y_header, y_first_record) = self.render_header_borders(buf, area);
 
         // row area: including row numbers and row content
