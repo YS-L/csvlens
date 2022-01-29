@@ -236,6 +236,10 @@ impl<'a> CsvTable<'a> {
 
     fn set_spans(&self, buf: &mut Buffer, spans: &[Span], x: u16, y: u16, width: u16) {
 
+        // TODO: make constant?
+        let suffix = "…";
+        let suffix_len = suffix.chars().count();
+
         // Reserve some space before the next column (same number used in get_column_widths)
         let mut remaining_width = width.saturating_sub(4);
 
@@ -247,9 +251,8 @@ impl<'a> CsvTable<'a> {
                 remaining_width = remaining_width.saturating_sub(span.content.len() as u16);
             }
             else {
-                let suffix = "...";
                 let truncated_content = &span.content[
-                    ..remaining_width.saturating_sub(suffix.len() as u16) as usize
+                    ..remaining_width.saturating_sub(suffix_len as u16) as usize
                 ];
                 let truncated_span = Span::styled(truncated_content, span.style);
                 cur_spans.push(truncated_span);
