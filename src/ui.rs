@@ -187,11 +187,7 @@ impl<'a> CsvTable<'a> {
             if col_index < cols_offset {
                 continue;
             }
-            // TODO: maybe move down to end of iteration
-            if remaining_width < hlen {
-                has_more_cols_to_show = true;
-                break;
-            }
+            let effective_width = min(remaining_width, hlen);
             let mut style = Style::default();
             if is_header {
                 style = style.add_modifier(Modifier::BOLD);
@@ -217,17 +213,21 @@ impl<'a> CsvTable<'a> {
                         spans.push(p_span.clone());
                     }
                     spans.pop();
-                    self.set_spans(buf, &spans, x_offset_header, y, hlen);
+                    self.set_spans(buf, &spans, x_offset_header, y, effective_width);
                 }
                 _ => {
                     let span = Span::styled((*hname).as_str(), style);
-                    self.set_spans(buf, &vec![span], x_offset_header, y, hlen);
+                    self.set_spans(buf, &vec![span], x_offset_header, y, effective_width);
                 }
             };
             x_offset_header += hlen;
             col_ending_pos_x = x_offset_header;
-            remaining_width = remaining_width.saturating_sub(hlen);
             num_cols_rendered += 1;
+            if remaining_width < hlen {
+                has_more_cols_to_show = true;
+                break;
+            }
+            remaining_width = remaining_width.saturating_sub(hlen);
         }
         state.set_num_cols_rendered(num_cols_rendered);
         state.set_more_cols_to_show(has_more_cols_to_show);
