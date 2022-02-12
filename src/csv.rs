@@ -174,18 +174,6 @@ impl ReaderInternalState {
 mod tests {
     use super::*;
 
-    fn assert_expected_rows(actual: &[Vec<String>], expected: &[Vec<&str>]) {
-        let mut expected_rows = vec![];
-        for row in expected.iter() {
-            let mut cur = vec![];
-            for v in row {
-                cur.push(v.to_string());
-            }
-            expected_rows.push(cur);
-        }
-        assert_eq!(actual, expected_rows);
-    }
-
     #[test]
     fn test_simple_get_rows() {
         let mut r = CsvLensReader::new("tests/data/cities.csv").unwrap();
@@ -195,6 +183,6 @@ mod tests {
             vec!["42", "16", "12", "N", "71", "48", "0", "W", "Worcester", "MA"],
             vec!["43", "37", "48", "N", "89", "46", "11", "W", "Wisconsin Dells", "WI"]
         ];
-        assert_expected_rows(&rows, &expected);
+        assert_eq!(rows, expected);
     }
 }
