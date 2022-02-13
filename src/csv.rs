@@ -1,6 +1,7 @@
 extern crate csv;
 
-use anyhow::Result;
+use anyhow;
+use anyhow::{Result, bail};
 use csv::{Position, Reader};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
@@ -60,53 +61,109 @@ impl CsvLensReader {
     }
 
     pub fn get_rows(&mut self, rows_from: u64, num_rows: u64) -> Result<Vec<Row>> {
+        let indices: Vec<u64> = (rows_from..rows_from+num_rows).collect();
+        self.get_rows_impl(&indices).map(|x| x.0)
+    }
 
-        // seek to the closest previously known position
-        let mut pos = Position::new();
-        let pos_table = self.get_pos_table();
-        for p in pos_table.into_iter() {
-            // can safely -1 because first position in the table must not be for headers
-            if p.record() - 1 <= rows_from {
-                pos = p;
-            }
-        }
+    pub fn get_rows_for_indices(&mut self, indices: &[u64]) -> Result<Vec<Row>> {
+        self.get_rows_impl(indices).map(|x| x.0)
+    }
+
+    fn get_rows_impl(&mut self, indices: &[u64]) -> Result<(Vec<Row>, GetRowsStats)> {
+
+        // stats for debugging and testing
+        let mut stats = GetRowsStats::new();
+
+        let pos = Position::new();
         self.reader.seek(pos)?;
 
-        // note that records() excludes header by default, but here the first
-        // entry is header because of the seek() above.
-        let mut records = self.reader.records();
+        let pos_table = self.get_pos_table();
+        let mut pos_iter = pos_table.iter();
+        let mut indices_iter = indices.iter();
+
         let mut res = Vec::new();
 
+        let mut next_pos = pos_iter.next();
+        let mut next_wanted = indices_iter.next();
         loop {
-            let next_record_index = records.reader().position().record();
-            if let Some(r) = records.next() {
-                // no effective pre-seeking happened, this is still the header
-                if next_record_index == 0 {
-                    continue;
-                }
-                // rows_from is 0-based
-                if next_record_index - 1 >= rows_from {
-                    let string_record = r?;
-                    let mut fields= Vec::new();
-                    for field in string_record.iter() {
-                        fields.push(String::from(field));
+            if next_wanted.is_none() {
+                break;
+            }
+            // seek as close to the next wanted record index as possible
+            let index = *next_wanted.unwrap();
+            loop {
+                if let Some(pos) = next_pos {
+                    if pos.record() - 1 <= index {
+                        self.reader.seek(pos.clone())?;
+                        stats.log_seek();
                     }
-                    let row = Row {
-                        record_num: next_record_index as usize,
-                        fields,
-                    };
-                    res.push(row);
+                    else {
+                        break;
+                    }
+                    next_pos = pos_iter.next();
                 }
-                if res.len() >= num_rows as usize {
+                else {
                     break;
                 }
             }
-            else {
-                break;
+
+            // note that records() excludes header by default, but here the first entry is header
+            // because of the seek() above.
+            let mut records = self.reader.records();
+
+            // parse records and collect those that are wanted
+            loop {
+                // exit early if all found. This should be common in case of consecutive indices
+                if next_wanted.is_none() {
+                    break;
+                }
+                let wanted_index = *next_wanted.unwrap();
+                let record_num= records.reader().position().record();
+                if let Some(r) = records.next() {
+                    stats.log_parsed_record();
+                    // no effective pre-seeking happened, this is still the header
+                    if record_num == 0 {
+                        continue;
+                    }
+                    if record_num - 1 == wanted_index {
+                        let string_record = r?;
+                        let mut fields= Vec::new();
+                        for field in string_record.iter() {
+                            fields.push(String::from(field));
+                        }
+                        let row = Row {
+                            record_num: record_num as usize,
+                            fields,
+                        };
+                        res.push(row);
+                        next_wanted = indices_iter.next();
+                    }
+                    // stop parsing if done scanning whole block between marked positions
+                    if let Some(pos) = next_pos {
+                        if record_num >= pos.record() {
+                            break;
+                        }
+                    }
+                }
+                else {
+                    // no more records
+                    break;
+                }
+            }
+
+            if next_pos.is_none() {
+                // if here, the last block had been scanned, and we should be done
+                if next_wanted.is_none() {
+                    break;
+                }
+                else {
+                    bail!("Next requested index not found: {}", next_wanted.unwrap());
+                }
             }
         }
 
-        Ok(res)
+        Ok((res, stats))
+
     }
 
     pub fn get_total_line_numbers(&self) -> Option<usize> {
@@ -131,6 +188,29 @@ impl CsvLensReader {
             }
             thread::sleep(time::Duration::from_millis(100));
         }
+    }
+}
+
+#[derive(Debug, PartialEq)]
+struct GetRowsStats {
+    num_seek: u64,
+    num_parsed_record: u64,
+}
+
+impl GetRowsStats {
+    fn new() -> GetRowsStats {
+        GetRowsStats {
+            num_seek: 0,
+            num_parsed_record: 0,
+        }
+    }
+
+    fn log_seek(&mut self) {
+        self.num_seek += 1;
+    }
+
+    fn log_parsed_record(&mut self) {
+        self.num_parsed_record += 1
     }
 }
 
@@ -229,5 +309,73 @@ mod tests {
             Row::new(1236, vec!["A1236", "B1236"]),
         ];
         assert_eq!(rows, expected);
+    }
+
+    #[test]
+    fn test_simple_get_rows_out_of_bound() {
+        let mut r = CsvLensReader::new("tests/data/simple.csv").unwrap();
+        r.wait_internal();
+        let indices = vec![5000];
+        let res = r.get_rows_impl(&indices);
+        assert!(res.is_err());
+        let err = res.unwrap_err().to_string();
+        assert_eq!(err, "Next requested index not found: 5000");
+    }
+
+    #[test]
+    fn test_simple_get_rows_impl_1() {
+        let mut r = CsvLensReader::new("tests/data/simple.csv").unwrap();
+        r.wait_internal();
+        let indices = vec![1, 3, 5, 1234, 2345, 3456, 4999];
+        let (rows, stats) = r.get_rows_impl(&indices).unwrap();
+        let expected = vec![
+            Row::new(2, vec!["A2", "B2"]),
+            Row::new(4, vec!["A4", "B4"]),
+            Row::new(6, vec!["A6", "B6"]),
+            Row::new(1235, vec!["A1235", "B1235"]),
+            Row::new(2346, vec!["A2346", "B2346"]),
+            Row::new(3457, vec!["A3457", "B3457"]),
+            Row::new(5000, vec!["A5000", "B5000"]),
+        ];
+        assert_eq!(rows, expected);
+        let expected = GetRowsStats {
+            num_seek: 49,
+            num_parsed_record: 505,
+        };
+        assert_eq!(stats, expected);
+    }
+
+    #[test]
+    fn test_simple_get_rows_impl_2() {
+        let mut r = CsvLensReader::new("tests/data/simple.csv").unwrap();
+        r.wait_internal();
+        let indices = vec![1234];
+        let (rows, stats) = r.get_rows_impl(&indices).unwrap();
+        let expected = vec![
+            Row::new(1235, vec!["A1235", "B1235"]),
+        ];
+        assert_eq!(rows, expected);
+        let expected = GetRowsStats {
+            num_seek: 12,
+            num_parsed_record: 35,
+        };
+        assert_eq!(stats, expected);
+    }
+
+    #[test]
+    fn test_simple_get_rows_impl_3() {
+        let mut r = CsvLensReader::new("tests/data/simple.csv").unwrap();
+        r.wait_internal();
+        let indices = vec![2];
+        let (rows, stats) = r.get_rows_impl(&indices).unwrap();
+        let expected = vec![
+            Row::new(3, vec!["A3", "B3"]),
+        ];
+        assert_eq!(rows, expected);
+        let expected = GetRowsStats {
+            num_seek: 0,
+            num_parsed_record: 4,  // 3 + 1 (including header)
+        };
+        assert_eq!(stats, expected);
     }
 }
