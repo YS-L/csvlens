@@ -77,17 +77,18 @@ impl RowsView {
        self.rows_from
    }
 
-   pub fn set_rows_from(&mut self, rows_from: u64) -> Result<()> {
+   pub fn set_rows_from(&mut self, rows_from_: u64) -> Result<()> {
+       let rows_from;
+       if let Some(n) = self.bottom_rows_from() {
+           rows_from = min(rows_from_, n);
+       }
+       else {
+           rows_from = rows_from_;
+       }
        if rows_from == self.rows_from {
            return Ok(());
        }
-       if let Some(n) = self.bottom_rows_from() {
-           // TODO: skip do_get_rows() also here
-           self.rows_from = min(rows_from, n);
-       }
-       else {
-           self.rows_from = rows_from;
-       }
+       self.rows_from = rows_from;
        self.do_get_rows()?;
        Ok(())
    }
