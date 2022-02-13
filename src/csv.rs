@@ -6,6 +6,7 @@ use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
+use std::time;
 use std::cmp::max;
 
 
@@ -122,12 +123,22 @@ impl CsvLensReader {
         let res = (*self.internal.lock().unwrap()).pos_table.clone();
         res
     }
+
+    fn wait_internal(&self) {
+        loop {
+            if self.internal.lock().unwrap().done {
+                break
+            }
+            thread::sleep(time::Duration::from_millis(100));
+        }
+    }
 }
 
 struct ReaderInternalState {
     total_line_number: Option<usize>,
     total_line_number_approx: Option<usize>,
     pos_table: Vec<Position>,
+    done: bool,
 }
 
 impl ReaderInternalState {
@@ -138,6 +149,7 @@ impl ReaderInternalState {
             total_line_number: None,
             total_line_number_approx: None,
             pos_table: vec![],
+            done: false,
         };
 
         let m_state = Arc::new(Mutex::new(internal));
@@ -182,6 +194,7 @@ impl ReaderInternalState {
             }
             let mut m= _m.lock().unwrap();
             (*m).total_line_number = Some(n);
+            (*m).done = true;
         });
 
         (m_state, handle)
@@ -194,13 +207,26 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_simple_get_rows() {
+    fn test_cities_get_rows() {
         let mut r = CsvLensReader::new("tests/data/cities.csv").unwrap();
+        r.wait_internal();
         let rows = r.get_rows(2, 3).unwrap();
         let expected = vec![
             Row::new(3, vec!["46", "35", "59", "N", "120", "30", "36", "W", "Yakima", "WA"]),
             Row::new(4, vec!["42", "16", "12", "N", "71", "48", "0", "W", "Worcester", "MA"]),
             Row::new(5, vec!["43", "37", "48", "N", "89", "46", "11", "W", "Wisconsin Dells", "WI"]),
+        ];
+        assert_eq!(rows, expected);
+    }
+
+    #[test]
+    fn test_simple_get_rows() {
+        let mut r = CsvLensReader::new("tests/data/simple.csv").unwrap();
+        r.wait_internal();
+        let rows = r.get_rows(1234, 2).unwrap();
+        let expected = vec![
+            Row::new(1235, vec!["A1235", "B1235"]),
+            Row::new(1236, vec!["A1236", "B1236"]),
         ];
         assert_eq!(rows, expected);
     }

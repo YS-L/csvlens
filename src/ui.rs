@@ -360,6 +360,7 @@ impl<'a> StatefulWidget for CsvTable<'a> {
 
         let mut y_offset = y_first_record;
         for (rel_row_index, row) in self.rows.iter().enumerate() {
+            // TODO: still need to derive row_index from rows_offset vs Row's record_num directly?
             let row_index = rel_row_index.saturating_add(state.rows_offset as usize);
             self.render_row(
                 buf,
