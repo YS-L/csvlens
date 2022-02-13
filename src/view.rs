@@ -1,4 +1,4 @@
-use crate::csv::CsvLensReader;
+use crate::csv::{CsvLensReader, Row};
 use crate::input::Control;
 
 use anyhow::Result;
@@ -8,7 +8,7 @@ use std::cmp::min;
 pub struct RowsView {
     reader: CsvLensReader,
     headers: Vec<String>,
-    rows: Vec<Vec<String>>,
+    rows: Vec<Row>,
     num_rows: u64,
     rows_from: u64,
     elapsed: Option<u128>,
@@ -35,7 +35,7 @@ impl RowsView {
        &self.headers
    }
 
-   pub fn rows(&self) -> &Vec<Vec<String>> {
+   pub fn rows(&self) -> &Vec<Row> {
        &self.rows
    }
 

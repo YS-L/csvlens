@@ -1,5 +1,6 @@
 use crate::find;
 use crate::input::InputMode;
+use crate::csv::Row;
 use tui::widgets::Widget;
 use tui::widgets::{StatefulWidget, Block, Borders};
 use tui::buffer::Buffer;
@@ -13,11 +14,11 @@ use std::cmp::min;
 #[derive(Debug)]
 pub struct CsvTable<'a> {
     header: Vec<String>,
-    rows: &'a [Vec<String>],
+    rows: &'a [Row],
 }
 
 impl<'a> CsvTable<'a> {
-    pub fn new(header: &[String], rows: &'a [Vec<String>]) -> Self {
+    pub fn new(header: &[String], rows: &'a [Row]) -> Self {
         let _header = header.to_vec();
         Self {
             header: _header,
@@ -34,7 +35,7 @@ impl<'a> CsvTable<'a> {
             column_widths.push(s.len() as u16);
         }
         for row in self.rows.iter() {
-            for (i, value) in row.iter().enumerate() {
+            for (i, value) in row.fields.iter().enumerate() {
                 let v = column_widths.get_mut(i).unwrap();
                 let value_len = value.len() as u16;
                 if *v < value_len {
@@ -54,19 +55,18 @@ impl<'a> CsvTable<'a> {
         buf: &mut Buffer,
         state: &mut CsvTableState,
         area: Rect,
-        num_rows: usize,
+        rows: &[Row],
     ) -> u16 {
 
         // TODO: better to derminte width from total number of records, so this is always fixed
-        let max_row_num = state.rows_offset as usize + num_rows + 1;
+        let max_row_num = rows.iter().map(|x| x.record_num).max().unwrap_or(0);
         let mut section_width = format!("{}", max_row_num).len() as u16;
 
         // Render line numbers
         let y_first_record = area.y;
         let mut y = area.y;
-        for i in 0..num_rows {
-            let row_num = i + state.rows_offset as usize + 1;
-            let row_num_formatted = format!("{}", row_num);
+        for row in rows.iter() {
+            let row_num_formatted = row.record_num.to_string();
             let style = Style::default()
                 .fg(Color::Rgb(64, 64, 64));
             let span = Span::styled(row_num_formatted, style);
@@ -343,7 +343,7 @@ impl<'a> StatefulWidget for CsvTable<'a> {
             buf,
             state,
             rows_area,
-            self.rows.len(),
+            self.rows,
         );
 
         self.render_row(
@@ -369,7 +369,7 @@ impl<'a> StatefulWidget for CsvTable<'a> {
                 row_num_section_width,
                 y_offset,
                 false,
-                row,
+                &row.fields,
                 Some(row_index),
             );
             y_offset += 1;

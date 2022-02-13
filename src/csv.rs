@@ -24,6 +24,21 @@ pub struct CsvLensReader {
     bg_handle: thread::JoinHandle<()>,
 }
 
+#[derive(Debug, PartialEq)]
+pub struct Row {
+    pub record_num: usize,
+    pub fields: Vec<String>,
+}
+
+impl Row {
+    pub fn new(record_num: usize, fields: Vec<&str>) -> Row {
+        Row {
+            record_num,
+            fields: fields.iter().map(|x| x.to_string()).collect()
+        }
+    }
+}
+
 impl CsvLensReader {
 
     pub fn new(filename: &str) -> Result<Self> {
@@ -43,7 +58,7 @@ impl CsvLensReader {
         Ok(reader)
     }
 
-    pub fn get_rows(&mut self, rows_from: u64, num_rows: u64) -> Result<Vec<Vec<String>>> {
+    pub fn get_rows(&mut self, rows_from: u64, num_rows: u64) -> Result<Vec<Row>> {
 
         // seek to the closest previously known position
         let mut pos = Position::new();
@@ -71,10 +86,14 @@ impl CsvLensReader {
                 // rows_from is 0-based
                 if next_record_index - 1 >= rows_from {
                     let string_record = r?;
-                    let mut row = Vec::new();
+                    let mut fields= Vec::new();
                     for field in string_record.iter() {
-                        row.push(String::from(field));
+                        fields.push(String::from(field));
                     }
+                    let row = Row {
+                        record_num: next_record_index as usize,
+                        fields,
+                    };
                     res.push(row);
                 }
                 if res.len() >= num_rows as usize {
@@ -179,9 +198,9 @@ mod tests {
         let mut r = CsvLensReader::new("tests/data/cities.csv").unwrap();
         let rows = r.get_rows(2, 3).unwrap();
         let expected = vec![
-            vec!["46", "35", "59", "N", "120", "30", "36", "W", "Yakima", "WA"],
-            vec!["42", "16", "12", "N", "71", "48", "0", "W", "Worcester", "MA"],
-            vec!["43", "37", "48", "N", "89", "46", "11", "W", "Wisconsin Dells", "WI"]
+            Row::new(3, vec!["46", "35", "59", "N", "120", "30", "36", "W", "Yakima", "WA"]),
+            Row::new(4, vec!["42", "16", "12", "N", "71", "48", "0", "W", "Worcester", "MA"]),
+            Row::new(5, vec!["43", "37", "48", "N", "89", "46", "11", "W", "Wisconsin Dells", "WI"]),
         ];
         assert_eq!(rows, expected);
     }
