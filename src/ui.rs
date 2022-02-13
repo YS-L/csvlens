@@ -359,9 +359,7 @@ impl<'a> StatefulWidget for CsvTable<'a> {
         );
 
         let mut y_offset = y_first_record;
-        for (rel_row_index, row) in self.rows.iter().enumerate() {
-            // TODO: still need to derive row_index from rows_offset vs Row's record_num directly?
-            let row_index = rel_row_index.saturating_add(state.rows_offset as usize);
+        for row in self.rows.iter() {
             self.render_row(
                 buf,
                 state,
@@ -371,7 +369,7 @@ impl<'a> StatefulWidget for CsvTable<'a> {
                 y_offset,
                 false,
                 &row.fields,
-                Some(row_index),
+                Some(row.record_num - 1),
             );
             y_offset += 1;
             if y_offset >= rows_area.bottom() {
