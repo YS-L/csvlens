@@ -250,7 +250,7 @@ impl ReaderInternalState {
                 (*m).total_line_number_approx = Some(total_line_number_approx);
             }
 
-            let pos_table_num_entries = 1000;
+            let pos_table_num_entries = 10000;
             let minimum_interval = 100;  // handle small csv (don't keep pos every line)
             let pos_table_update_every = max(
                 minimum_interval, total_line_number_approx / pos_table_num_entries

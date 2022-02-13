@@ -97,6 +97,8 @@ fn run_csvlens() -> Result<()> {
 
     let mut finder: Option<find::Finder> = None;
     let mut first_found_scrolled = false;
+    // TODO: messy state also in view.rs
+    let mut is_filter = false;
 
     loop {
         terminal.draw(|f| {
@@ -135,14 +137,14 @@ fn run_csvlens() -> Result<()> {
                     csv_table_state.set_cols_offset(new_cols_offset);
                 }
             }
-            Control::ScrollToNextFound => {
+            Control::ScrollToNextFound if !is_filter => {
                 if let Some(fdr) = finder.as_mut() {
                     if let Some(found_record) = fdr.next() {
                         scroll_to_found_record(found_record, &mut rows_view, &mut csv_table_state);
                     }
                 }
             }
-            Control::ScrollToPrevFound => {
+            Control::ScrollToPrevFound if !is_filter => {
                 if let Some(fdr) = finder.as_mut() {
                     if let Some(found_record) = fdr.prev() {
                         scroll_to_found_record(found_record, &mut rows_view, &mut csv_table_state);
@@ -152,7 +154,14 @@ fn run_csvlens() -> Result<()> {
             Control::Find(s) => {
                 finder = Some(find::Finder::new(filename, s.as_str()).unwrap());
                 first_found_scrolled = false;
+                is_filter = false;
                 csv_table_state.reset_buffer();
+            }
+            Control::Filter(s) => {
+                finder = Some(find::Finder::new(filename, s.as_str()).unwrap());
+                is_filter = true;
+                csv_table_state.reset_buffer();
+                rows_view.set_rows_from(0).unwrap();
             }
             Control::BufferContent(buf) => {
                 csv_table_state.set_buffer(input_handler.mode(), buf.as_str());
@@ -162,31 +171,38 @@ fn run_csvlens() -> Result<()> {
                 if finder.is_some() {
                     finder = None;
                     csv_table_state.finder_state = FinderState::FinderInactive;
+                    is_filter = false;
                 }
             }
             _ => {}
         }
 
         if let Some(fdr) = finder.as_mut() {
-
-            // scroll to first result once ready
-            if !first_found_scrolled && fdr.count() > 0 {
-                // set row_hint to 0 so that this always scrolls to first result
-                fdr.set_row_hint(0);
-                if let Some(found_record) = fdr.next() {
-                    scroll_to_found_record(found_record, &mut rows_view, &mut csv_table_state);
+            if !is_filter {
+                // scroll to first result once ready
+                if !first_found_scrolled && fdr.count() > 0 {
+                    // set row_hint to 0 so that this always scrolls to first result
+                    fdr.set_row_hint(0);
+                    if let Some(found_record) = fdr.next() {
+                        scroll_to_found_record(found_record, &mut rows_view, &mut csv_table_state);
+                    }
+                    first_found_scrolled = true;
                 }
-                first_found_scrolled = true;
-            }
 
-            // reset cursor if out of view
-            if let Some(cursor_row_index) = fdr.cursor_row_index() {
-                if !rows_view.in_view(cursor_row_index as u64) {
-                    fdr.reset_cursor();
+                // reset cursor if out of view
+                if let Some(cursor_row_index) = fdr.cursor_row_index() {
+                    if !rows_view.in_view(cursor_row_index as u64) {
+                        fdr.reset_cursor();
+                    }
                 }
-            }
 
-            fdr.set_row_hint(rows_view.rows_from() as usize);
+                fdr.set_row_hint(rows_view.rows_from() as usize);
+            }
+            else {
+                // TODO: this is making too much copies all the time?
+                let filter_indices: Vec<u64> = fdr.get_all_found().iter().map(|x| x.row_index as u64).collect();
+                rows_view.set_filter(&filter_indices);
+            }
         }
 
         // update rows and elapsed time if there are new results
@@ -196,6 +212,9 @@ fn run_csvlens() -> Result<()> {
 
         // TODO: is this update too late?
         csv_table_state.set_rows_offset(rows_view.rows_from());
+        if !is_filter {
+            rows_view.reset_filter();
+        }
 
         if let Some(n) = rows_view.get_total_line_numbers() {
             csv_table_state.set_total_line_number(n);

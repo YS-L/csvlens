@@ -13,6 +13,7 @@ pub enum Control {
     ScrollToNextFound,
     ScrollToPrevFound,
     Find(String),
+    Filter(String),
     Quit,
     BufferContent(String),
     BufferReset,
@@ -29,6 +30,7 @@ pub enum InputMode {
     Default,
     GotoLine,
     Find,
+    Filter,
 }
 
 pub struct InputHandler {
@@ -110,6 +112,10 @@ impl InputHandler {
     }
 
     fn handler_buffering(&mut self, key: Key) -> Control {
+        let cur_buffer = match &self.buffer_state {
+            BufferState::Active(buffer) => buffer.as_str(),
+            _ => "",
+        };
         match key {
             Key::Esc => {
                 self.reset_buffer();
@@ -148,13 +154,28 @@ impl InputHandler {
                 self.reset_buffer();
                 res
             }
-            Key::Char('\n') if self.mode == InputMode::Find => {
-                let control = match &self.buffer_state {
-                    BufferState::Active(buf) => { Control::Find(buf.to_string()) }
-                    _ => { Control::BufferReset }
-                };
+            Key::Char('\n') => {
+                let control;
+                if cur_buffer == "" {
+                    control = Control::BufferReset;
+                }
+                else if self.mode == InputMode::Find {
+                    control = Control::Find(cur_buffer.to_string());
+                }
+                else if self.mode == InputMode::Filter {
+                    control = Control::Filter(cur_buffer.to_string());
+                }
+                else {
+                    control = Control::BufferReset;
+                }
                 self.reset_buffer();
                 control
+            }
+            Key::Char('/') => {
+                if cur_buffer == "" && self.mode == InputMode::Find {
+                    self.mode = InputMode::Filter;
+                }
+                Control::BufferContent("".to_string())
             }
             Key::Char(x) => {
                 let new_buffer = match &self.buffer_state {

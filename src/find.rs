@@ -14,7 +14,7 @@ pub struct Finder {
 
 #[derive(Clone, Debug)]
 pub struct FoundRecord {
-    row_index: usize,
+    pub row_index: usize,
     column_indices: Vec<usize>,
 }
 

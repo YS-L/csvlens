@@ -280,6 +280,9 @@ impl<'a> CsvTable<'a> {
                 InputMode::Find => {
                     content = format!("Find: {}", content);
                 }
+                InputMode::Filter => {
+                    content = format!("Filter: {}", content);
+                }
                 _ => {}
             }
         }
