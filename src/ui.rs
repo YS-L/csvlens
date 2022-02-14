@@ -475,7 +475,12 @@ impl FinderActiveState {
                 plus_marker,
             );
         }
-        format!("[\"{}\": {}]", self.target, line)
+        let action = if self.is_filter {
+            "Filter"
+        } else {
+            "Find"
+        };
+        format!("[{} \"{}\": {}]", action, self.target, line)
     }
 }
 
