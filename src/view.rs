@@ -2,7 +2,6 @@ use crate::csv::{CsvLensReader, Row};
 use crate::input::Control;
 
 use anyhow::Result;
-use anyhow::bail;
 use std::time::Instant;
 use std::cmp::min;
 
@@ -63,6 +62,10 @@ impl RowsView {
        }
        self.filter_indices = Some(filter_indices.to_vec());
        self.do_get_rows()
+   }
+
+   pub fn is_filter(&self) -> bool {
+       self.filter_indices.is_some()
    }
 
    pub fn reset_filter(&mut self) -> Result<()> {
