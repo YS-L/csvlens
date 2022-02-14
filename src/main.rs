@@ -159,7 +159,7 @@ fn run_csvlens() -> Result<()> {
                 finder = Some(find::Finder::new(filename, s.as_str()).unwrap());
                 csv_table_state.reset_buffer();
                 rows_view.set_rows_from(0).unwrap();
-                rows_view.set_filter(&vec![]).unwrap();
+                rows_view.init_filter().unwrap();
             }
             Control::BufferContent(buf) => {
                 csv_table_state.set_buffer(input_handler.mode(), buf.as_str());

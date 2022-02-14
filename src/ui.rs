@@ -294,9 +294,13 @@ impl<'a> CsvTable<'a> {
             }  else {
                 "?".to_owned()
             };
+            let row_num = match self.rows.first() {
+                Some(row) => row.record_num.to_string(),
+                _ => "-".to_owned(),
+            };
             content += format!(
                 " [Row {}/{}, Col {}/{}]",
-                state.rows_offset + 1,
+                row_num,
                 total_str,
                 state.cols_offset + 1,
                 state.total_cols,

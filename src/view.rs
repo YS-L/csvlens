@@ -76,6 +76,10 @@ impl RowsView {
        self.do_get_rows()
    }
 
+   pub fn init_filter(&mut self) -> Result<()> {
+       self.set_filter(&vec![])
+   }
+
    pub fn rows_from(&self) -> u64 {
        self.rows_from
    }
