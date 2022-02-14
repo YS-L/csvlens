@@ -1,4 +1,5 @@
 use crate::find;
+use crate::view;
 use crate::input::InputMode;
 use crate::csv::Row;
 use tui::widgets::Widget;
@@ -407,8 +408,8 @@ pub enum FinderState {
 }
 
 impl FinderState {
-    pub fn from_finder(finder: &find::Finder) -> FinderState {
-        let active_state = FinderActiveState::new(finder);
+    pub fn from_finder(finder: &find::Finder, rows_view: &view::RowsView) -> FinderState {
+        let active_state = FinderActiveState::new(finder, rows_view);
         FinderState::FinderActive(active_state)
     }
 }
@@ -419,17 +420,21 @@ pub struct FinderActiveState {
     cursor_index: Option<u64>,
     target: String,
     found_record: Option<find::FoundRecord>,
+    rows_from: u64,
+    is_filter: bool,
 }
 
 impl FinderActiveState {
 
-    pub fn new(finder: &find::Finder) -> Self {
+    pub fn new(finder: &find::Finder, rows_view: &view::RowsView) -> Self {
         FinderActiveState {
             find_complete: finder.done(),
             total_found: finder.count() as u64,
             cursor_index: finder.cursor().map(|x| x as u64),
             target: finder.target(),
             found_record: finder.current(),
+            rows_from: rows_view.rows_from(),
+            is_filter: rows_view.is_filter(),
         }
     }
 
@@ -451,11 +456,18 @@ impl FinderActiveState {
             else {
                 plus_marker = "+";
             }
-            let cursor_str = if self.cursor_index.is_none() {
-                "-".to_owned()
-            } else {
-                (self.cursor_index.unwrap() + 1).to_string()
-            };
+            let cursor_str;
+            if self.is_filter {
+                cursor_str = (self.rows_from.saturating_add(1)).to_string();
+            }
+            else {
+                if let Some(i) = self.cursor_index {
+                    cursor_str = (i.saturating_add(1)).to_string();
+                }
+                else {
+                    cursor_str = "-".to_owned();
+                }
+            }
             line = format!(
                 "{}/{}{}",
                 cursor_str,

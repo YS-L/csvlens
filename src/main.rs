@@ -220,7 +220,7 @@ fn run_csvlens() -> Result<()> {
 
         if let Some(f) = &finder {
             // TODO: need to create a new finder every time?
-            csv_table_state.finder_state = FinderState::from_finder(f);
+            csv_table_state.finder_state = FinderState::from_finder(f, &rows_view);
         }
 
         //csv_table_state.debug = format!("{:?}", csv_table_state.cols_offset);
