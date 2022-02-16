@@ -210,6 +210,7 @@ fn run_csvlens() -> Result<()> {
 
         // TODO: is this update too late?
         csv_table_state.set_rows_offset(rows_view.rows_from());
+        csv_table_state.selected = rows_view.selected();
 
         if let Some(n) = rows_view.get_total_line_numbers() {
             csv_table_state.set_total_line_number(n);
@@ -223,7 +224,7 @@ fn run_csvlens() -> Result<()> {
             csv_table_state.finder_state = FinderState::from_finder(f, &rows_view);
         }
 
-        //csv_table_state.debug = format!("{:?}", csv_table_state.cols_offset);
+        //csv_table_state.debug = format!("{:?}", csv_table_state.selected);
     }
 
     Ok(())

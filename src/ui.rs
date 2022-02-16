@@ -176,6 +176,7 @@ impl<'a> CsvTable<'a> {
         is_header: bool,
         row: &[String],
         row_index: Option<usize>,
+        is_selected: bool,
     ) {
         let mut x_offset_header = x;
         let mut remaining_width = area.width.saturating_sub(x);
@@ -192,11 +193,14 @@ impl<'a> CsvTable<'a> {
             let mut style = Style::default();
             if is_header {
                 style = style.add_modifier(Modifier::BOLD);
-
+            }
+            if is_selected {
+                style = style.fg(Color::Rgb(255, 200, 0))
+                            .add_modifier(Modifier::BOLD);
             }
             match &state.finder_state {
                 FinderState::FinderActive(active) if (*hname).contains(active.target.as_str()) => {
-                    let mut highlight_style = Style::default().fg(Color::Rgb(200, 0, 0));
+                    let mut highlight_style = style.fg(Color::Rgb(200, 0, 0));
                     if let Some(hl) = &active.found_record {
                         if let Some(row_index) = row_index {
                             // TODO: vec::contains slow or does it even matter?
@@ -364,10 +368,18 @@ impl<'a> StatefulWidget for CsvTable<'a> {
             true,
             &self.header,
             None,
+            false,
         );
 
         let mut y_offset = y_first_record;
-        for row in self.rows.iter() {
+        for (i, row) in self.rows.iter().enumerate() {
+            let is_selected;
+            if let Some(selected_row) = state.selected {
+                is_selected = i as u64 == selected_row;
+            }
+            else {
+                is_selected = false;
+            }
             self.render_row(
                 buf,
                 state,
@@ -378,6 +390,7 @@ impl<'a> StatefulWidget for CsvTable<'a> {
                 false,
                 &row.fields,
                 Some(row.record_num - 1),
+                is_selected,
             );
             y_offset += 1;
             if y_offset >= rows_area.bottom() {
@@ -504,7 +517,8 @@ pub struct CsvTableState {
     borders_state: Option<BordersState>,
     // TODO: should probably be with BordersState
     col_ending_pos_x: u16,
-    debug: String,
+    pub selected: Option<u64>,
+    pub debug: String,
 }
 
 impl CsvTableState {
@@ -523,6 +537,7 @@ impl CsvTableState {
             finder_state: FinderState::FinderInactive,
             borders_state: None,
             col_ending_pos_x: 0,
+            selected: None,
             debug: "".into(),
         }
     }

@@ -12,6 +12,7 @@ pub struct RowsView {
     num_rows: u64,
     rows_from: u64,
     filter_indices: Option<Vec<u64>>,
+    selected: Option<u64>,
     elapsed: Option<u128>,
 }
 
@@ -28,6 +29,7 @@ impl RowsView {
            num_rows,
            rows_from,
            filter_indices: None,
+           selected: Some(0),
            elapsed: None,
        };
        Ok(view)
@@ -100,6 +102,31 @@ impl RowsView {
        Ok(())
    }
 
+   pub fn set_selected(&mut self, selected: u64) {
+       let selected = min(selected, (self.rows.len() as u64).saturating_sub(1));
+       self.selected = Some(selected);
+   }
+
+   pub fn reset_selected(&mut self) {
+       self.selected = None;
+   }
+
+   pub fn increase_selected(&mut self) {
+       if let Some(i) = self.selected {
+           self.set_selected(i.saturating_add(1));
+       };
+   }
+
+   pub fn decrease_selected(&mut self) {
+       if let Some(i) = self.selected {
+           self.set_selected(i.saturating_sub(1));
+       }
+   }
+
+   pub fn selected(&self) -> Option<u64> {
+       self.selected
+   }
+
    pub fn elapsed(&self) -> Option<u128> {
         self.elapsed
    }
@@ -123,13 +150,33 @@ impl RowsView {
    pub fn handle_control(&mut self, control: &Control) -> Result<()> {
        match control {
            Control::ScrollDown => {
-               self.increase_rows_from(1)?;
+               if let Some(i) = self.selected {
+                   if i == self.num_rows - 1 {
+                       self.increase_rows_from(1)?;
+                   }
+                   else {
+                       self.increase_selected();
+                   }
+               }
+               else {
+                   self.increase_rows_from(1)?;
+               }
            }
            Control::ScrollPageDown => {
                self.increase_rows_from(self.num_rows)?;
            }
            Control::ScrollUp => {
-               self.decrease_rows_from(1)?;
+               if let Some(i) = self.selected {
+                   if i == 0 {
+                       self.decrease_rows_from(1)?;
+                   }
+                   else {
+                       self.decrease_selected();
+                   }
+               }
+               else {
+                   self.decrease_rows_from(1)?;
+               }
            }
            Control::ScrollPageUp => {
                self.decrease_rows_from(self.num_rows)?;
@@ -203,6 +250,10 @@ impl RowsView {
         let elapsed = start.elapsed().as_micros();
         self.rows = rows;
         self.elapsed = Some(elapsed);
+        // current selected might be out of range, reset it
+        if let Some(i) = self.selected {
+            self.set_selected(i);
+        }
         Ok(())
     }
 
