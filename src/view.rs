@@ -123,6 +123,14 @@ impl RowsView {
        }
    }
 
+   pub fn select_top(&mut self) {
+       self.set_selected(0);
+   }
+
+   pub fn select_bottom(&mut self) {
+       self.set_selected((self.rows.len() as u64).saturating_sub(1))
+   }
+
    pub fn selected(&self) -> Option<u64> {
        self.selected
    }
@@ -164,6 +172,9 @@ impl RowsView {
            }
            Control::ScrollPageDown => {
                self.increase_rows_from(self.num_rows)?;
+               if self.selected.is_some() {
+                   self.select_top()
+               }
            }
            Control::ScrollUp => {
                if let Some(i) = self.selected {
@@ -180,11 +191,17 @@ impl RowsView {
            }
            Control::ScrollPageUp => {
                self.decrease_rows_from(self.num_rows)?;
+               if self.selected.is_some() {
+                   self.select_bottom()
+               }
            }
            Control::ScrollBottom => {
                if let Some(total) = self.get_total() {
                     let rows_from = total.saturating_sub(self.num_rows as usize) as u64;
                     self.set_rows_from(rows_from)?;
+               }
+               if self.selected.is_some() {
+                   self.select_bottom()
                }
            }
            Control::ScrollTo(n) => {
@@ -193,6 +210,9 @@ impl RowsView {
                     rows_from = min(rows_from, n);
                 }
                 self.set_rows_from(rows_from)?;
+                if self.selected.is_some() {
+                    self.select_top()
+                }
            }
            _ => {}
        }
