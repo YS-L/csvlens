@@ -33,11 +33,8 @@ impl FoundRecord {
 }
 
 impl Finder {
-
     pub fn new(filename: &str, target: &str) -> Result<Self> {
-        let internal = FinderInternalState::init(
-            filename, target
-        );
+        let internal = FinderInternalState::init(filename, target);
         let finder = Finder {
             internal,
             cursor: None,
@@ -61,7 +58,8 @@ impl Finder {
 
     pub fn cursor_row_index(&self) -> Option<usize> {
         let m_guard = self.internal.lock().unwrap();
-        self.get_found_record_at_cursor(m_guard).map(|x| x.row_index())
+        self.get_found_record_at_cursor(m_guard)
+            .map(|x| x.row_index())
     }
 
     pub fn target(&self) -> String {
@@ -87,8 +85,7 @@ impl Finder {
             if n + 1 < count {
                 self.cursor = Some(n + 1);
             }
-        }
-        else if count > 0 {
+        } else if count > 0 {
             self.cursor = Some(m_guard.next_from(self.row_hint));
         }
         self.get_found_record_at_cursor(m_guard)
@@ -98,8 +95,7 @@ impl Finder {
         let m_guard = self.internal.lock().unwrap();
         if let Some(n) = self.cursor {
             self.cursor = Some(n.saturating_sub(1));
-        }
-        else {
+        } else {
             let count = m_guard.count;
             if count > 0 {
                 self.cursor = Some(m_guard.prev_from(self.row_hint));
@@ -113,14 +109,16 @@ impl Finder {
         self.get_found_record_at_cursor(m_guard)
     }
 
-    fn get_found_record_at_cursor(&self, m_guard: MutexGuard<FinderInternalState>) -> Option<FoundRecord> {
+    fn get_found_record_at_cursor(
+        &self,
+        m_guard: MutexGuard<FinderInternalState>,
+    ) -> Option<FoundRecord> {
         if let Some(n) = self.cursor {
             // TODO: this weird ref massaging really needed?
             // TODO: really need to get a copy of the whole list of of mutex?
             let res = m_guard.founds.get(n);
             res.cloned()
-        }
-        else {
+        } else {
             None
         }
     }
@@ -150,9 +148,7 @@ struct FinderInternalState {
 }
 
 impl FinderInternalState {
-
     pub fn init(filename: &str, target: &str) -> Arc<Mutex<FinderInternalState>> {
-
         let internal = FinderInternalState {
             count: 0,
             founds: vec![],
@@ -166,8 +162,7 @@ impl FinderInternalState {
         let _filename = filename.to_owned();
         let _target = target.to_owned();
 
-        let _handle = thread::spawn(move|| {
-
+        let _handle = thread::spawn(move || {
             let mut bg_reader = Reader::from_path(_filename.as_str()).unwrap();
 
             // note that records() exludes header
@@ -198,7 +193,6 @@ impl FinderInternalState {
 
             let mut m = _m.lock().unwrap();
             (*m).done = true;
-
         });
 
         m_state
@@ -210,9 +204,7 @@ impl FinderInternalState {
     }
 
     fn next_from(&self, row_hint: usize) -> usize {
-        let mut index = self.founds.partition_point(
-            |r| r.row_index() < row_hint
-        );
+        let mut index = self.founds.partition_point(|r| r.row_index() < row_hint);
         if index >= self.founds.len() {
             index -= 1;
         }
@@ -223,8 +215,7 @@ impl FinderInternalState {
         let next = self.next_from(row_hint);
         if next > 0 {
             next - 1
-        }
-        else {
+        } else {
             next
         }
     }

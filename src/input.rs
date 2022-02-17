@@ -40,7 +40,6 @@ pub struct InputHandler {
 }
 
 impl InputHandler {
-
     pub fn new() -> InputHandler {
         InputHandler {
             events: Events::new(),
@@ -53,8 +52,7 @@ impl InputHandler {
         if let Event::Input(key) = self.events.next().unwrap() {
             if self.is_input_buffering() {
                 return self.handler_buffering(key);
-            }
-            else {
+            } else {
                 return self.handler_default(key);
             }
         }
@@ -64,36 +62,16 @@ impl InputHandler {
 
     fn handler_default(&mut self, key: Key) -> Control {
         match key {
-            Key::Char('q') => {
-                Control::Quit
-            }
-            Key::Char('j') | Key::Down => {
-                Control::ScrollDown
-            }
-            Key::Char('k') | Key::Up => {
-                Control::ScrollUp
-            }
-            Key::Char('l') | Key::Right => {
-                Control::ScrollRight
-            }
-            Key::Char('h') | Key::Left => {
-                Control::ScrollLeft
-            }
-            Key::Char('G') => {
-                Control::ScrollBottom
-            }
-            Key::Char('n') => {
-                Control::ScrollToNextFound
-            }
-            Key::Char('N') => {
-                Control::ScrollToPrevFound
-            }
-            Key::Ctrl('f') | Key::PageDown => {
-                Control::ScrollPageDown
-            }
-            Key::Ctrl('b') | Key::PageUp => {
-                Control::ScrollPageUp
-            }
+            Key::Char('q') => Control::Quit,
+            Key::Char('j') | Key::Down => Control::ScrollDown,
+            Key::Char('k') | Key::Up => Control::ScrollUp,
+            Key::Char('l') | Key::Right => Control::ScrollRight,
+            Key::Char('h') | Key::Left => Control::ScrollLeft,
+            Key::Char('G') => Control::ScrollBottom,
+            Key::Char('n') => Control::ScrollToNextFound,
+            Key::Char('N') => Control::ScrollToPrevFound,
+            Key::Ctrl('f') | Key::PageDown => Control::ScrollPageDown,
+            Key::Ctrl('b') | Key::PageUp => Control::ScrollPageUp,
             Key::Char(x) if "0123456789".contains(x.to_string().as_str()) => {
                 let init_buffer = x.to_string();
                 self.buffer_state = BufferState::Active(init_buffer.clone());
@@ -105,9 +83,7 @@ impl InputHandler {
                 self.mode = InputMode::Find;
                 Control::BufferContent("".to_owned())
             }
-            _ => {
-                Control::Nothing
-            }
+            _ => Control::Nothing,
         }
     }
 
@@ -128,13 +104,12 @@ impl InputHandler {
                         chars.next_back();
                         chars.as_str().to_owned()
                     }
-                    _ => "".to_owned()
+                    _ => "".to_owned(),
                 };
                 if !new_buffer.is_empty() {
                     self.buffer_state = BufferState::Active(new_buffer.clone());
                     Control::BufferContent(new_buffer)
-                }
-                else {
+                } else {
                     self.reset_buffer();
                     Control::BufferReset
                 }
@@ -147,8 +122,7 @@ impl InputHandler {
                 let res;
                 if let Some(n) = goto_line {
                     res = Control::ScrollTo(n);
-                }
-                else {
+                } else {
                     res = Control::BufferReset;
                 }
                 self.reset_buffer();
@@ -158,14 +132,11 @@ impl InputHandler {
                 let control;
                 if cur_buffer == "" {
                     control = Control::BufferReset;
-                }
-                else if self.mode == InputMode::Find {
+                } else if self.mode == InputMode::Find {
                     control = Control::Find(cur_buffer.to_string());
-                }
-                else if self.mode == InputMode::Filter {
+                } else if self.mode == InputMode::Filter {
                     control = Control::Filter(cur_buffer.to_string());
-                }
-                else {
+                } else {
                     control = Control::BufferReset;
                 }
                 self.reset_buffer();
@@ -185,20 +156,14 @@ impl InputHandler {
                 self.buffer_state = BufferState::Active(new_buffer.clone());
                 Control::BufferContent(new_buffer)
             }
-            _ => {
-                Control::Nothing
-            }
+            _ => Control::Nothing,
         }
     }
 
     fn is_input_buffering(&self) -> bool {
         match self.buffer_state {
-            BufferState::Active(_) => {
-                true
-            }
-            _ => {
-                false
-            }
+            BufferState::Active(_) => true,
+            _ => false,
         }
     }
 
@@ -209,5 +174,4 @@ impl InputHandler {
     pub fn mode(&self) -> InputMode {
         self.mode.clone()
     }
-
 }

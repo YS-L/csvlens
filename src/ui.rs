@@ -1,14 +1,14 @@
-use crate::find;
-use crate::view;
-use crate::input::InputMode;
 use crate::csv::Row;
-use tui::widgets::Widget;
-use tui::widgets::{StatefulWidget, Block, Borders};
+use crate::find;
+use crate::input::InputMode;
+use crate::view;
 use tui::buffer::Buffer;
 use tui::layout::Rect;
-use tui::text::{Span, Spans};
-use tui::style::{Style, Modifier, Color};
+use tui::style::{Color, Modifier, Style};
 use tui::symbols::line;
+use tui::text::{Span, Spans};
+use tui::widgets::Widget;
+use tui::widgets::{Block, Borders, StatefulWidget};
 
 use std::cmp::min;
 
@@ -29,7 +29,6 @@ impl<'a> CsvTable<'a> {
 }
 
 impl<'a> CsvTable<'a> {
-
     fn get_column_widths(&self, area_width: u16) -> Vec<u16> {
         let mut column_widths = Vec::new();
         for s in self.header.iter() {
@@ -58,7 +57,6 @@ impl<'a> CsvTable<'a> {
         area: Rect,
         rows: &[Row],
     ) -> u16 {
-
         // TODO: better to derminte width from total number of records, so this is always fixed
         let max_row_num = rows.iter().map(|x| x.record_num).max().unwrap_or(0);
         let mut section_width = format!("{}", max_row_num).len() as u16;
@@ -68,8 +66,7 @@ impl<'a> CsvTable<'a> {
         let mut y = area.y;
         for row in rows.iter() {
             let row_num_formatted = row.record_num.to_string();
-            let style = Style::default()
-                .fg(Color::Rgb(64, 64, 64));
+            let style = Style::default().fg(Color::Rgb(64, 64, 64));
             let span = Span::styled(row_num_formatted, style);
             buf.set_span(0, y, &span, section_width);
             y += 1;
@@ -77,14 +74,12 @@ impl<'a> CsvTable<'a> {
                 break;
             }
         }
-        section_width = section_width + 2 + 1;  // one char reserved for line; add one for symmetry
+        section_width = section_width + 2 + 1; // one char reserved for line; add one for symmetry
 
-        state.borders_state = Some(
-            BordersState {
-                x_row_separator: section_width,
-                y_first_record,
-            }
-        );
+        state.borders_state = Some(BordersState {
+            x_row_separator: section_width,
+            y_first_record,
+        });
 
         // Add more space before starting first column
         section_width += 2;
@@ -117,12 +112,7 @@ impl<'a> CsvTable<'a> {
         let line_number_block = Block::default()
             .borders(Borders::RIGHT)
             .border_style(Style::default().fg(Color::Rgb(64, 64, 64)));
-        let line_number_area = Rect::new(
-            0,
-            y_first_record,
-            section_width,
-            area.height,
-        );
+        let line_number_area = Rect::new(0, y_first_record, section_width, area.height);
         line_number_block.render(line_number_area, buf);
 
         // Intersection with header separator
@@ -133,12 +123,7 @@ impl<'a> CsvTable<'a> {
         let block = Block::default()
             .borders(Borders::TOP)
             .border_style(Style::default().fg(Color::Rgb(64, 64, 64)));
-        let status_separator_area = Rect::new(
-            0,
-            y_first_record + area.height,
-            area.width,
-            1,
-        );
+        let status_separator_area = Rect::new(0, y_first_record + area.height, area.width, 1);
         block.render(status_separator_area, buf);
 
         // Intersection with bottom separator
@@ -195,8 +180,9 @@ impl<'a> CsvTable<'a> {
                 style = style.add_modifier(Modifier::BOLD);
             }
             if is_selected {
-                style = style.fg(Color::Rgb(255, 200, 0))
-                            .add_modifier(Modifier::BOLD);
+                style = style
+                    .fg(Color::Rgb(255, 200, 0))
+                    .add_modifier(Modifier::BOLD);
             }
             match &state.finder_state {
                 FinderState::FinderActive(active) if (*hname).contains(active.target.as_str()) => {
@@ -204,7 +190,9 @@ impl<'a> CsvTable<'a> {
                     if let Some(hl) = &active.found_record {
                         if let Some(row_index) = row_index {
                             // TODO: vec::contains slow or does it even matter?
-                            if row_index == hl.row_index() && hl.column_indices().contains(&col_index) {
+                            if row_index == hl.row_index()
+                                && hl.column_indices().contains(&col_index)
+                            {
                                 highlight_style = highlight_style.bg(Color::LightYellow);
                             }
                         }
@@ -240,7 +228,6 @@ impl<'a> CsvTable<'a> {
     }
 
     fn set_spans(&self, buf: &mut Buffer, spans: &[Span], x: u16, y: u16, width: u16) {
-
         // TODO: make constant?
         let suffix = "…";
         let suffix_len = suffix.chars().count();
@@ -254,11 +241,9 @@ impl<'a> CsvTable<'a> {
             if span.content.len() <= remaining_width.into() {
                 cur_spans.push(span.clone());
                 remaining_width = remaining_width.saturating_sub(span.content.len() as u16);
-            }
-            else {
-                let truncated_content = &span.content[
-                    ..remaining_width.saturating_sub(suffix_len as u16) as usize
-                ];
+            } else {
+                let truncated_content =
+                    &span.content[..remaining_width.saturating_sub(suffix_len as u16) as usize];
                 let truncated_span = Span::styled(truncated_content, span.style);
                 cur_spans.push(truncated_span);
                 cur_spans.push(Span::raw(suffix));
@@ -272,7 +257,6 @@ impl<'a> CsvTable<'a> {
     }
 
     fn render_status(&self, area: Rect, buf: &mut Buffer, state: &mut CsvTableState) {
-
         // Content of status line (separator already plotted elsewhere)
         let style = Style::default().fg(Color::Rgb(128, 128, 128));
         let mut content: String;
@@ -290,13 +274,12 @@ impl<'a> CsvTable<'a> {
                 }
                 _ => {}
             }
-        }
-        else {
+        } else {
             content = state.filename.to_string();
 
             let total_str = if state.total_line_number.is_some() {
                 format!("{}", state.total_line_number.unwrap())
-            }  else {
+            } else {
                 "?".to_owned()
             };
             let row_num = match self.rows.first() {
@@ -309,7 +292,8 @@ impl<'a> CsvTable<'a> {
                 total_str,
                 state.cols_offset + 1,
                 state.total_cols,
-            ).as_str();
+            )
+            .as_str();
 
             if let FinderState::FinderActive(s) = &state.finder_state {
                 content += format!(" {}", s.status_line()).as_str();
@@ -332,7 +316,6 @@ impl<'a> StatefulWidget for CsvTable<'a> {
     type State = CsvTableState;
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
-
         // TODO: draw relative to the provided area
 
         if area.area() == 0 {
@@ -348,15 +331,12 @@ impl<'a> StatefulWidget for CsvTable<'a> {
             area.x,
             y_first_record,
             area.width,
-            area.height.saturating_sub(y_first_record).saturating_sub(status_height),
+            area.height
+                .saturating_sub(y_first_record)
+                .saturating_sub(status_height),
         );
 
-        let row_num_section_width = self.render_row_numbers(
-            buf,
-            state,
-            rows_area,
-            self.rows,
-        );
+        let row_num_section_width = self.render_row_numbers(buf, state, rows_area, self.rows);
 
         self.render_row(
             buf,
@@ -376,8 +356,7 @@ impl<'a> StatefulWidget for CsvTable<'a> {
             let is_selected;
             if let Some(selected_row) = state.selected {
                 is_selected = i as u64 == selected_row;
-            }
-            else {
+            } else {
                 is_selected = false;
             }
             self.render_row(
@@ -438,7 +417,6 @@ pub struct FinderActiveState {
 }
 
 impl FinderActiveState {
-
     pub fn new(finder: &find::Finder, rows_view: &view::RowsView) -> Self {
         FinderActiveState {
             find_complete: finder.done(),
@@ -457,42 +435,28 @@ impl FinderActiveState {
         if self.total_found == 0 {
             if self.find_complete {
                 line = "Not found".to_owned();
-            }
-            else {
+            } else {
                 line = "Finding...".to_owned();
             }
-        }
-        else {
+        } else {
             if self.find_complete {
                 plus_marker = "";
-            }
-            else {
+            } else {
                 plus_marker = "+";
             }
             let cursor_str;
             if self.is_filter {
                 cursor_str = (self.rows_from.saturating_add(1)).to_string();
-            }
-            else {
+            } else {
                 if let Some(i) = self.cursor_index {
                     cursor_str = (i.saturating_add(1)).to_string();
-                }
-                else {
+                } else {
                     cursor_str = "-".to_owned();
                 }
             }
-            line = format!(
-                "{}/{}{}",
-                cursor_str,
-                self.total_found,
-                plus_marker,
-            );
+            line = format!("{}/{}{}", cursor_str, self.total_found, plus_marker,);
         }
-        let action = if self.is_filter {
-            "Filter"
-        } else {
-            "Find"
-        };
+        let action = if self.is_filter { "Filter" } else { "Find" };
         format!("[{} \"{}\": {}]", action, self.target, line)
     }
 }
@@ -522,7 +486,6 @@ pub struct CsvTableState {
 }
 
 impl CsvTableState {
-
     pub fn new(filename: String, total_cols: usize) -> Self {
         Self {
             rows_offset: 0,
@@ -573,5 +536,4 @@ impl CsvTableState {
     pub fn reset_buffer(&mut self) {
         self.buffer_content = BufferState::Disabled;
     }
-
 }

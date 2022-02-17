@@ -1,36 +1,33 @@
+mod csv;
+mod find;
+mod input;
+mod ui;
 #[allow(dead_code)]
 mod util;
-mod csv;
-mod input;
 mod view;
-mod find;
-mod ui;
-use crate::input::{InputHandler, Control};
+use crate::input::{Control, InputHandler};
 use crate::ui::{CsvTable, CsvTableState, FinderState};
 
 extern crate csv as sushi_csv;
 
-use std::io;
-use std::env;
-use std::usize;
-use tui::Terminal;
-use tui::backend::TermionBackend;
-use termion::{raw::IntoRawMode, screen::AlternateScreen};
 use anyhow::{Context, Result};
-
+use std::env;
+use std::io;
+use std::usize;
+use termion::{raw::IntoRawMode, screen::AlternateScreen};
+use tui::backend::TermionBackend;
+use tui::Terminal;
 
 fn get_offsets_to_make_visible(
     found_record: find::FoundRecord,
     rows_view: &view::RowsView,
     csv_table_state: &CsvTableState,
 ) -> (Option<u64>, Option<u64>) {
-
     let new_rows_offset;
     // TODO: row_index() should probably be u64
     if rows_view.in_view(found_record.row_index() as u64) {
         new_rows_offset = None;
-    }
-    else {
+    } else {
         new_rows_offset = Some(found_record.row_index() as u64);
     }
 
@@ -40,8 +37,7 @@ fn get_offsets_to_make_visible(
     let column_index = found_record.first_column() as u64;
     if column_index >= cols_offset && column_index < last_rendered_col {
         new_cols_offset = None;
-    }
-    else {
+    } else {
         new_cols_offset = Some(column_index)
     }
 
@@ -53,10 +49,8 @@ fn scroll_to_found_record(
     rows_view: &mut view::RowsView,
     csv_table_state: &mut CsvTableState,
 ) {
-
-    let (new_rows_offset, new_cols_offset) = get_offsets_to_make_visible(
-        found_record.clone(), rows_view, csv_table_state
-    );
+    let (new_rows_offset, new_cols_offset) =
+        get_offsets_to_make_visible(found_record.clone(), rows_view, csv_table_state);
 
     if let Some(rows_offset) = new_rows_offset {
         rows_view.set_rows_from(rows_offset).unwrap();
@@ -66,11 +60,9 @@ fn scroll_to_found_record(
     if let Some(cols_offset) = new_cols_offset {
         csv_table_state.set_cols_offset(cols_offset);
     }
-
 }
 
 fn run_csvlens() -> Result<()> {
-
     let args: Vec<String> = env::args().collect();
     let filename = args.get(1).expect("Filename not provided");
 
@@ -79,8 +71,8 @@ fn run_csvlens() -> Result<()> {
 
     // Number of rows that are visible in the current frame
     let num_rows = 50 - num_rows_not_visible;
-    let csvlens_reader = csv::CsvLensReader::new(filename)
-        .context(format!("Failed to open file: {}", filename))?;
+    let csvlens_reader =
+        csv::CsvLensReader::new(filename).context(format!("Failed to open file: {}", filename))?;
     let mut rows_view = view::RowsView::new(csvlens_reader, num_rows)?;
 
     let headers = rows_view.headers().clone();
@@ -91,28 +83,29 @@ fn run_csvlens() -> Result<()> {
     let mut terminal = Terminal::new(backend).unwrap();
 
     let mut input_handler = InputHandler::new();
-    let mut csv_table_state = CsvTableState::new(
-        filename.to_string(), headers.len()
-    );
+    let mut csv_table_state = CsvTableState::new(filename.to_string(), headers.len());
 
     let mut finder: Option<find::Finder> = None;
     let mut first_found_scrolled = false;
 
     loop {
-        terminal.draw(|f| {
+        terminal
+            .draw(|f| {
+                let size = f.size();
 
-            let size = f.size();
+                // TODO: check type of num_rows too big?
+                let frame_size_adjusted_num_rows =
+                    size.height.saturating_sub(num_rows_not_visible as u16) as u64;
+                rows_view
+                    .set_num_rows(frame_size_adjusted_num_rows)
+                    .unwrap();
 
-            // TODO: check type of num_rows too big?
-            let frame_size_adjusted_num_rows = size.height.saturating_sub(num_rows_not_visible as u16) as u64;
-            rows_view.set_num_rows(frame_size_adjusted_num_rows).unwrap();
+                let rows = rows_view.rows();
+                let csv_table = CsvTable::new(&headers, rows);
 
-            let rows = rows_view.rows();
-            let csv_table = CsvTable::new(&headers, rows);
-
-            f.render_stateful_widget(csv_table, size, &mut csv_table_state);
-
-        }).unwrap();
+                f.render_stateful_widget(csv_table, size, &mut csv_table_state);
+            })
+            .unwrap();
 
         let control = input_handler.next();
 
@@ -195,10 +188,13 @@ fn run_csvlens() -> Result<()> {
                 }
 
                 fdr.set_row_hint(rows_view.rows_from() as usize);
-            }
-            else {
+            } else {
                 // TODO: this is making too much copies all the time?
-                let filter_indices: Vec<u64> = fdr.get_all_found().iter().map(|x| x.row_index as u64).collect();
+                let filter_indices: Vec<u64> = fdr
+                    .get_all_found()
+                    .iter()
+                    .map(|x| x.row_index as u64)
+                    .collect();
                 rows_view.set_filter(&filter_indices).unwrap();
             }
         }
@@ -214,8 +210,7 @@ fn run_csvlens() -> Result<()> {
 
         if let Some(n) = rows_view.get_total_line_numbers() {
             csv_table_state.set_total_line_number(n);
-        }
-        else if let Some(n) = rows_view.get_total_line_numbers_approx() {
+        } else if let Some(n) = rows_view.get_total_line_numbers_approx() {
             csv_table_state.set_total_line_number(n);
         }
 

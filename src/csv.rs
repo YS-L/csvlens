@@ -1,18 +1,17 @@
 extern crate csv;
 
 use anyhow;
-use anyhow::{Result, bail};
+use anyhow::{bail, Result};
 use csv::{Position, Reader};
+use std::cmp::max;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time;
-use std::cmp::max;
-
 
 fn string_record_to_vec(record: &csv::StringRecord) -> Vec<String> {
-    let mut string_vec= Vec::new();
+    let mut string_vec = Vec::new();
     for field in record.iter() {
         string_vec.push(String::from(field));
     }
@@ -36,15 +35,13 @@ impl Row {
     pub fn new(record_num: usize, fields: Vec<&str>) -> Row {
         Row {
             record_num,
-            fields: fields.iter().map(|x| x.to_string()).collect()
+            fields: fields.iter().map(|x| x.to_string()).collect(),
         }
     }
 }
 
 impl CsvLensReader {
-
     pub fn new(filename: &str) -> Result<Self> {
-
         let mut reader = Reader::from_path(filename)?;
         let headers_record = reader.headers().unwrap();
         let headers = string_record_to_vec(headers_record);
@@ -61,7 +58,7 @@ impl CsvLensReader {
     }
 
     pub fn get_rows(&mut self, rows_from: u64, num_rows: u64) -> Result<Vec<Row>> {
-        let indices: Vec<u64> = (rows_from..rows_from+num_rows).collect();
+        let indices: Vec<u64> = (rows_from..rows_from + num_rows).collect();
         self.get_rows_impl(&indices).map(|x| x.0)
     }
 
@@ -70,7 +67,6 @@ impl CsvLensReader {
     }
 
     fn get_rows_impl(&mut self, indices: &[u64]) -> Result<(Vec<Row>, GetRowsStats)> {
-
         // stats for debugging and testing
         let mut stats = GetRowsStats::new();
 
@@ -96,13 +92,11 @@ impl CsvLensReader {
                     if pos.record() - 1 <= index {
                         self.reader.seek(pos.clone())?;
                         stats.log_seek();
-                    }
-                    else {
+                    } else {
                         break;
                     }
                     next_pos = pos_iter.next();
-                }
-                else {
+                } else {
                     break;
                 }
             }
@@ -118,7 +112,7 @@ impl CsvLensReader {
                     break;
                 }
                 let wanted_index = *next_wanted.unwrap();
-                let record_num= records.reader().position().record();
+                let record_num = records.reader().position().record();
                 if let Some(r) = records.next() {
                     stats.log_parsed_record();
                     // no effective pre-seeking happened, this is still the header
@@ -127,7 +121,7 @@ impl CsvLensReader {
                     }
                     if record_num - 1 == wanted_index {
                         let string_record = r?;
-                        let mut fields= Vec::new();
+                        let mut fields = Vec::new();
                         for field in string_record.iter() {
                             fields.push(String::from(field));
                         }
@@ -144,8 +138,7 @@ impl CsvLensReader {
                             break;
                         }
                     }
-                }
-                else {
+                } else {
                     // no more records
                     break;
                 }
@@ -155,15 +148,13 @@ impl CsvLensReader {
                 // if here, the last block had been scanned, and we should be done
                 if next_wanted.is_none() {
                     break;
-                }
-                else {
+                } else {
                     bail!("Next requested index not found: {}", next_wanted.unwrap());
                 }
             }
         }
 
         Ok((res, stats))
-
     }
 
     pub fn get_total_line_numbers(&self) -> Option<usize> {
@@ -184,7 +175,7 @@ impl CsvLensReader {
     fn wait_internal(&self) {
         loop {
             if self.internal.lock().unwrap().done {
-                break
+                break;
             }
             thread::sleep(time::Duration::from_millis(100));
         }
@@ -222,9 +213,7 @@ struct ReaderInternalState {
 }
 
 impl ReaderInternalState {
-
     fn init_internal(filename: &str) -> (Arc<Mutex<ReaderInternalState>>, JoinHandle<()>) {
-
         let internal = ReaderInternalState {
             total_line_number: None,
             total_line_number_approx: None,
@@ -237,7 +226,6 @@ impl ReaderInternalState {
         let _m = m_state.clone();
         let _filename = filename.to_string();
         let handle = thread::spawn(move || {
-
             // quick line count
             let total_line_number_approx;
             {
@@ -246,14 +234,15 @@ impl ReaderInternalState {
                 // subtract 1 for headers
                 total_line_number_approx = buf_reader.lines().count().saturating_sub(1);
 
-                let mut m= _m.lock().unwrap();
+                let mut m = _m.lock().unwrap();
                 (*m).total_line_number_approx = Some(total_line_number_approx);
             }
 
             let pos_table_num_entries = 10000;
-            let minimum_interval = 100;  // handle small csv (don't keep pos every line)
+            let minimum_interval = 100; // handle small csv (don't keep pos every line)
             let pos_table_update_every = max(
-                minimum_interval, total_line_number_approx / pos_table_num_entries
+                minimum_interval,
+                total_line_number_approx / pos_table_num_entries,
             );
 
             // full csv parsing
@@ -267,19 +256,18 @@ impl ReaderInternalState {
                 }
                 // must not include headers position here (n > 0)
                 if n > 0 && n % pos_table_update_every == 0 {
-                    let mut m= _m.lock().unwrap();
+                    let mut m = _m.lock().unwrap();
                     (*m).pos_table.push(next_pos);
                 }
                 n += 1;
             }
-            let mut m= _m.lock().unwrap();
+            let mut m = _m.lock().unwrap();
             (*m).total_line_number = Some(n);
             (*m).done = true;
         });
 
         (m_state, handle)
     }
-
 }
 
 #[cfg(test)]
@@ -292,9 +280,42 @@ mod tests {
         r.wait_internal();
         let rows = r.get_rows(2, 3).unwrap();
         let expected = vec![
-            Row::new(3, vec!["46", "35", "59", "N", "120", "30", "36", "W", "Yakima", "WA"]),
-            Row::new(4, vec!["42", "16", "12", "N", "71", "48", "0", "W", "Worcester", "MA"]),
-            Row::new(5, vec!["43", "37", "48", "N", "89", "46", "11", "W", "Wisconsin Dells", "WI"]),
+            Row::new(
+                3,
+                vec![
+                    "46", "35", "59", "N", "120", "30", "36", "W", "Yakima", "WA",
+                ],
+            ),
+            Row::new(
+                4,
+                vec![
+                    "42",
+                    "16",
+                    "12",
+                    "N",
+                    "71",
+                    "48",
+                    "0",
+                    "W",
+                    "Worcester",
+                    "MA",
+                ],
+            ),
+            Row::new(
+                5,
+                vec![
+                    "43",
+                    "37",
+                    "48",
+                    "N",
+                    "89",
+                    "46",
+                    "11",
+                    "W",
+                    "Wisconsin Dells",
+                    "WI",
+                ],
+            ),
         ];
         assert_eq!(rows, expected);
     }
@@ -351,9 +372,7 @@ mod tests {
         r.wait_internal();
         let indices = vec![1234];
         let (rows, stats) = r.get_rows_impl(&indices).unwrap();
-        let expected = vec![
-            Row::new(1235, vec!["A1235", "B1235"]),
-        ];
+        let expected = vec![Row::new(1235, vec!["A1235", "B1235"])];
         assert_eq!(rows, expected);
         let expected = GetRowsStats {
             num_seek: 12,
@@ -368,13 +387,11 @@ mod tests {
         r.wait_internal();
         let indices = vec![2];
         let (rows, stats) = r.get_rows_impl(&indices).unwrap();
-        let expected = vec![
-            Row::new(3, vec!["A3", "B3"]),
-        ];
+        let expected = vec![Row::new(3, vec!["A3", "B3"])];
         assert_eq!(rows, expected);
         let expected = GetRowsStats {
             num_seek: 0,
-            num_parsed_record: 4,  // 3 + 1 (including header)
+            num_parsed_record: 4, // 3 + 1 (including header)
         };
         assert_eq!(stats, expected);
     }
