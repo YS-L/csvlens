@@ -186,7 +186,7 @@ impl RowsView {
             Control::ScrollPageUp => {
                 self.decrease_rows_from(self.num_rows)?;
                 if self.selected.is_some() {
-                    self.select_bottom()
+                    self.select_top()
                 }
             }
             Control::ScrollBottom => {

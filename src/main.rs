@@ -11,6 +11,7 @@ use crate::ui::{CsvTable, CsvTableState, FinderState};
 extern crate csv as sushi_csv;
 
 use anyhow::{Context, Result};
+use clap::Parser;
 use std::env;
 use std::io;
 use std::usize;
@@ -62,9 +63,21 @@ fn scroll_to_found_record(
     }
 }
 
+#[derive(Parser, Debug)]
+struct Args {
+
+    /// CSV filename
+    filename: String,
+
+    /// Show stats for debugging
+    #[clap(long)]
+    debug: bool,
+}
+
 fn run_csvlens() -> Result<()> {
-    let args: Vec<String> = env::args().collect();
-    let filename = args.get(1).expect("Filename not provided");
+    let args = Args::parse();
+    let filename = args.filename.as_str();
+    let show_stats= args.debug;
 
     // Some lines are reserved for plotting headers (3 lines for headers + 2 lines for status bar)
     let num_rows_not_visible = 5;
@@ -201,7 +214,9 @@ fn run_csvlens() -> Result<()> {
 
         // update rows and elapsed time if there are new results
         if let Some(elapsed) = rows_view.elapsed() {
-            csv_table_state.elapsed = Some(elapsed as f64 / 1000.0);
+            if show_stats {
+                csv_table_state.elapsed = Some(elapsed as f64 / 1000.0);
+            }
         }
 
         // TODO: is this update too late?

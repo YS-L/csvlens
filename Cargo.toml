@@ -10,3 +10,4 @@ csv = "1.1"
 tui = "0.15"
 termion = "1.5"
 anyhow = "1.0"
+clap = { version = "3.1.0", features = ["derive"] }
