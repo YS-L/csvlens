@@ -83,6 +83,11 @@ impl InputHandler {
                 self.mode = InputMode::Find;
                 Control::BufferContent("".to_owned())
             }
+            Key::Char('&') => {
+                self.buffer_state = BufferState::Active("".to_owned());
+                self.mode = InputMode::Filter;
+                Control::BufferContent("".to_owned())
+            }
             _ => Control::Nothing,
         }
     }
