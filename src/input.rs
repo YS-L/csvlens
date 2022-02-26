@@ -119,7 +119,7 @@ impl InputHandler {
                     Control::BufferReset
                 }
             }
-            Key::Char('G') if self.mode == InputMode::GotoLine => {
+            Key::Char('G') | Key::Char('\n') if self.mode == InputMode::GotoLine => {
                 let goto_line = match &self.buffer_state {
                     BufferState::Active(buf) => buf.parse::<usize>().ok(),
                     _ => None,
@@ -174,6 +174,7 @@ impl InputHandler {
 
     fn reset_buffer(&mut self) {
         self.buffer_state = BufferState::Inactive;
+        self.mode = InputMode::Default;
     }
 
     pub fn mode(&self) -> InputMode {
