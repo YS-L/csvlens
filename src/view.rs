@@ -144,6 +144,10 @@ impl RowsView {
         self.selected
     }
 
+    pub fn selected_offset(&self) -> Option<u64> {
+        self.selected.map(|x| x.saturating_add(self.rows_from))
+    }
+
     pub fn elapsed(&self) -> Option<u128> {
         self.elapsed
     }

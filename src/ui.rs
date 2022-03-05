@@ -282,7 +282,14 @@ impl<'a> CsvTable<'a> {
             } else {
                 "?".to_owned()
             };
-            let row_num = match self.rows.first() {
+            let current_row;
+            if let Some(i) = state.selected {
+                current_row = self.rows.get(i as usize);
+            }
+            else {
+                current_row = self.rows.first();
+            }
+            let row_num = match current_row {
                 Some(row) => row.record_num.to_string(),
                 _ => "-".to_owned(),
             };
@@ -412,7 +419,7 @@ pub struct FinderActiveState {
     cursor_index: Option<u64>,
     target: String,
     found_record: Option<find::FoundRecord>,
-    rows_from: u64,
+    selected_offset: Option<u64>,
     is_filter: bool,
 }
 
@@ -424,7 +431,7 @@ impl FinderActiveState {
             cursor_index: finder.cursor().map(|x| x as u64),
             target: finder.target(),
             found_record: finder.current(),
-            rows_from: rows_view.rows_from(),
+            selected_offset: rows_view.selected_offset(),
             is_filter: rows_view.is_filter(),
         }
     }
@@ -446,7 +453,12 @@ impl FinderActiveState {
             }
             let cursor_str;
             if self.is_filter {
-                cursor_str = (self.rows_from.saturating_add(1)).to_string();
+                if let Some(i) = self.selected_offset {
+                    cursor_str = i.saturating_add(1).to_string();
+                }
+                else {
+                    cursor_str = "-".to_owned();
+                }
             } else {
                 if let Some(i) = self.cursor_index {
                     cursor_str = (i.saturating_add(1)).to_string();
