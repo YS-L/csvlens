@@ -1,9 +1,23 @@
 use crate::csv::{CsvLensReader, Row};
+use crate::find;
 use crate::input::Control;
 
 use anyhow::Result;
 use std::cmp::min;
 use std::time::Instant;
+
+struct RowsFilter {
+    indices: Vec<u64>,
+    total: usize,
+}
+
+impl RowsFilter {
+    fn new(finder: &find::Finder, rows_from: u64, num_rows: u64) -> RowsFilter {
+        let total = finder.count();
+        let indices = finder.get_subset_found(rows_from as usize, num_rows as usize);
+        RowsFilter { indices, total }
+    }
+}
 
 pub struct RowsView {
     reader: CsvLensReader,
@@ -11,7 +25,7 @@ pub struct RowsView {
     rows: Vec<Row>,
     num_rows: u64,
     rows_from: u64,
-    filter_indices: Option<Vec<u64>>,
+    filter: Option<RowsFilter>,
     selected: Option<u64>,
     elapsed: Option<u128>,
 }
@@ -27,7 +41,7 @@ impl RowsView {
             rows,
             num_rows,
             rows_from,
-            filter_indices: None,
+            filter: None,
             selected: Some(0),
             elapsed: None,
         };
@@ -55,30 +69,27 @@ impl RowsView {
         Ok(())
     }
 
-    pub fn set_filter(&mut self, filter_indices: &[u64]) -> Result<()> {
-        if let Some(indices) = &self.filter_indices {
-            if indices == filter_indices {
+    pub fn set_filter(&mut self, finder: &find::Finder) -> Result<()> {
+        let filter = RowsFilter::new(finder, self.rows_from, self.num_rows);
+        if let Some(cur_filter) = &self.filter {
+            if cur_filter.indices == filter.indices {
                 return Ok(());
             }
         }
-        self.filter_indices = Some(filter_indices.to_vec());
+        self.filter = Some(filter);
         self.do_get_rows()
     }
 
     pub fn is_filter(&self) -> bool {
-        self.filter_indices.is_some()
+        self.filter.is_some()
     }
 
     pub fn reset_filter(&mut self) -> Result<()> {
-        if self.filter_indices.is_none() {
+        if !self.is_filter() {
             return Ok(());
         }
-        self.filter_indices = None;
+        self.filter = None;
         self.do_get_rows()
-    }
-
-    pub fn init_filter(&mut self) -> Result<()> {
-        self.set_filter(&vec![])
     }
 
     pub fn rows_from(&self) -> u64 {
@@ -214,8 +225,8 @@ impl RowsView {
     }
 
     fn get_total(&self) -> Option<usize> {
-        if let Some(indices) = &self.filter_indices {
-            return Some(indices.len());
+        if let Some(filter) = &self.filter {
+            return Some(filter.total);
         } else {
             if let Some(n) = self
                 .reader
@@ -251,12 +262,8 @@ impl RowsView {
     fn do_get_rows(&mut self) -> Result<()> {
         let start = Instant::now();
         let rows;
-        if let Some(indices) = &self.filter_indices {
-            let start = self.rows_from as usize;
-            let start = min(start, indices.len().saturating_sub(1));
-            let end = start.saturating_add(self.num_rows as usize);
-            let end = min(end, indices.len());
-            let indices = &indices[start..end];
+        if let Some(filter) = &self.filter {
+            let indices = &filter.indices;
             rows = self.reader.get_rows_for_indices(indices)?;
         } else {
             rows = self.reader.get_rows(self.rows_from, self.num_rows)?;

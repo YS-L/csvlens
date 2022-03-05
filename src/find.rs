@@ -2,6 +2,7 @@ extern crate csv;
 
 use anyhow::Result;
 use csv::Reader;
+use std::cmp::min;
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::thread::{self, JoinHandle};
 
@@ -131,6 +132,19 @@ impl Finder {
     pub fn get_all_found(&self) -> Vec<FoundRecord> {
         let m_guard = self.internal.lock().unwrap();
         m_guard.founds.clone()
+    }
+
+    pub fn get_subset_found(&self, offset: usize, num_rows: usize) -> Vec<u64> {
+        let m_guard = self.internal.lock().unwrap();
+        let founds = &m_guard.founds;
+        let start = min(offset, founds.len().saturating_sub(1));
+        let end = start.saturating_add(num_rows);
+        let end = min(end, founds.len());
+        let indices: Vec<u64> = founds[start..end]
+            .iter()
+            .map(|x| x.row_index() as u64)
+            .collect();
+        indices
     }
 }
 

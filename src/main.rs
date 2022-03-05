@@ -12,7 +12,6 @@ extern crate csv as sushi_csv;
 
 use anyhow::{Context, Result};
 use clap::Parser;
-use std::env;
 use std::io;
 use std::usize;
 use termion::{raw::IntoRawMode, screen::AlternateScreen};
@@ -65,7 +64,6 @@ fn scroll_to_found_record(
 
 #[derive(Parser, Debug)]
 struct Args {
-
     /// CSV filename
     filename: String,
 
@@ -77,7 +75,7 @@ struct Args {
 fn run_csvlens() -> Result<()> {
     let args = Args::parse();
     let filename = args.filename.as_str();
-    let show_stats= args.debug;
+    let show_stats = args.debug;
 
     // Some lines are reserved for plotting headers (3 lines for headers + 2 lines for status bar)
     let num_rows_not_visible = 5;
@@ -165,7 +163,7 @@ fn run_csvlens() -> Result<()> {
                 finder = Some(find::Finder::new(filename, s.as_str()).unwrap());
                 csv_table_state.reset_buffer();
                 rows_view.set_rows_from(0).unwrap();
-                rows_view.init_filter().unwrap();
+                rows_view.set_filter(finder.as_ref().unwrap()).unwrap();
             }
             Control::BufferContent(buf) => {
                 csv_table_state.set_buffer(input_handler.mode(), buf.as_str());
@@ -202,13 +200,7 @@ fn run_csvlens() -> Result<()> {
 
                 fdr.set_row_hint(rows_view.rows_from() as usize);
             } else {
-                // TODO: this is making too much copies all the time?
-                let filter_indices: Vec<u64> = fdr
-                    .get_all_found()
-                    .iter()
-                    .map(|x| x.row_index as u64)
-                    .collect();
-                rows_view.set_filter(&filter_indices).unwrap();
+                rows_view.set_filter(fdr).unwrap();
             }
         }
 
@@ -234,7 +226,7 @@ fn run_csvlens() -> Result<()> {
             csv_table_state.finder_state = FinderState::from_finder(f, &rows_view);
         }
 
-        //csv_table_state.debug = format!("{:?}", csv_table_state.selected);
+        //csv_table_state.debug = format!("{:?}", rows_view.rows_from());
     }
 
     Ok(())
