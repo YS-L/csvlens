@@ -18,6 +18,14 @@ Supported interactions:
 * Filter: `&<thing>` (or `//<thing>`)
 
 ## Installation
+
+`csvlens` is available on [crates.io](https://crates.io/crates/csvlens), so you
+can install it using:
+```
+cargo install csvlens
+```
+
+Or, build and install from source:
 ```
 cargo install --path $(pwd)
 ```
