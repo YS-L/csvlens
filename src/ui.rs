@@ -285,8 +285,7 @@ impl<'a> CsvTable<'a> {
             let current_row;
             if let Some(i) = state.selected {
                 current_row = self.rows.get(i as usize);
-            }
-            else {
+            } else {
                 current_row = self.rows.first();
             }
             let row_num = match current_row {
@@ -455,8 +454,7 @@ impl FinderActiveState {
             if self.is_filter {
                 if let Some(i) = self.selected_offset {
                     cursor_str = i.saturating_add(1).to_string();
-                }
-                else {
+                } else {
                     cursor_str = "-".to_owned();
                 }
             } else {

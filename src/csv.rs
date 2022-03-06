@@ -145,12 +145,11 @@ impl CsvLensReader {
             }
 
             if next_pos.is_none() {
-                // if here, the last block had been scanned, and we should be done
-                if next_wanted.is_none() {
-                    break;
-                } else {
-                    bail!("Next requested index not found: {}", next_wanted.unwrap());
-                }
+                // If here, the last block had been scanned, and we should be
+                // done. If next_wanted is not None, that means an out of bound
+                // index was provided - that could happen for small input - and
+                // we should ignore it and stop here regardless
+                break;
             }
         }
 
@@ -337,10 +336,8 @@ mod tests {
         let mut r = CsvLensReader::new("tests/data/simple.csv").unwrap();
         r.wait_internal();
         let indices = vec![5000];
-        let res = r.get_rows_impl(&indices);
-        assert!(res.is_err());
-        let err = res.unwrap_err().to_string();
-        assert_eq!(err, "Next requested index not found: 5000");
+        let (rows, _stats) = r.get_rows_impl(&indices).unwrap();
+        assert_eq!(rows, vec![]);
     }
 
     #[test]
@@ -394,5 +391,17 @@ mod tests {
             num_parsed_record: 4, // 3 + 1 (including header)
         };
         assert_eq!(stats, expected);
+    }
+
+    #[test]
+    fn test_small() {
+        let mut r = CsvLensReader::new("tests/data/small.csv").unwrap();
+        r.wait_internal();
+        let rows = r.get_rows(0, 50).unwrap();
+        let expected = vec![
+            Row::new(1, vec!["c1", " v1"]),
+            Row::new(2, vec!["c2", " v2"]),
+        ];
+        assert_eq!(rows, expected);
     }
 }
