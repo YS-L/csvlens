@@ -15,7 +15,21 @@ Supported interactions:
 * Scroll: `hjkl`, `← ↓ ↑→ `, `Page Up`, `Page Down`
 * Jump to line `n`: `nG`
 * Search: `/<thing>`
+    * Go to next result: `n`
+    * Go to previous result: `N`
 * Filter: `&<thing>` (or `//<thing>`)
+
+### Combining with other tools
+You can combine `csvlens` with other CSV processing tools, but there is a
+gotcha: piping data to `csvlens` doesn't work, because stdin is reserved for
+getting *your* humanly input. You can use process substitution:
+```
+csvlens <([your commands producing some csv data])
+```
+For example:
+```
+csvlens <(xsv frequency data.csv)
+```
 
 ## Installation
 
