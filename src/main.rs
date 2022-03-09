@@ -12,8 +12,10 @@ extern crate csv as sushi_csv;
 
 use anyhow::{Context, Result};
 use clap::Parser;
-use std::io;
+use std::fs::File;
+use std::io::{self, Read, Seek, SeekFrom, Write};
 use std::usize;
+use tempfile::NamedTempFile;
 use termion::{raw::IntoRawMode, screen::AlternateScreen};
 use tui::backend::TermionBackend;
 use tui::Terminal;
@@ -62,6 +64,45 @@ fn scroll_to_found_record(
     }
 }
 
+struct SeekableFile {
+    filename: String,
+    inner_file: Option<NamedTempFile>,
+}
+
+impl SeekableFile {
+    fn new(filename: &str) -> Result<SeekableFile> {
+        let mut f = File::open(filename).context(format!("Failed to open file: {}", filename))?;
+
+        let mut inner_file = NamedTempFile::new()?;
+        let inner_file_res;
+
+        // If not seekable, it most likely is due to process substitution using
+        // pipe - write out to a temp file to make it seekable
+        if f.seek(SeekFrom::Start(0)).is_err() {
+            let mut buffer: Vec<u8> = vec![];
+            // TODO: could have read by chunks, yolo for now
+            f.read_to_end(&mut buffer)?;
+            inner_file.write(&buffer)?;
+            inner_file_res = Some(inner_file);
+        } else {
+            inner_file_res = None;
+        }
+
+        Ok(SeekableFile {
+            filename: filename.to_string(),
+            inner_file: inner_file_res,
+        })
+    }
+
+    fn filename(&self) -> &str {
+        if let Some(f) = &self.inner_file {
+            f.path().to_str().unwrap()
+        } else {
+            self.filename.as_str()
+        }
+    }
+}
+
 #[derive(Parser, Debug)]
 struct Args {
     /// CSV filename
@@ -74,8 +115,11 @@ struct Args {
 
 fn run_csvlens() -> Result<()> {
     let args = Args::parse();
-    let filename = args.filename.as_str();
+
     let show_stats = args.debug;
+
+    let file = SeekableFile::new(args.filename.as_str())?;
+    let filename = file.filename();
 
     // Some lines are reserved for plotting headers (3 lines for headers + 2 lines for status bar)
     let num_rows_not_visible = 5;
