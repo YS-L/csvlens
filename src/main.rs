@@ -12,6 +12,7 @@ extern crate csv as sushi_csv;
 
 use anyhow::{Context, Result};
 use clap::Parser;
+use std::convert::TryInto;
 use std::fs::File;
 use std::io::{self, Read, Seek, SeekFrom, Write};
 use std::usize;
@@ -103,6 +104,21 @@ impl SeekableFile {
     }
 }
 
+fn parse_delimiter(s: &str) -> Result<u8, &'static str> {
+    let err = "Delimiter should be one ascii character";
+    let mut iter = s.chars();
+    match iter.next() {
+        Some(c) if c.is_ascii() => {
+            let c = c as u32;
+            match iter.next() {
+                Some(_) => Err(err),
+                None => Ok(c.try_into().map_err(|_| err)?),
+            }
+        }
+        _ => return Err(err),
+    }
+}
+
 #[derive(Parser, Debug)]
 struct Args {
     /// CSV filename
@@ -111,6 +127,10 @@ struct Args {
     /// Show stats for debugging
     #[clap(long)]
     debug: bool,
+
+    /// Delimiter to use for parsing the CSV file
+    #[clap(long, short = 'd', parse(try_from_str = parse_delimiter))]
+    delimiter: Option<u8>,
 }
 
 fn run_csvlens() -> Result<()> {
@@ -126,8 +146,8 @@ fn run_csvlens() -> Result<()> {
 
     // Number of rows that are visible in the current frame
     let num_rows = 50 - num_rows_not_visible;
-    let csvlens_reader =
-        csv::CsvLensReader::new(filename).context(format!("Failed to open file: {}", filename))?;
+    let csvlens_reader = csv::CsvLensReader::new(filename, args.delimiter)
+        .context(format!("Failed to open file: {}", filename))?;
     let mut rows_view = view::RowsView::new(csvlens_reader, num_rows)?;
 
     let headers = rows_view.headers().clone();

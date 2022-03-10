@@ -2,7 +2,7 @@ extern crate csv;
 
 use anyhow;
 use anyhow::{bail, Result};
-use csv::{Position, Reader};
+use csv::{Position, Reader, ReaderBuilder};
 use std::cmp::max;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
@@ -41,8 +41,11 @@ impl Row {
 }
 
 impl CsvLensReader {
-    pub fn new(filename: &str) -> Result<Self> {
-        let mut reader = Reader::from_path(filename)?;
+    pub fn new(filename: &str, delimiter: Option<u8>) -> Result<Self> {
+        let mut reader = match delimiter {
+            Some(d) => ReaderBuilder::new().delimiter(d).from_path(filename)?,
+            None => Reader::from_path(filename)?,
+        };
         let headers_record = reader.headers().unwrap();
         let headers = string_record_to_vec(headers_record);
 
@@ -275,7 +278,7 @@ mod tests {
 
     #[test]
     fn test_cities_get_rows() {
-        let mut r = CsvLensReader::new("tests/data/cities.csv").unwrap();
+        let mut r = CsvLensReader::new("tests/data/cities.csv", None).unwrap();
         r.wait_internal();
         let rows = r.get_rows(2, 3).unwrap();
         let expected = vec![
@@ -321,7 +324,7 @@ mod tests {
 
     #[test]
     fn test_simple_get_rows() {
-        let mut r = CsvLensReader::new("tests/data/simple.csv").unwrap();
+        let mut r = CsvLensReader::new("tests/data/simple.csv", None).unwrap();
         r.wait_internal();
         let rows = r.get_rows(1234, 2).unwrap();
         let expected = vec![
@@ -333,7 +336,7 @@ mod tests {
 
     #[test]
     fn test_simple_get_rows_out_of_bound() {
-        let mut r = CsvLensReader::new("tests/data/simple.csv").unwrap();
+        let mut r = CsvLensReader::new("tests/data/simple.csv", None).unwrap();
         r.wait_internal();
         let indices = vec![5000];
         let (rows, _stats) = r.get_rows_impl(&indices).unwrap();
@@ -342,7 +345,7 @@ mod tests {
 
     #[test]
     fn test_simple_get_rows_impl_1() {
-        let mut r = CsvLensReader::new("tests/data/simple.csv").unwrap();
+        let mut r = CsvLensReader::new("tests/data/simple.csv", None).unwrap();
         r.wait_internal();
         let indices = vec![1, 3, 5, 1234, 2345, 3456, 4999];
         let (rows, stats) = r.get_rows_impl(&indices).unwrap();
@@ -365,7 +368,7 @@ mod tests {
 
     #[test]
     fn test_simple_get_rows_impl_2() {
-        let mut r = CsvLensReader::new("tests/data/simple.csv").unwrap();
+        let mut r = CsvLensReader::new("tests/data/simple.csv", None).unwrap();
         r.wait_internal();
         let indices = vec![1234];
         let (rows, stats) = r.get_rows_impl(&indices).unwrap();
@@ -380,7 +383,7 @@ mod tests {
 
     #[test]
     fn test_simple_get_rows_impl_3() {
-        let mut r = CsvLensReader::new("tests/data/simple.csv").unwrap();
+        let mut r = CsvLensReader::new("tests/data/simple.csv", None).unwrap();
         r.wait_internal();
         let indices = vec![2];
         let (rows, stats) = r.get_rows_impl(&indices).unwrap();
@@ -395,7 +398,19 @@ mod tests {
 
     #[test]
     fn test_small() {
-        let mut r = CsvLensReader::new("tests/data/small.csv").unwrap();
+        let mut r = CsvLensReader::new("tests/data/small.csv", None).unwrap();
+        r.wait_internal();
+        let rows = r.get_rows(0, 50).unwrap();
+        let expected = vec![
+            Row::new(1, vec!["c1", " v1"]),
+            Row::new(2, vec!["c2", " v2"]),
+        ];
+        assert_eq!(rows, expected);
+    }
+
+    #[test]
+    fn test_delimiter() {
+        let mut r = CsvLensReader::new("tests/data/small_delimiter.csv", Some(b'|' as u8)).unwrap();
         r.wait_internal();
         let rows = r.get_rows(0, 50).unwrap();
         let expected = vec![
