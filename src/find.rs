@@ -1,7 +1,5 @@
-extern crate csv;
-
+use crate::csv;
 use anyhow::Result;
-use csv::Reader;
 use std::cmp::min;
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::thread::{self, JoinHandle};
@@ -34,8 +32,8 @@ impl FoundRecord {
 }
 
 impl Finder {
-    pub fn new(filename: &str, target: &str) -> Result<Self> {
-        let internal = FinderInternalState::init(filename, target);
+    pub fn new(config: Arc<csv::CsvConfig>, target: &str) -> Result<Self> {
+        let internal = FinderInternalState::init(config, target);
         let finder = Finder {
             internal,
             cursor: None,
@@ -162,7 +160,7 @@ struct FinderInternalState {
 }
 
 impl FinderInternalState {
-    pub fn init(filename: &str, target: &str) -> Arc<Mutex<FinderInternalState>> {
+    pub fn init(config: Arc<csv::CsvConfig>, target: &str) -> Arc<Mutex<FinderInternalState>> {
         let internal = FinderInternalState {
             count: 0,
             founds: vec![],
@@ -173,11 +171,11 @@ impl FinderInternalState {
         let m_state = Arc::new(Mutex::new(internal));
 
         let _m = m_state.clone();
-        let _filename = filename.to_owned();
+        let _filename = config.filename().to_owned();
         let _target = target.to_owned();
 
         let _handle = thread::spawn(move || {
-            let mut bg_reader = Reader::from_path(_filename.as_str()).unwrap();
+            let mut bg_reader = config.new_reader().unwrap();
 
             // note that records() exludes header
             let records = bg_reader.records();

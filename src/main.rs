@@ -12,8 +12,10 @@ extern crate csv as sushi_csv;
 
 use anyhow::{Context, Result};
 use clap::Parser;
+use std::convert::TryInto;
 use std::fs::File;
 use std::io::{self, Read, Seek, SeekFrom, Write};
+use std::sync::Arc;
 use std::usize;
 use tempfile::NamedTempFile;
 use termion::{raw::IntoRawMode, screen::AlternateScreen};
@@ -126,8 +128,13 @@ fn run_csvlens() -> Result<()> {
 
     // Number of rows that are visible in the current frame
     let num_rows = 50 - num_rows_not_visible;
-    let csvlens_reader =
-        csv::CsvLensReader::new(filename).context(format!("Failed to open file: {}", filename))?;
+
+    let mut config = csv::CsvConfig::new(filename);
+    config.builder.delimiter(','.try_into()?);
+    let shared_config = Arc::new(config);
+
+    let csvlens_reader = csv::CsvLensReader::new(shared_config.clone())
+        .context(format!("Failed to open file: {}", filename))?;
     let mut rows_view = view::RowsView::new(csvlens_reader, num_rows)?;
 
     let headers = rows_view.headers().clone();
@@ -198,13 +205,13 @@ fn run_csvlens() -> Result<()> {
                 }
             }
             Control::Find(s) => {
-                finder = Some(find::Finder::new(filename, s.as_str()).unwrap());
+                finder = Some(find::Finder::new(shared_config.clone(), s.as_str()).unwrap());
                 first_found_scrolled = false;
                 rows_view.reset_filter().unwrap();
                 csv_table_state.reset_buffer();
             }
             Control::Filter(s) => {
-                finder = Some(find::Finder::new(filename, s.as_str()).unwrap());
+                finder = Some(find::Finder::new(shared_config.clone(), s.as_str()).unwrap());
                 csv_table_state.reset_buffer();
                 rows_view.set_rows_from(0).unwrap();
                 rows_view.set_filter(finder.as_ref().unwrap()).unwrap();

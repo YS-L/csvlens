@@ -1,8 +1,8 @@
 extern crate csv;
 
 use anyhow;
-use anyhow::{bail, Result};
-use csv::{Position, Reader};
+use anyhow::Result;
+use csv::{Position, Reader, ReaderBuilder};
 use std::cmp::max;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
@@ -16,6 +16,28 @@ fn string_record_to_vec(record: &csv::StringRecord) -> Vec<String> {
         string_vec.push(String::from(field));
     }
     string_vec
+}
+
+pub struct CsvConfig {
+    path: String,
+    pub builder: ReaderBuilder,
+}
+
+impl CsvConfig {
+    pub fn new(path: &str) -> CsvConfig {
+        CsvConfig {
+            path: path.to_string(),
+            builder: ReaderBuilder::new(),
+        }
+    }
+
+    pub fn new_reader(&self) -> Result<Reader<File>> {
+        Ok(self.builder.from_path(self.path.as_str())?)
+    }
+
+    pub fn filename(&self) -> &str {
+        self.path.as_str()
+    }
 }
 
 pub struct CsvLensReader {
@@ -41,12 +63,12 @@ impl Row {
 }
 
 impl CsvLensReader {
-    pub fn new(filename: &str) -> Result<Self> {
-        let mut reader = Reader::from_path(filename)?;
+    pub fn new(config: Arc<CsvConfig>) -> Result<Self> {
+        let mut reader = config.new_reader()?;
         let headers_record = reader.headers().unwrap();
         let headers = string_record_to_vec(headers_record);
 
-        let (m_internal, handle) = ReaderInternalState::init_internal(filename);
+        let (m_internal, handle) = ReaderInternalState::init_internal(config);
 
         let reader = Self {
             reader,
@@ -212,7 +234,7 @@ struct ReaderInternalState {
 }
 
 impl ReaderInternalState {
-    fn init_internal(filename: &str) -> (Arc<Mutex<ReaderInternalState>>, JoinHandle<()>) {
+    fn init_internal(config: Arc<CsvConfig>) -> (Arc<Mutex<ReaderInternalState>>, JoinHandle<()>) {
         let internal = ReaderInternalState {
             total_line_number: None,
             total_line_number_approx: None,
@@ -223,12 +245,11 @@ impl ReaderInternalState {
         let m_state = Arc::new(Mutex::new(internal));
 
         let _m = m_state.clone();
-        let _filename = filename.to_string();
         let handle = thread::spawn(move || {
             // quick line count
             let total_line_number_approx;
             {
-                let file = File::open(_filename.as_str()).unwrap();
+                let file = File::open(config.filename()).unwrap();
                 let buf_reader = BufReader::new(file);
                 // subtract 1 for headers
                 total_line_number_approx = buf_reader.lines().count().saturating_sub(1);
@@ -245,7 +266,7 @@ impl ReaderInternalState {
             );
 
             // full csv parsing
-            let bg_reader = Reader::from_path(_filename.as_str()).unwrap();
+            let bg_reader = config.new_reader().unwrap();
             let mut n = 0;
             let mut iter = bg_reader.into_records();
             loop {
@@ -271,11 +292,14 @@ impl ReaderInternalState {
 
 #[cfg(test)]
 mod tests {
+    use std::convert::TryInto;
+
     use super::*;
 
     #[test]
     fn test_cities_get_rows() {
-        let mut r = CsvLensReader::new("tests/data/cities.csv").unwrap();
+        let config = Arc::new(CsvConfig::new("tests/data/cities.csv"));
+        let mut r = CsvLensReader::new(config).unwrap();
         r.wait_internal();
         let rows = r.get_rows(2, 3).unwrap();
         let expected = vec![
@@ -321,7 +345,8 @@ mod tests {
 
     #[test]
     fn test_simple_get_rows() {
-        let mut r = CsvLensReader::new("tests/data/simple.csv").unwrap();
+        let config = Arc::new(CsvConfig::new("tests/data/simple.csv"));
+        let mut r = CsvLensReader::new(config).unwrap();
         r.wait_internal();
         let rows = r.get_rows(1234, 2).unwrap();
         let expected = vec![
@@ -333,7 +358,8 @@ mod tests {
 
     #[test]
     fn test_simple_get_rows_out_of_bound() {
-        let mut r = CsvLensReader::new("tests/data/simple.csv").unwrap();
+        let config = Arc::new(CsvConfig::new("tests/data/simple.csv"));
+        let mut r = CsvLensReader::new(config).unwrap();
         r.wait_internal();
         let indices = vec![5000];
         let (rows, _stats) = r.get_rows_impl(&indices).unwrap();
@@ -342,7 +368,8 @@ mod tests {
 
     #[test]
     fn test_simple_get_rows_impl_1() {
-        let mut r = CsvLensReader::new("tests/data/simple.csv").unwrap();
+        let config = Arc::new(CsvConfig::new("tests/data/simple.csv"));
+        let mut r = CsvLensReader::new(config).unwrap();
         r.wait_internal();
         let indices = vec![1, 3, 5, 1234, 2345, 3456, 4999];
         let (rows, stats) = r.get_rows_impl(&indices).unwrap();
@@ -365,7 +392,8 @@ mod tests {
 
     #[test]
     fn test_simple_get_rows_impl_2() {
-        let mut r = CsvLensReader::new("tests/data/simple.csv").unwrap();
+        let config = Arc::new(CsvConfig::new("tests/data/simple.csv"));
+        let mut r = CsvLensReader::new(config).unwrap();
         r.wait_internal();
         let indices = vec![1234];
         let (rows, stats) = r.get_rows_impl(&indices).unwrap();
@@ -380,7 +408,8 @@ mod tests {
 
     #[test]
     fn test_simple_get_rows_impl_3() {
-        let mut r = CsvLensReader::new("tests/data/simple.csv").unwrap();
+        let config = Arc::new(CsvConfig::new("tests/data/simple.csv"));
+        let mut r = CsvLensReader::new(config).unwrap();
         r.wait_internal();
         let indices = vec![2];
         let (rows, stats) = r.get_rows_impl(&indices).unwrap();
@@ -395,8 +424,23 @@ mod tests {
 
     #[test]
     fn test_small() {
-        let mut r = CsvLensReader::new("tests/data/small.csv").unwrap();
-        r.wait_internal();
+        let config = Arc::new(CsvConfig::new("tests/data/small.csv"));
+        let mut r = CsvLensReader::new(config).unwrap();
+        let rows = r.get_rows(0, 50).unwrap();
+        let expected = vec![
+            Row::new(1, vec!["c1", " v1"]),
+            Row::new(2, vec!["c2", " v2"]),
+        ];
+        assert_eq!(rows, expected);
+    }
+
+    #[test]
+    fn test_small_delimiter() {
+        let mut config = CsvConfig::new("tests/data/small.bsv");
+        config.builder.delimiter('|'.try_into().unwrap());
+        let config = Arc::new(config);
+        println!("{:?}", config.builder);
+        let mut r = CsvLensReader::new(config).unwrap();
         let rows = r.get_rows(0, 50).unwrap();
         let expected = vec![
             Row::new(1, vec!["c1", " v1"]),
