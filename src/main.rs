@@ -10,7 +10,7 @@ use crate::ui::{CsvTable, CsvTableState, FinderState};
 
 extern crate csv as sushi_csv;
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
 use clap::Parser;
 use std::convert::TryInto;
 use std::fs::File;
@@ -110,15 +110,36 @@ struct Args {
     /// CSV filename
     filename: String,
 
+    /// Delimiter character (comma by default)
+    #[clap(short, long)]
+    delimiter: Option<String>,
+
     /// Show stats for debugging
     #[clap(long)]
     debug: bool,
+}
+
+fn parse_delimiter(args: &Args) -> Result<Option<u8>> {
+    if let Some(s) = &args.delimiter {
+        let mut chars = s.chars();
+        let c = chars.next().context("Delimiter should not be empty")?;
+        if !c.is_ascii() {
+            bail!("Delimiter should be within the ASCII range: {} is too fancy", c);
+        }
+        if chars.next().is_some() {
+            bail!("Delimiter should be exactly one character, got {}", s);
+        }
+        Ok(Some(c.try_into()?))
+    } else {
+        Ok(None)
+    }
 }
 
 fn run_csvlens() -> Result<()> {
     let args = Args::parse();
 
     let show_stats = args.debug;
+    let delimiter = parse_delimiter(&args)?;
 
     let file = SeekableFile::new(args.filename.as_str())?;
     let filename = file.filename();
@@ -130,7 +151,9 @@ fn run_csvlens() -> Result<()> {
     let num_rows = 50 - num_rows_not_visible;
 
     let mut config = csv::CsvConfig::new(filename);
-    config.builder.delimiter(','.try_into()?);
+    if let Some(d) = delimiter {
+        config.builder.delimiter(d);
+    }
     let shared_config = Arc::new(config);
 
     let csvlens_reader = csv::CsvLensReader::new(shared_config.clone())
