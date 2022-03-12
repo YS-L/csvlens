@@ -11,7 +11,7 @@ made for CSV.
 csvlens <filename>
 ```
 
-Supported interactions:
+### Supported interactions
 * Scroll: `hjkl`, `← ↓ ↑→ `, `Page Up`, `Page Down`
 * Jump to line `n`: `nG`
 * Search: `/<thing>`
@@ -19,10 +19,14 @@ Supported interactions:
     * Go to previous result: `N`
 * Filter: `&<thing>` (or `//<thing>`)
 
+### Optional parameters
+* `-d <delimiter>`: Custom delimiter to use when parsing the CSV
+   (e.g. `csvlens file.csv -d \t`)
+
 ### Combining with other tools
-You can combine `csvlens` with other CSV processing tools, but there is a
-gotcha: piping data to `csvlens` doesn't work, because stdin is reserved for
-getting *your* humanly input. You can use process substitution:
+You can combine `csvlens` with other CSV processing tools, but there is a gotcha
+for now: piping data to `csvlens` doesn't work yet, because stdin is reserved
+for getting interactive key inputs. You can use process substitution:
 ```
 csvlens <([your commands producing some csv data])
 ```
