@@ -10,7 +10,7 @@ use crate::ui::{CsvTable, CsvTableState, FinderState};
 
 extern crate csv as sushi_csv;
 
-use anyhow::{Context, Result, bail};
+use anyhow::{bail, Context, Result};
 use clap::Parser;
 use std::convert::TryInto;
 use std::fs::File;
@@ -67,31 +67,40 @@ fn scroll_to_found_record(
 }
 
 struct SeekableFile {
-    filename: String,
+    filename: Option<String>,
     inner_file: Option<NamedTempFile>,
 }
 
 impl SeekableFile {
-    fn new(filename: &str) -> Result<SeekableFile> {
-        let mut f = File::open(filename).context(format!("Failed to open file: {}", filename))?;
-
+    fn new(maybe_filename: &Option<String>) -> Result<SeekableFile> {
         let mut inner_file = NamedTempFile::new()?;
         let inner_file_res;
 
-        // If not seekable, it most likely is due to process substitution using
-        // pipe - write out to a temp file to make it seekable
-        if f.seek(SeekFrom::Start(0)).is_err() {
+        if let Some(filename) = maybe_filename {
+            let err = format!("Failed to open file: {}", filename);
+            let mut f = File::open(filename).context(err)?;
+            // If not seekable, it most likely is due to process substitution using
+            // pipe - write out to a temp file to make it seekable
+            if f.seek(SeekFrom::Start(0)).is_err() {
+                let mut buffer: Vec<u8> = vec![];
+                // TODO: could have read by chunks, yolo for now
+                f.read_to_end(&mut buffer)?;
+                inner_file.write(&buffer)?;
+                inner_file_res = Some(inner_file);
+            } else {
+                inner_file_res = None;
+            }
+        } else {
+            // Handle input from stdin
+            let mut stdin = std::io::stdin();
             let mut buffer: Vec<u8> = vec![];
-            // TODO: could have read by chunks, yolo for now
-            f.read_to_end(&mut buffer)?;
+            stdin.read_to_end(&mut buffer)?;
             inner_file.write(&buffer)?;
             inner_file_res = Some(inner_file);
-        } else {
-            inner_file_res = None;
         }
 
         Ok(SeekableFile {
-            filename: filename.to_string(),
+            filename: maybe_filename.clone(),
             inner_file: inner_file_res,
         })
     }
@@ -100,7 +109,8 @@ impl SeekableFile {
         if let Some(f) = &self.inner_file {
             f.path().to_str().unwrap()
         } else {
-            self.filename.as_str()
+            // If data is from stdin, then inner_file must be there
+            self.filename.as_ref().unwrap()
         }
     }
 }
@@ -108,7 +118,7 @@ impl SeekableFile {
 #[derive(Parser, Debug)]
 struct Args {
     /// CSV filename
-    filename: String,
+    filename: Option<String>,
 
     /// Delimiter character (comma by default)
     #[clap(short, long)]
@@ -124,7 +134,10 @@ fn parse_delimiter(args: &Args) -> Result<Option<u8>> {
         let mut chars = s.chars();
         let c = chars.next().context("Delimiter should not be empty")?;
         if !c.is_ascii() {
-            bail!("Delimiter should be within the ASCII range: {} is too fancy", c);
+            bail!(
+                "Delimiter should be within the ASCII range: {} is too fancy",
+                c
+            );
         }
         if chars.next().is_some() {
             bail!("Delimiter should be exactly one character, got {}", s);
@@ -141,7 +154,7 @@ fn run_csvlens() -> Result<()> {
     let show_stats = args.debug;
     let delimiter = parse_delimiter(&args)?;
 
-    let file = SeekableFile::new(args.filename.as_str())?;
+    let file = SeekableFile::new(&args.filename)?;
     let filename = file.filename();
 
     // Some lines are reserved for plotting headers (3 lines for headers + 2 lines for status bar)
@@ -168,7 +181,7 @@ fn run_csvlens() -> Result<()> {
     let mut terminal = Terminal::new(backend).unwrap();
 
     let mut input_handler = InputHandler::new();
-    let mut csv_table_state = CsvTableState::new(filename.to_string(), headers.len());
+    let mut csv_table_state = CsvTableState::new(args.filename.clone(), headers.len());
 
     let mut finder: Option<find::Finder> = None;
     let mut first_found_scrolled = false;

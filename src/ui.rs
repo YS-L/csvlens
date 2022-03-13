@@ -275,8 +275,14 @@ impl<'a> CsvTable<'a> {
                 _ => {}
             }
         } else {
-            content = state.filename.to_string();
+            // Filename
+            if let Some(f) = &state.filename {
+                content = f.to_string();
+            } else {
+                content = "stdin".to_string();
+            }
 
+            // Row / Col
             let total_str = if state.total_line_number.is_some() {
                 format!("{}", state.total_line_number.unwrap())
             } else {
@@ -301,6 +307,7 @@ impl<'a> CsvTable<'a> {
             )
             .as_str();
 
+            // Finder
             if let FinderState::FinderActive(s) = &state.finder_state {
                 content += format!(" {}", s.status_line()).as_str();
             }
@@ -482,7 +489,7 @@ pub struct CsvTableState {
     pub cols_offset: u64,
     pub num_cols_rendered: u64,
     pub more_cols_to_show: bool,
-    filename: String,
+    filename: Option<String>,
     total_line_number: Option<usize>,
     total_cols: usize,
     pub elapsed: Option<f64>,
@@ -496,7 +503,7 @@ pub struct CsvTableState {
 }
 
 impl CsvTableState {
-    pub fn new(filename: String, total_cols: usize) -> Self {
+    pub fn new(filename: Option<String>, total_cols: usize) -> Self {
         Self {
             rows_offset: 0,
             cols_offset: 0,

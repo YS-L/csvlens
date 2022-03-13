@@ -1,3 +1,4 @@
+use std::fs::File;
 use std::io;
 use std::sync::mpsc;
 use std::sync::{
@@ -51,8 +52,8 @@ impl Events {
             let tx = tx.clone();
             let ignore_exit_key = ignore_exit_key.clone();
             thread::spawn(move || {
-                let stdin = io::stdin();
-                for evt in stdin.keys() {
+                let tty = File::open("/dev/tty").unwrap();
+                for evt in tty.keys() {
                     if let Ok(key) = evt {
                         if let Err(err) = tx.send(Event::Input(key)) {
                             eprintln!("{}", err);
