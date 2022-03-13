@@ -1,6 +1,5 @@
 extern crate csv;
 
-use anyhow;
 use anyhow::Result;
 use csv::{Position, Reader, ReaderBuilder};
 use std::cmp::max;
@@ -97,18 +96,14 @@ impl CsvLensReader {
             }
             // seek as close to the next wanted record index as possible
             let index = *next_wanted.unwrap();
-            loop {
-                if let Some(pos) = next_pos {
-                    if pos.record() - 1 <= index {
-                        self.reader.seek(pos.clone())?;
-                        stats.log_seek();
-                    } else {
-                        break;
-                    }
-                    next_pos = pos_iter.next();
+            while let Some(pos) = next_pos {
+                if pos.record() - 1 <= index {
+                    self.reader.seek(pos.clone())?;
+                    stats.log_seek();
                 } else {
                     break;
                 }
+                next_pos = pos_iter.next();
             }
 
             // note that records() excludes header by default, but here the first entry is header

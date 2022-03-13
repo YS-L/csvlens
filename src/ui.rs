@@ -210,7 +210,7 @@ impl<'a> CsvTable<'a> {
                 }
                 _ => {
                     let span = Span::styled((*hname).as_str(), style);
-                    self.set_spans(buf, &vec![span], x_offset_header, y, effective_width);
+                    self.set_spans(buf, &[span], x_offset_header, y, effective_width);
                 }
             };
             x_offset_header += hlen;
@@ -288,12 +288,11 @@ impl<'a> CsvTable<'a> {
             } else {
                 "?".to_owned()
             };
-            let current_row;
-            if let Some(i) = state.selected {
-                current_row = self.rows.get(i as usize);
+            let current_row = if let Some(i) = state.selected {
+                self.rows.get(i as usize)
             } else {
-                current_row = self.rows.first();
-            }
+                self.rows.first()
+            };
             let row_num = match current_row {
                 Some(row) => row.record_num.to_string(),
                 _ => "-".to_owned(),
@@ -366,12 +365,11 @@ impl<'a> StatefulWidget for CsvTable<'a> {
 
         let mut y_offset = y_first_record;
         for (i, row) in self.rows.iter().enumerate() {
-            let is_selected;
-            if let Some(selected_row) = state.selected {
-                is_selected = i as u64 == selected_row;
+            let is_selected = if let Some(selected_row) = state.selected {
+                i as u64 == selected_row
             } else {
-                is_selected = false;
-            }
+                false
+            };
             self.render_row(
                 buf,
                 state,
@@ -464,12 +462,10 @@ impl FinderActiveState {
                 } else {
                     cursor_str = "-".to_owned();
                 }
+            } else if let Some(i) = self.cursor_index {
+                cursor_str = (i.saturating_add(1)).to_string();
             } else {
-                if let Some(i) = self.cursor_index {
-                    cursor_str = (i.saturating_add(1)).to_string();
-                } else {
-                    cursor_str = "-".to_owned();
-                }
+                cursor_str = "-".to_owned();
             }
             line = format!("{}/{}{}", cursor_str, self.total_found, plus_marker,);
         }

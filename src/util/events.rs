@@ -52,15 +52,13 @@ impl Events {
             let ignore_exit_key = ignore_exit_key.clone();
             thread::spawn(move || {
                 let tty = File::open("/dev/tty").unwrap();
-                for evt in tty.keys() {
-                    if let Ok(key) = evt {
-                        if let Err(err) = tx.send(Event::Input(key)) {
-                            eprintln!("{}", err);
-                            return;
-                        }
-                        if !ignore_exit_key.load(Ordering::Relaxed) && key == config.exit_key {
-                            return;
-                        }
+                for key in tty.keys().flatten() {
+                    if let Err(err) = tx.send(Event::Input(key)) {
+                        eprintln!("{}", err);
+                        return;
+                    }
+                    if !ignore_exit_key.load(Ordering::Relaxed) && key == config.exit_key {
+                        return;
                     }
                 }
             })

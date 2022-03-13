@@ -97,12 +97,11 @@ impl RowsView {
     }
 
     pub fn set_rows_from(&mut self, rows_from_: u64) -> Result<()> {
-        let rows_from;
-        if let Some(n) = self.bottom_rows_from() {
-            rows_from = min(rows_from_, n);
+        let rows_from = if let Some(n) = self.bottom_rows_from() {
+            min(rows_from_, n)
         } else {
-            rows_from = rows_from_;
-        }
+            rows_from_
+        };
         if rows_from == self.rows_from {
             return Ok(());
         }
@@ -232,14 +231,12 @@ impl RowsView {
     fn get_total(&self) -> Option<usize> {
         if let Some(filter) = &self.filter {
             return Some(filter.total);
-        } else {
-            if let Some(n) = self
-                .reader
-                .get_total_line_numbers()
-                .or_else(|| self.reader.get_total_line_numbers_approx())
-            {
-                return Some(n);
-            }
+        } else if let Some(n) = self
+            .reader
+            .get_total_line_numbers()
+            .or_else(|| self.reader.get_total_line_numbers_approx())
+        {
+            return Some(n);
         }
         None
     }
@@ -266,13 +263,12 @@ impl RowsView {
 
     fn do_get_rows(&mut self) -> Result<()> {
         let start = Instant::now();
-        let rows;
-        if let Some(filter) = &self.filter {
+        let rows = if let Some(filter) = &self.filter {
             let indices = &filter.indices;
-            rows = self.reader.get_rows_for_indices(indices)?;
+            self.reader.get_rows_for_indices(indices)?
         } else {
-            rows = self.reader.get_rows(self.rows_from, self.num_rows)?;
-        }
+            self.reader.get_rows(self.rows_from, self.num_rows)?
+        };
         let elapsed = start.elapsed().as_micros();
         self.rows = rows;
         self.elapsed = Some(elapsed);

@@ -27,23 +27,21 @@ fn get_offsets_to_make_visible(
     rows_view: &view::RowsView,
     csv_table_state: &CsvTableState,
 ) -> (Option<u64>, Option<u64>) {
-    let new_rows_offset;
     // TODO: row_index() should probably be u64
-    if rows_view.in_view(found_record.row_index() as u64) {
-        new_rows_offset = None;
+    let new_rows_offset = if rows_view.in_view(found_record.row_index() as u64) {
+        None
     } else {
-        new_rows_offset = Some(found_record.row_index() as u64);
-    }
+        Some(found_record.row_index() as u64)
+    };
 
-    let new_cols_offset;
     let cols_offset = csv_table_state.cols_offset;
     let last_rendered_col = cols_offset.saturating_add(csv_table_state.num_cols_rendered);
     let column_index = found_record.first_column() as u64;
-    if column_index >= cols_offset && column_index < last_rendered_col {
-        new_cols_offset = None;
+    let new_cols_offset = if column_index >= cols_offset && column_index < last_rendered_col {
+        None
     } else {
-        new_cols_offset = Some(column_index)
-    }
+        Some(column_index)
+    };
 
     (new_rows_offset, new_cols_offset)
 }
@@ -54,7 +52,7 @@ fn scroll_to_found_record(
     csv_table_state: &mut CsvTableState,
 ) {
     let (new_rows_offset, new_cols_offset) =
-        get_offsets_to_make_visible(found_record.clone(), rows_view, csv_table_state);
+        get_offsets_to_make_visible(found_record, rows_view, csv_table_state);
 
     if let Some(rows_offset) = new_rows_offset {
         rows_view.set_rows_from(rows_offset).unwrap();
@@ -85,7 +83,7 @@ impl SeekableFile {
                 let mut buffer: Vec<u8> = vec![];
                 // TODO: could have read by chunks, yolo for now
                 f.read_to_end(&mut buffer)?;
-                inner_file.write(&buffer)?;
+                inner_file.write_all(&buffer)?;
                 inner_file_res = Some(inner_file);
             } else {
                 inner_file_res = None;
@@ -95,7 +93,7 @@ impl SeekableFile {
             let mut stdin = std::io::stdin();
             let mut buffer: Vec<u8> = vec![];
             stdin.read_to_end(&mut buffer)?;
-            inner_file.write(&buffer)?;
+            inner_file.write_all(&buffer)?;
             inner_file_res = Some(inner_file);
         }
 
@@ -181,7 +179,7 @@ fn run_csvlens() -> Result<()> {
     let mut terminal = Terminal::new(backend).unwrap();
 
     let mut input_handler = InputHandler::new();
-    let mut csv_table_state = CsvTableState::new(args.filename.clone(), headers.len());
+    let mut csv_table_state = CsvTableState::new(args.filename, headers.len());
 
     let mut finder: Option<find::Finder> = None;
     let mut first_found_scrolled = false;
@@ -321,7 +319,7 @@ fn run_csvlens() -> Result<()> {
 
 fn main() {
     if let Err(e) = run_csvlens() {
-        println!("{}", e.to_string());
+        println!("{}", e);
         std::process::exit(1);
     }
 }

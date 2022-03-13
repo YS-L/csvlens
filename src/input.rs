@@ -124,18 +124,17 @@ impl InputHandler {
                     BufferState::Active(buf) => buf.parse::<usize>().ok(),
                     _ => None,
                 };
-                let res;
-                if let Some(n) = goto_line {
-                    res = Control::ScrollTo(n);
+                let res = if let Some(n) = goto_line {
+                    Control::ScrollTo(n)
                 } else {
-                    res = Control::BufferReset;
-                }
+                    Control::BufferReset
+                };
                 self.reset_buffer();
                 res
             }
             Key::Char('\n') => {
                 let control;
-                if cur_buffer == "" {
+                if cur_buffer.is_empty() {
                     control = Control::BufferReset;
                 } else if self.mode == InputMode::Find {
                     control = Control::Find(cur_buffer.to_string());
@@ -148,7 +147,7 @@ impl InputHandler {
                 control
             }
             Key::Char('/') => {
-                if cur_buffer == "" && self.mode == InputMode::Find {
+                if cur_buffer.is_empty() && self.mode == InputMode::Find {
                     self.mode = InputMode::Filter;
                 }
                 Control::BufferContent("".to_string())
@@ -166,10 +165,7 @@ impl InputHandler {
     }
 
     fn is_input_buffering(&self) -> bool {
-        match self.buffer_state {
-            BufferState::Active(_) => true,
-            _ => false,
-        }
+        matches!(self.buffer_state, BufferState::Active(_))
     }
 
     fn reset_buffer(&mut self) {
