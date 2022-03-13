@@ -8,7 +8,6 @@ use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
-use std::time;
 
 fn string_record_to_vec(record: &csv::StringRecord) -> Vec<String> {
     let mut string_vec = Vec::new();
@@ -44,7 +43,6 @@ pub struct CsvLensReader {
     reader: Reader<File>,
     pub headers: Vec<String>,
     internal: Arc<Mutex<ReaderInternalState>>,
-    bg_handle: thread::JoinHandle<()>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -53,28 +51,18 @@ pub struct Row {
     pub fields: Vec<String>,
 }
 
-impl Row {
-    pub fn new(record_num: usize, fields: Vec<&str>) -> Row {
-        Row {
-            record_num,
-            fields: fields.iter().map(|x| x.to_string()).collect(),
-        }
-    }
-}
-
 impl CsvLensReader {
     pub fn new(config: Arc<CsvConfig>) -> Result<Self> {
         let mut reader = config.new_reader()?;
         let headers_record = reader.headers().unwrap();
         let headers = string_record_to_vec(headers_record);
 
-        let (m_internal, handle) = ReaderInternalState::init_internal(config);
+        let (m_internal, _handle) = ReaderInternalState::init_internal(config);
 
         let reader = Self {
             reader,
             headers,
             internal: m_internal,
-            bg_handle: handle,
         };
         Ok(reader)
     }
@@ -192,15 +180,6 @@ impl CsvLensReader {
         let res = (*self.internal.lock().unwrap()).pos_table.clone();
         res
     }
-
-    fn wait_internal(&self) {
-        loop {
-            if self.internal.lock().unwrap().done {
-                break;
-            }
-            thread::sleep(time::Duration::from_millis(100));
-        }
-    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -292,9 +271,30 @@ impl ReaderInternalState {
 
 #[cfg(test)]
 mod tests {
+    use core::time;
     use std::convert::TryInto;
 
     use super::*;
+
+    impl Row {
+        pub fn new(record_num: usize, fields: Vec<&str>) -> Row {
+            Row {
+                record_num,
+                fields: fields.iter().map(|x| x.to_string()).collect(),
+            }
+        }
+    }
+
+    impl CsvLensReader {
+        fn wait_internal(&self) {
+            loop {
+                if self.internal.lock().unwrap().done {
+                    break;
+                }
+                thread::sleep(time::Duration::from_millis(100));
+            }
+        }
+    }
 
     #[test]
     fn test_cities_get_rows() {
@@ -439,7 +439,6 @@ mod tests {
         let mut config = CsvConfig::new("tests/data/small.bsv");
         config.builder.delimiter('|'.try_into().unwrap());
         let config = Arc::new(config);
-        println!("{:?}", config.builder);
         let mut r = CsvLensReader::new(config).unwrap();
         let rows = r.get_rows(0, 50).unwrap();
         let expected = vec![

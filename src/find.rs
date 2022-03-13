@@ -2,7 +2,7 @@ use crate::csv;
 use anyhow::Result;
 use std::cmp::min;
 use std::sync::{Arc, Mutex, MutexGuard};
-use std::thread::{self, JoinHandle};
+use std::thread::{self};
 
 pub struct Finder {
     internal: Arc<Mutex<FinderInternalState>>,
@@ -73,10 +73,6 @@ impl Finder {
         self.row_hint = row_hint;
     }
 
-    pub fn row_hint(&self) -> usize {
-        self.row_hint
-    }
-
     pub fn next(&mut self) -> Option<FoundRecord> {
         let m_guard = self.internal.lock().unwrap();
         let count = m_guard.count;
@@ -125,11 +121,6 @@ impl Finder {
     fn terminate(&self) {
         let mut m_guard = self.internal.lock().unwrap();
         m_guard.terminate();
-    }
-
-    pub fn get_all_found(&self) -> Vec<FoundRecord> {
-        let m_guard = self.internal.lock().unwrap();
-        m_guard.founds.clone()
     }
 
     pub fn get_subset_found(&self, offset: usize, num_rows: usize) -> Vec<u64> {

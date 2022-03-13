@@ -116,6 +116,7 @@ impl RowsView {
         self.selected = Some(selected);
     }
 
+    #[allow(dead_code)]
     pub fn reset_selected(&mut self) {
         self.selected = None;
     }

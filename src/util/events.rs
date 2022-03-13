@@ -1,5 +1,4 @@
 use std::fs::File;
-use std::io;
 use std::sync::mpsc;
 use std::sync::{
     atomic::{AtomicBool, Ordering},
