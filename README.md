@@ -7,8 +7,16 @@ made for CSV.
 
 ## Usage
 
+Run `csvlens` by providing the CSV filename:
+
 ```
 csvlens <filename>
+```
+
+Pipe CSV data directly to `csvlens`:
+
+```
+<your commands producing some csv data> | csvlens
 ```
 
 ### Supported interactions
@@ -22,18 +30,6 @@ csvlens <filename>
 ### Optional parameters
 * `-d <delimiter>`: Custom delimiter to use when parsing the CSV
    (e.g. `csvlens file.csv -d \t`)
-
-### Combining with other tools
-You can combine `csvlens` with other CSV processing tools, but there is a gotcha
-for now: piping data to `csvlens` doesn't work yet, because stdin is reserved
-for getting interactive key inputs. You can use process substitution:
-```
-csvlens <([your commands producing some csv data])
-```
-For example:
-```
-csvlens <(xsv frequency data.csv)
-```
 
 ## Installation
 
