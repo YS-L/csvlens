@@ -18,19 +18,23 @@ fn string_record_to_vec(record: &csv::StringRecord) -> Vec<String> {
 
 pub struct CsvConfig {
     path: String,
-    pub builder: ReaderBuilder,
+    pub delimiter: u8,
 }
 
 impl CsvConfig {
     pub fn new(path: &str) -> CsvConfig {
         CsvConfig {
             path: path.to_string(),
-            builder: ReaderBuilder::new(),
+            delimiter: b',',
         }
     }
 
     pub fn new_reader(&self) -> Result<Reader<File>> {
-        Ok(self.builder.from_path(self.path.as_str())?)
+        let reader = ReaderBuilder::new()
+            .flexible(true)
+            .delimiter(self.delimiter)
+            .from_path(self.path.as_str())?;
+        Ok(reader)
     }
 
     pub fn filename(&self) -> &str {
@@ -267,7 +271,6 @@ impl ReaderInternalState {
 #[cfg(test)]
 mod tests {
     use core::time;
-    use std::convert::TryInto;
 
     use super::*;
 
@@ -432,7 +435,7 @@ mod tests {
     #[test]
     fn test_small_delimiter() {
         let mut config = CsvConfig::new("tests/data/small.bsv");
-        config.builder.delimiter('|'.try_into().unwrap());
+        config.delimiter = b'|';
         let config = Arc::new(config);
         let mut r = CsvLensReader::new(config).unwrap();
         let rows = r.get_rows(0, 50).unwrap();
@@ -440,6 +443,15 @@ mod tests {
             Row::new(1, vec!["c1", " v1"]),
             Row::new(2, vec!["c2", " v2"]),
         ];
+        assert_eq!(rows, expected);
+    }
+
+    #[test]
+    fn test_irregular() {
+        let config = Arc::new(CsvConfig::new("tests/data/irregular.csv"));
+        let mut r = CsvLensReader::new(config).unwrap();
+        let rows = r.get_rows(0, 50).unwrap();
+        let expected = vec![Row::new(1, vec!["c1"]), Row::new(2, vec!["c2", " v2"])];
         assert_eq!(rows, expected);
     }
 }

@@ -163,7 +163,7 @@ fn run_csvlens() -> Result<()> {
 
     let mut config = csv::CsvConfig::new(filename);
     if let Some(d) = delimiter {
-        config.builder.delimiter(d);
+        config.delimiter = d;
     }
     let shared_config = Arc::new(config);
 
