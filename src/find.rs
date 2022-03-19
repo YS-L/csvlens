@@ -3,6 +3,7 @@ use anyhow::Result;
 use std::cmp::min;
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::thread::{self};
+use std::time::Instant;
 
 pub struct Finder {
     internal: Arc<Mutex<FinderInternalState>>,
@@ -123,6 +124,11 @@ impl Finder {
         m_guard.terminate();
     }
 
+    pub fn elapsed(&self) -> Option<u128> {
+        let m_guard = self.internal.lock().unwrap();
+        m_guard.elapsed()
+    }
+
     pub fn get_subset_found(&self, offset: usize, num_rows: usize) -> Vec<u64> {
         let m_guard = self.internal.lock().unwrap();
         let founds = &m_guard.founds;
@@ -148,6 +154,7 @@ struct FinderInternalState {
     founds: Vec<FoundRecord>,
     done: bool,
     should_terminate: bool,
+    elapsed: Option<u128>,
 }
 
 impl FinderInternalState {
@@ -157,6 +164,7 @@ impl FinderInternalState {
             founds: vec![],
             done: false,
             should_terminate: false,
+            elapsed: None,
         };
 
         let m_state = Arc::new(Mutex::new(internal));
@@ -171,6 +179,7 @@ impl FinderInternalState {
             // note that records() exludes header
             let records = bg_reader.records();
 
+            let start = Instant::now();
             for (row_index, r) in records.enumerate() {
                 let mut column_indices = vec![];
                 if let Ok(valid_record) = r {
@@ -196,6 +205,7 @@ impl FinderInternalState {
 
             let mut m = _m.lock().unwrap();
             (*m).done = true;
+            (*m).elapsed = Some(start.elapsed().as_micros());
         });
 
         m_state
@@ -225,5 +235,9 @@ impl FinderInternalState {
 
     fn terminate(&mut self) {
         self.should_terminate = true;
+    }
+
+    fn elapsed(&self) -> Option<u128> {
+        self.elapsed
     }
 }

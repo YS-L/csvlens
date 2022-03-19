@@ -290,9 +290,13 @@ fn run_csvlens() -> Result<()> {
         }
 
         // update rows and elapsed time if there are new results
-        if let Some(elapsed) = rows_view.elapsed() {
-            if show_stats {
-                csv_table_state.elapsed = Some(elapsed as f64 / 1000.0);
+        if show_stats {
+            csv_table_state.debug_stats.rows_view_elapsed(rows_view.elapsed());
+            if let Some(fdr) = &finder {
+                csv_table_state.debug_stats.finder_elapsed(fdr.elapsed());
+            }
+            else {
+                csv_table_state.debug_stats.finder_elapsed(None);
             }
         }
 

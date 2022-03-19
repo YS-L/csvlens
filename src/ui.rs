@@ -311,8 +311,8 @@ impl<'a> CsvTable<'a> {
                 content += format!(" {}", s.status_line()).as_str();
             }
 
-            if let Some(elapsed) = state.elapsed {
-                content += format!(" [{}ms]", elapsed).as_str();
+            if let Some(stats_line) = &state.debug_stats.status_line() {
+                content += format!(" {}", stats_line).as_str();
             }
 
             if !state.debug.is_empty() {
@@ -479,6 +479,45 @@ struct BordersState {
     y_first_record: u16,
 }
 
+pub struct DebugStats {
+    rows_view_elapsed: Option<f64>,
+    finder_elapsed: Option<f64>,
+}
+
+impl DebugStats {
+    pub fn new() -> Self {
+        DebugStats {
+            rows_view_elapsed: None,
+            finder_elapsed: None,
+        }
+    }
+
+    pub fn rows_view_elapsed(&mut self, elapsed: Option<u128>) {
+        self.rows_view_elapsed = elapsed.map(|e| e as f64 / 1000.0);
+    }
+
+    pub fn finder_elapsed(&mut self, elapsed: Option<u128>) {
+        self.finder_elapsed = elapsed.map(|e| e as f64 / 1000.0);
+    }
+
+    pub fn status_line(&self) -> Option<String> {
+        let mut line = "[".to_string();
+        if let Some(elapsed) = self.rows_view_elapsed {
+            line += format!("rows:{}ms", elapsed).as_str();
+        }
+        if let Some(elapsed) = self.finder_elapsed {
+            line += format!(" finder:{}ms", elapsed).as_str();
+        }
+        line += "]";
+        if line == "[]" {
+            None
+        }
+        else {
+            Some(line)
+        }
+    }
+}
+
 pub struct CsvTableState {
     // TODO: types appropriate?
     pub rows_offset: u64,
@@ -488,7 +527,7 @@ pub struct CsvTableState {
     filename: Option<String>,
     total_line_number: Option<usize>,
     total_cols: usize,
-    pub elapsed: Option<f64>,
+    pub debug_stats: DebugStats,
     buffer_content: BufferState,
     pub finder_state: FinderState,
     borders_state: Option<BordersState>,
@@ -508,7 +547,7 @@ impl CsvTableState {
             filename,
             total_line_number: None,
             total_cols,
-            elapsed: None,
+            debug_stats: DebugStats::new(),
             buffer_content: BufferState::Disabled,
             finder_state: FinderState::FinderInactive,
             borders_state: None,
