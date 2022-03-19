@@ -2,6 +2,7 @@ use crate::csv::Row;
 use crate::find;
 use crate::input::InputMode;
 use crate::view;
+use regex::Regex;
 use tui::buffer::Buffer;
 use tui::layout::Rect;
 use tui::style::{Color, Modifier, Style};
@@ -185,7 +186,9 @@ impl<'a> CsvTable<'a> {
                     .add_modifier(Modifier::BOLD);
             }
             match &state.finder_state {
-                FinderState::FinderActive(active) if (*hname).contains(active.target.as_str()) => {
+                // TODO: seems like doing a bit too much of heavy lifting of
+                // checking for matches (finder's work)
+                FinderState::FinderActive(active) if active.target.is_match(hname) => {
                     let mut highlight_style = style.fg(Color::Rgb(200, 0, 0));
                     if let Some(hl) = &active.found_record {
                         if let Some(row_index) = row_index {
@@ -197,11 +200,18 @@ impl<'a> CsvTable<'a> {
                             }
                         }
                     }
-                    let p_span = Span::styled(active.target.as_str(), highlight_style);
-                    let splitted = (*hname).split(active.target.as_str());
+                    // highlight parts that match
+                    let mut matches = active.target.find_iter(hname);
+                    let non_matches = active.target.split(hname);
                     let mut spans = vec![];
-                    for part in splitted {
+                    for part in non_matches {
                         let span = Span::styled(part, style);
+                        let cur_match = if let Some(m) = matches.next() {
+                            m.as_str()
+                        } else {
+                            ""
+                        };
+                        let p_span = Span::styled(cur_match, highlight_style);
                         spans.push(span);
                         spans.push(p_span.clone());
                     }
@@ -421,7 +431,7 @@ pub struct FinderActiveState {
     find_complete: bool,
     total_found: u64,
     cursor_index: Option<u64>,
-    target: String,
+    target: Regex,
     found_record: Option<find::FoundRecord>,
     selected_offset: Option<u64>,
     is_filter: bool,

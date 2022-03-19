@@ -1,5 +1,6 @@
 use crate::csv;
 use anyhow::Result;
+use regex::Regex;
 use std::cmp::min;
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::thread::{self};
@@ -9,7 +10,7 @@ pub struct Finder {
     internal: Arc<Mutex<FinderInternalState>>,
     cursor: Option<usize>,
     row_hint: usize,
-    target: String,
+    target: Regex,
 }
 
 #[derive(Clone, Debug)]
@@ -33,13 +34,15 @@ impl FoundRecord {
 }
 
 impl Finder {
-    pub fn new(config: Arc<csv::CsvConfig>, target: &str) -> Result<Self> {
-        let internal = FinderInternalState::init(config, target);
+    pub fn new(config: Arc<csv::CsvConfig>, target: Regex) -> Result<Self> {
+        let internal = FinderInternalState::init(
+            config, target.clone()
+        );
         let finder = Finder {
             internal,
             cursor: None,
             row_hint: 0,
-            target: target.to_owned(),
+            target,
         };
         Ok(finder)
     }
@@ -62,7 +65,7 @@ impl Finder {
             .map(|x| x.row_index())
     }
 
-    pub fn target(&self) -> String {
+    pub fn target(&self) -> Regex {
         self.target.clone()
     }
 
@@ -158,7 +161,7 @@ struct FinderInternalState {
 }
 
 impl FinderInternalState {
-    pub fn init(config: Arc<csv::CsvConfig>, target: &str) -> Arc<Mutex<FinderInternalState>> {
+    pub fn init(config: Arc<csv::CsvConfig>, target: Regex) -> Arc<Mutex<FinderInternalState>> {
         let internal = FinderInternalState {
             count: 0,
             founds: vec![],
@@ -171,7 +174,6 @@ impl FinderInternalState {
 
         let _m = m_state.clone();
         let _filename = config.filename().to_owned();
-        let _target = target.to_owned();
 
         let _handle = thread::spawn(move || {
             let mut bg_reader = config.new_reader().unwrap();
@@ -184,7 +186,7 @@ impl FinderInternalState {
                 let mut column_indices = vec![];
                 if let Ok(valid_record) = r {
                     for (column_index, field) in valid_record.iter().enumerate() {
-                        if field.contains(_target.as_str()) {
+                        if target.is_match(field) {
                             column_indices.push(column_index);
                         }
                     }

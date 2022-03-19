@@ -12,6 +12,7 @@ extern crate csv as sushi_csv;
 
 use anyhow::{bail, Context, Result};
 use clap::Parser;
+use regex::Regex;
 use std::convert::TryInto;
 use std::fs::File;
 use std::io::{self, Read, Seek, SeekFrom, Write};
@@ -239,16 +240,29 @@ fn run_csvlens() -> Result<()> {
                 }
             }
             Control::Find(s) => {
-                finder = Some(find::Finder::new(shared_config.clone(), s.as_str()).unwrap());
-                first_found_scrolled = false;
-                rows_view.reset_filter().unwrap();
-                csv_table_state.reset_buffer();
+                // TODO: refactor and combine with Filter arm
+                let re = Regex::new(s.as_str());
+                if let Ok(target) = re {
+                    finder = Some(find::Finder::new(shared_config.clone(), target).unwrap());
+                    first_found_scrolled = false;
+                    rows_view.reset_filter().unwrap();
+                    csv_table_state.reset_buffer();
+                } else {
+                    finder = None;
+                    csv_table_state.reset_buffer();
+                }
             }
             Control::Filter(s) => {
-                finder = Some(find::Finder::new(shared_config.clone(), s.as_str()).unwrap());
-                csv_table_state.reset_buffer();
-                rows_view.set_rows_from(0).unwrap();
-                rows_view.set_filter(finder.as_ref().unwrap()).unwrap();
+                let re = Regex::new(s.as_str());
+                if let Ok(target) = re {
+                    finder = Some(find::Finder::new(shared_config.clone(), target).unwrap());
+                    csv_table_state.reset_buffer();
+                    rows_view.set_rows_from(0).unwrap();
+                    rows_view.set_filter(finder.as_ref().unwrap()).unwrap();
+                } else {
+                    finder = None;
+                    csv_table_state.reset_buffer();
+                }
             }
             Control::BufferContent(buf) => {
                 csv_table_state.set_buffer(input_handler.mode(), buf.as_str());
