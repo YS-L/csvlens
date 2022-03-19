@@ -43,3 +43,8 @@ Or, build and install from source:
 ```
 cargo install --path $(pwd)
 ```
+
+`csvlens` is also availble on pkgsrc. If you're using NetBSD you can install it using:
+```
+pkgin install csvlens
+```
