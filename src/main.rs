@@ -185,6 +185,8 @@ fn run_csvlens() -> Result<()> {
     let mut finder: Option<find::Finder> = None;
     let mut first_found_scrolled = false;
 
+    let mut user_error: Option<String> = None;
+
     loop {
         terminal
             .draw(|f| {
@@ -206,9 +208,14 @@ fn run_csvlens() -> Result<()> {
 
         let control = input_handler.next();
 
+        // clear error message without changing other states on any action
+        if !matches!(control, Control::Nothing) {
+            user_error = None;
+        }
+
         rows_view.handle_control(&control)?;
 
-        match control {
+        match &control {
             Control::Quit => {
                 break;
             }
@@ -239,30 +246,28 @@ fn run_csvlens() -> Result<()> {
                     }
                 }
             }
-            Control::Find(s) => {
-                // TODO: refactor and combine with Filter arm
+            Control::Find(s) | Control::Filter(s) => {
                 let re = Regex::new(s.as_str());
                 if let Ok(target) = re {
                     finder = Some(find::Finder::new(shared_config.clone(), target).unwrap());
-                    first_found_scrolled = false;
-                    rows_view.reset_filter().unwrap();
-                    csv_table_state.reset_buffer();
+                    match control {
+                        Control::Find(_) => {
+                            // will scroll to first result below once ready
+                            first_found_scrolled = false;
+                            rows_view.reset_filter().unwrap();
+                        }
+                        Control::Filter(_) => {
+                            rows_view.set_rows_from(0).unwrap();
+                            rows_view.set_filter(finder.as_ref().unwrap()).unwrap();
+                        }
+                        _ => {}
+                    }
                 } else {
                     finder = None;
-                    csv_table_state.reset_buffer();
+                    // TODO: how to show multi-line error
+                    user_error = Some(format!("Invalid regex: {}", s));
                 }
-            }
-            Control::Filter(s) => {
-                let re = Regex::new(s.as_str());
-                if let Ok(target) = re {
-                    finder = Some(find::Finder::new(shared_config.clone(), target).unwrap());
-                    csv_table_state.reset_buffer();
-                    rows_view.set_rows_from(0).unwrap();
-                    rows_view.set_filter(finder.as_ref().unwrap()).unwrap();
-                } else {
-                    finder = None;
-                    csv_table_state.reset_buffer();
-                }
+                csv_table_state.reset_buffer();
             }
             Control::BufferContent(buf) => {
                 csv_table_state.set_buffer(input_handler.mode(), buf.as_str());
@@ -328,6 +333,8 @@ fn run_csvlens() -> Result<()> {
             // TODO: need to create a new finder every time?
             csv_table_state.finder_state = FinderState::from_finder(f, &rows_view);
         }
+
+        csv_table_state.user_error = user_error.clone();
 
         //csv_table_state.debug = format!("{:?}", rows_view.rows_from());
     }

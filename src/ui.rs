@@ -270,7 +270,10 @@ impl<'a> CsvTable<'a> {
         // Content of status line (separator already plotted elsewhere)
         let style = Style::default().fg(Color::Rgb(128, 128, 128));
         let mut content: String;
-        if let BufferState::Enabled(buffer_mode, buf) = &state.buffer_content {
+        if let Some(error) = &state.user_error {
+            content = error.to_owned();
+        }
+        else if let BufferState::Enabled(buffer_mode, buf) = &state.buffer_content {
             content = buf.to_owned();
             match buffer_mode {
                 InputMode::GotoLine => {
@@ -544,6 +547,7 @@ pub struct CsvTableState {
     // TODO: should probably be with BordersState
     col_ending_pos_x: u16,
     pub selected: Option<u64>,
+    pub user_error: Option<String>,
     pub debug: String,
 }
 
@@ -563,6 +567,7 @@ impl CsvTableState {
             borders_state: None,
             col_ending_pos_x: 0,
             selected: None,
+            user_error: None,
             debug: "".into(),
         }
     }
