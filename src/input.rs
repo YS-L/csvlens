@@ -6,6 +6,7 @@ pub enum Control {
     ScrollDown,
     ScrollLeft,
     ScrollRight,
+    ScrollTop,
     ScrollBottom,
     ScrollPageUp,
     ScrollPageDown,
@@ -67,6 +68,7 @@ impl InputHandler {
             Key::Char('k') | Key::Up => Control::ScrollUp,
             Key::Char('l') | Key::Right => Control::ScrollRight,
             Key::Char('h') | Key::Left => Control::ScrollLeft,
+            Key::Char('g') => Control::ScrollTop,
             Key::Char('G') => Control::ScrollBottom,
             Key::Char('n') => Control::ScrollToNextFound,
             Key::Char('N') => Control::ScrollToPrevFound,
@@ -119,7 +121,7 @@ impl InputHandler {
                     Control::BufferReset
                 }
             }
-            Key::Char('G') | Key::Char('\n') if self.mode == InputMode::GotoLine => {
+            Key::Char('g') | Key::Char('G') | Key::Char('\n') if self.mode == InputMode::GotoLine => {
                 let goto_line = match &self.buffer_state {
                     BufferState::Active(buf) => buf.parse::<usize>().ok(),
                     _ => None,

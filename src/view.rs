@@ -212,6 +212,12 @@ impl RowsView {
                     self.select_top()
                 }
             }
+            Control::ScrollTop => {
+                self.set_rows_from(0)?;
+                if self.selected.is_some() {
+                    self.select_top()
+                }
+            }
             Control::ScrollBottom => {
                 if let Some(total) = self.get_total() {
                     let rows_from = total.saturating_sub(self.num_rows as usize) as u64;
