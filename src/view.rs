@@ -71,13 +71,21 @@ impl RowsView {
 
     pub fn set_filter(&mut self, finder: &find::Finder) -> Result<()> {
         let filter = RowsFilter::new(finder, self.rows_from, self.num_rows);
+        // only need to reload rows if the currently shown indices changed
+        let mut needs_reload = true;
         if let Some(cur_filter) = &self.filter {
             if cur_filter.indices == filter.indices {
-                return Ok(());
+                needs_reload = false;
             }
         }
+        // but always need to update filter because it holds other states such
+        // as total count
         self.filter = Some(filter);
-        self.do_get_rows()
+        if needs_reload {
+            self.do_get_rows()
+        } else {
+            Ok(())
+        }
     }
 
     pub fn is_filter(&self) -> bool {
