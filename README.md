@@ -18,14 +18,16 @@ Pipe CSV data directly to `csvlens`:
 ```
 <your commands producing some csv data> | csvlens
 ```
-
 ### Supported interactions
 * Scroll: `hjkl`, `← ↓ ↑→ `, `Page Up`, `Page Down`
-* Jump to line `n`: `nG`
+* Go to bottom: `G`
+* Go to top: `g`
+* Go to line `n`: `nG`
 * Search: `/<thing>`
     * Go to next result: `n`
     * Go to previous result: `N`
 * Filter: `&<thing>` (or `//<thing>`)
+* Exit: `q`
 
 ### Optional parameters
 * `-d <delimiter>`: Custom delimiter to use when parsing the CSV
@@ -44,7 +46,8 @@ Or, build and install from source:
 cargo install --path $(pwd)
 ```
 
-`csvlens` is also availble on pkgsrc. If you're using NetBSD you can install it using:
+### Linux package managers
+`csvlens` is also available on pkgsrc. If you're using NetBSD you can install it using:
 ```
 pkgin install csvlens
 ```
