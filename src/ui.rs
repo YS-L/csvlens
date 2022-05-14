@@ -252,8 +252,8 @@ impl<'a> CsvTable<'a> {
                 cur_spans.push(span.clone());
                 remaining_width = remaining_width.saturating_sub(span.content.len() as u16);
             } else {
-                let truncated_content =
-                    &span.content[..remaining_width.saturating_sub(suffix_len as u16) as usize];
+                let max_content_length = remaining_width.saturating_sub(suffix_len as u16) as usize;
+                let truncated_content: String = span.content.chars().take(max_content_length).collect();
                 let truncated_span = Span::styled(truncated_content, span.style);
                 cur_spans.push(truncated_span);
                 cur_spans.push(Span::raw(suffix));
