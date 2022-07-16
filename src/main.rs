@@ -21,7 +21,7 @@ use std::usize;
 use tempfile::NamedTempFile;
 use termion::{raw::IntoRawMode, screen::AlternateScreen};
 use tui::backend::{TermionBackend, Backend};
-use tui::Terminal;
+use tui::{Terminal, Frame};
 
 fn get_offsets_to_make_visible(
     found_record: find::FoundRecord,
@@ -218,12 +218,13 @@ impl App {
             if matches!(control, Control::Quit) {
                 break;
             }
-            self.step(control, terminal)?;
+            self.step(control)?;
+            self.draw(terminal)?;
         }
         Ok(())
     }
 
-    fn step<B: Backend>(&mut self, control: Control, terminal: &mut Terminal<B>) -> Result<()> {
+    fn step(&mut self, control: Control) -> Result<()> {
 
         // clear error message without changing other states on any action
         if !matches!(control, Control::Nothing) {
@@ -353,25 +354,34 @@ impl App {
 
         //csv_table_state.debug = format!("{:?}", rows_view.rows_from());
 
+        Ok(())
+    }
+
+    fn render_frame<B: Backend>(&mut self, f: &mut Frame<B>) {
+        let size = f.size();
+
+        // TODO: check type of num_rows too big?
+        let frame_size_adjusted_num_rows =
+            size.height.saturating_sub(self.num_rows_not_visible as u16) as u64;
+        self.rows_view
+            .set_num_rows(frame_size_adjusted_num_rows)
+            .unwrap();
+
+        let rows = self.rows_view.rows();
+        let csv_table = CsvTable::new(&self.headers, rows);
+        f.render_stateful_widget(csv_table, size, &mut self.csv_table_state);
+    }
+
+    fn draw<B: Backend>(&mut self, terminal: &mut Terminal<B>) -> Result<()> {
+
         terminal
             .draw(|f| {
-                let size = f.size();
-
-                // TODO: check type of num_rows too big?
-                let frame_size_adjusted_num_rows =
-                    size.height.saturating_sub(self.num_rows_not_visible as u16) as u64;
-                self.rows_view
-                    .set_num_rows(frame_size_adjusted_num_rows)
-                    .unwrap();
-
-                let rows = self.rows_view.rows();
-                let csv_table = CsvTable::new(&self.headers, rows);
-
-                f.render_stateful_widget(csv_table, size, &mut self.csv_table_state);
+                self.render_frame(f);
             })
             .unwrap();
 
         Ok(())
+
     }
 }
 
