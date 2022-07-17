@@ -115,6 +115,9 @@ fn run_csvlens() -> Result<()> {
     let file = SeekableFile::new(&args.filename)?;
     let filename = file.filename();
 
+    let mut app =
+        App::new(filename, delimiter, args.filename, show_stats).context("Failed creating app")?;
+
     // setup terminal
     enable_raw_mode()?;
     let mut stdout = io::stdout();
@@ -122,16 +125,13 @@ fn run_csvlens() -> Result<()> {
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
-    let mut app =
-        App::new(filename, delimiter, args.filename, show_stats).context("Failed creating app")?;
-
-    app.main_loop(&mut terminal)?;
+    let result = app.main_loop(&mut terminal);
 
     // restore terminal
     disable_raw_mode()?;
-    execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
+    execute!(io::stdout(), LeaveAlternateScreen)?;
 
-    Ok(())
+    result.into()
 }
 
 fn main() {
