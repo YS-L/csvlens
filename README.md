@@ -1,7 +1,7 @@
 # csvlens
 
-`csvlens` is a CSV file viewer in the command line. It is similar to `less` but
-made for CSV.
+`csvlens` is a command line CSV file viewer. It is similar to `less` but made
+for CSV.
 
 ![Demo](.github/demo.gif)
 
