@@ -1,5 +1,5 @@
 use crate::util::events::{CsvlensEvent, CsvlensEvents};
-use crossterm::event::{KeyEvent, KeyCode, KeyModifiers};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 pub enum Control {
     ScrollUp,
@@ -26,7 +26,7 @@ enum BufferState {
     Inactive,
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Eq)]
 pub enum InputMode {
     Default,
     GotoLine,
@@ -64,50 +64,43 @@ impl InputHandler {
     fn handler_default(&mut self, key_event: KeyEvent) -> Control {
         match key_event.modifiers {
             // SHIFT needed to capture capitalised characters
-            KeyModifiers::NONE | KeyModifiers::SHIFT => {
-                match key_event.code {
-                    KeyCode::Char('q') => Control::Quit,
-                    KeyCode::Char('j') | KeyCode::Down => Control::ScrollDown,
-                    KeyCode::Char('k') | KeyCode::Up => Control::ScrollUp,
-                    KeyCode::Char('l') | KeyCode::Right => Control::ScrollRight,
-                    KeyCode::Char('h') | KeyCode::Left => Control::ScrollLeft,
-                    KeyCode::Char('g') => Control::ScrollTop,
-                    KeyCode::Char('G') => Control::ScrollBottom,
-                    KeyCode::Char('n') => Control::ScrollToNextFound,
-                    KeyCode::Char('N') => Control::ScrollToPrevFound,
-                    KeyCode::PageDown => Control::ScrollPageDown,
-                    KeyCode::PageUp => Control::ScrollPageUp,
-                    KeyCode::Char(x) if "0123456789".contains(x.to_string().as_str()) => {
-                        let init_buffer = x.to_string();
-                        self.buffer_state = BufferState::Active(init_buffer.clone());
-                        self.mode = InputMode::GotoLine;
-                        Control::BufferContent(init_buffer)
-                    }
-                    KeyCode::Char('/') => {
-                        self.buffer_state = BufferState::Active("".to_owned());
-                        self.mode = InputMode::Find;
-                        Control::BufferContent("".to_owned())
-                    }
-                    KeyCode::Char('&') => {
-                        self.buffer_state = BufferState::Active("".to_owned());
-                        self.mode = InputMode::Filter;
-                        Control::BufferContent("".to_owned())
-                    }
-                    _ => Control::Nothing,
+            KeyModifiers::NONE | KeyModifiers::SHIFT => match key_event.code {
+                KeyCode::Char('q') => Control::Quit,
+                KeyCode::Char('j') | KeyCode::Down => Control::ScrollDown,
+                KeyCode::Char('k') | KeyCode::Up => Control::ScrollUp,
+                KeyCode::Char('l') | KeyCode::Right => Control::ScrollRight,
+                KeyCode::Char('h') | KeyCode::Left => Control::ScrollLeft,
+                KeyCode::Char('g') => Control::ScrollTop,
+                KeyCode::Char('G') => Control::ScrollBottom,
+                KeyCode::Char('n') => Control::ScrollToNextFound,
+                KeyCode::Char('N') => Control::ScrollToPrevFound,
+                KeyCode::PageDown => Control::ScrollPageDown,
+                KeyCode::PageUp => Control::ScrollPageUp,
+                KeyCode::Char(x) if "0123456789".contains(x.to_string().as_str()) => {
+                    let init_buffer = x.to_string();
+                    self.buffer_state = BufferState::Active(init_buffer.clone());
+                    self.mode = InputMode::GotoLine;
+                    Control::BufferContent(init_buffer)
                 }
-            }
-            KeyModifiers::CONTROL => {
-                match key_event.code {
-                    KeyCode::Char('f') => Control::ScrollPageDown,
-                    KeyCode::Char('b') => Control::ScrollPageUp,
-                    _ => Control::Nothing,
+                KeyCode::Char('/') => {
+                    self.buffer_state = BufferState::Active("".to_owned());
+                    self.mode = InputMode::Find;
+                    Control::BufferContent("".to_owned())
                 }
-            }
-            _ => {
-                Control::Nothing
-            }
+                KeyCode::Char('&') => {
+                    self.buffer_state = BufferState::Active("".to_owned());
+                    self.mode = InputMode::Filter;
+                    Control::BufferContent("".to_owned())
+                }
+                _ => Control::Nothing,
+            },
+            KeyModifiers::CONTROL => match key_event.code {
+                KeyCode::Char('f') => Control::ScrollPageDown,
+                KeyCode::Char('b') => Control::ScrollPageUp,
+                _ => Control::Nothing,
+            },
+            _ => Control::Nothing,
         }
-
     }
 
     fn handler_buffering(&mut self, key_event: KeyEvent) -> Control {
@@ -141,7 +134,9 @@ impl InputHandler {
                     Control::BufferReset
                 }
             }
-            KeyCode::Char('g') | KeyCode::Char('G') | KeyCode::Enter if self.mode == InputMode::GotoLine => {
+            KeyCode::Char('g') | KeyCode::Char('G') | KeyCode::Enter
+                if self.mode == InputMode::GotoLine =>
+            {
                 let goto_line = match &self.buffer_state {
                     BufferState::Active(buf) => buf.parse::<usize>().ok(),
                     _ => None,
@@ -182,9 +177,7 @@ impl InputHandler {
                 self.buffer_state = BufferState::Active(new_buffer.clone());
                 Control::BufferContent(new_buffer)
             }
-            _ => {
-                Control::Nothing
-            }
+            _ => Control::Nothing,
         }
     }
 

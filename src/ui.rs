@@ -253,7 +253,8 @@ impl<'a> CsvTable<'a> {
                 remaining_width = remaining_width.saturating_sub(span.content.len() as u16);
             } else {
                 let max_content_length = remaining_width.saturating_sub(suffix_len as u16) as usize;
-                let truncated_content: String = span.content.chars().take(max_content_length).collect();
+                let truncated_content: String =
+                    span.content.chars().take(max_content_length).collect();
                 let truncated_span = Span::styled(truncated_content, span.style);
                 cur_spans.push(truncated_span);
                 cur_spans.push(Span::raw(suffix));
@@ -272,8 +273,7 @@ impl<'a> CsvTable<'a> {
         let mut content: String;
         if let Some(error) = &state.user_error {
             content = error.to_owned();
-        }
-        else if let BufferState::Enabled(buffer_mode, buf) = &state.buffer_content {
+        } else if let BufferState::Enabled(buffer_mode, buf) = &state.buffer_content {
             content = buf.to_owned();
             match buffer_mode {
                 InputMode::GotoLine => {
@@ -524,8 +524,7 @@ impl DebugStats {
         line += "]";
         if line == "[]" {
             None
-        }
-        else {
+        } else {
             Some(line)
         }
     }

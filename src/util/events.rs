@@ -6,7 +6,7 @@ use std::sync::{
 use std::thread;
 use std::time::Duration;
 
-use crossterm::event::{read, Event, KeyEvent, KeyCode};
+use crossterm::event::{read, Event, KeyCode, KeyEvent};
 
 pub enum CsvlensEvent<I> {
     Input(I),
@@ -49,18 +49,12 @@ impl CsvlensEvents {
             let tx = tx.clone();
             // TODO: not used?
             let _ignore_exit_key = ignore_exit_key.clone();
-            thread::spawn(move || {
-                loop {
-                    let event_result = read().unwrap();
-                    match event_result {
-                        Event::Key(event) => {
-                            if let Err(err) = tx.send(CsvlensEvent::Input(event)) {
-                                eprintln!("{}", err);
-                                return;
-                            }
-                        }
-                        _ => {},
-                    };
+            thread::spawn(move || loop {
+                if let Event::Key(event) = read().unwrap() {
+                    if let Err(err) = tx.send(CsvlensEvent::Input(event)) {
+                        eprintln!("{}", err);
+                        return;
+                    }
                 }
             })
         };

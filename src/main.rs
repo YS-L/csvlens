@@ -1,3 +1,4 @@
+mod app;
 mod csv;
 mod find;
 mod input;
@@ -5,7 +6,6 @@ mod ui;
 #[allow(dead_code)]
 mod util;
 mod view;
-mod app;
 use crate::app::App;
 
 extern crate csv as sushi_csv;
@@ -17,10 +17,12 @@ use std::fs::File;
 use std::io::{self, Read, Seek, SeekFrom, Write};
 use tempfile::NamedTempFile;
 //use termion::{raw::IntoRawMode, screen::AlternateScreen};
+use crossterm::execute;
+use crossterm::terminal::{
+    disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
+};
 use tui::backend::CrosstermBackend;
 use tui::Terminal;
-use crossterm::terminal::{enable_raw_mode, disable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen};
-use crossterm::execute;
 
 struct SeekableFile {
     filename: Option<String>,
@@ -120,9 +122,8 @@ fn run_csvlens() -> Result<()> {
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
-    let mut app = App::new(
-        filename, delimiter, args.filename, show_stats,
-    ).context("Failed creating app")?;
+    let mut app =
+        App::new(filename, delimiter, args.filename, show_stats).context("Failed creating app")?;
 
     app.main_loop(&mut terminal)?;
 

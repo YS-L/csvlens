@@ -1,16 +1,16 @@
 use crate::csv;
+use crate::find;
 use crate::input::{Control, InputHandler};
 use crate::ui::{CsvTable, CsvTableState, FinderState};
-use crate::find;
 use crate::view;
 
 use tui::backend::Backend;
-use tui::{Terminal, Frame};
+use tui::{Frame, Terminal};
 
 use anyhow::{Context, Result};
 use regex::Regex;
-use std::usize;
 use std::sync::Arc;
+use std::usize;
 
 fn get_offsets_to_make_visible(
     found_record: find::FoundRecord,
@@ -68,7 +68,6 @@ pub struct App {
 }
 
 impl App {
-
     pub fn new(
         filename: &str,
         delimiter: Option<u8>,
@@ -94,9 +93,7 @@ impl App {
         let rows_view = view::RowsView::new(csvlens_reader, num_rows as u64)?;
         let headers = rows_view.headers().clone();
 
-        let csv_table_state = CsvTableState::new(
-            original_filename, headers.len()
-        );
+        let csv_table_state = CsvTableState::new(original_filename, headers.len());
 
         let finder: Option<find::Finder> = None;
         let first_found_scrolled = false;
@@ -132,7 +129,6 @@ impl App {
     }
 
     fn step(&mut self, control: Control) -> Result<()> {
-
         // clear error message without changing other states on any action
         if !matches!(control, Control::Nothing) {
             self.user_error = None;
@@ -157,14 +153,22 @@ impl App {
             Control::ScrollToNextFound if !self.rows_view.is_filter() => {
                 if let Some(fdr) = self.finder.as_mut() {
                     if let Some(found_record) = fdr.next() {
-                        scroll_to_found_record(found_record, &mut self.rows_view, &mut self.csv_table_state);
+                        scroll_to_found_record(
+                            found_record,
+                            &mut self.rows_view,
+                            &mut self.csv_table_state,
+                        );
                     }
                 }
             }
             Control::ScrollToPrevFound if !self.rows_view.is_filter() => {
                 if let Some(fdr) = self.finder.as_mut() {
                     if let Some(found_record) = fdr.prev() {
-                        scroll_to_found_record(found_record, &mut self.rows_view, &mut self.csv_table_state);
+                        scroll_to_found_record(
+                            found_record,
+                            &mut self.rows_view,
+                            &mut self.csv_table_state,
+                        );
                     }
                 }
             }
@@ -172,7 +176,8 @@ impl App {
                 let re = Regex::new(s.as_str());
                 if let Ok(target) = re {
                     // TODO: need to reset row views filter if any first?
-                    self.finder = Some(find::Finder::new(self.shared_config.clone(), target).unwrap());
+                    self.finder =
+                        Some(find::Finder::new(self.shared_config.clone(), target).unwrap());
                     match control {
                         Control::Find(_) => {
                             // will scroll to first result below once ready
@@ -181,7 +186,9 @@ impl App {
                         }
                         Control::Filter(_) => {
                             self.rows_view.set_rows_from(0).unwrap();
-                            self.rows_view.set_filter(self.finder.as_ref().unwrap()).unwrap();
+                            self.rows_view
+                                .set_filter(self.finder.as_ref().unwrap())
+                                .unwrap();
                         }
                         _ => {}
                     }
@@ -193,7 +200,8 @@ impl App {
                 self.csv_table_state.reset_buffer();
             }
             Control::BufferContent(buf) => {
-                self.csv_table_state.set_buffer(self.input_handler.mode(), buf.as_str());
+                self.csv_table_state
+                    .set_buffer(self.input_handler.mode(), buf.as_str());
             }
             Control::BufferReset => {
                 self.csv_table_state.reset_buffer();
@@ -213,7 +221,11 @@ impl App {
                     // set row_hint to 0 so that this always scrolls to first result
                     fdr.set_row_hint(0);
                     if let Some(found_record) = fdr.next() {
-                        scroll_to_found_record(found_record, &mut self.rows_view, &mut self.csv_table_state);
+                        scroll_to_found_record(
+                            found_record,
+                            &mut self.rows_view,
+                            &mut self.csv_table_state,
+                        );
                     }
                     self.first_found_scrolled = true;
                 }
@@ -233,17 +245,21 @@ impl App {
 
         // update rows and elapsed time if there are new results
         if self.show_stats {
-            self.csv_table_state.debug_stats.rows_view_elapsed(self.rows_view.elapsed());
+            self.csv_table_state
+                .debug_stats
+                .rows_view_elapsed(self.rows_view.elapsed());
             if let Some(fdr) = &self.finder {
-                self.csv_table_state.debug_stats.finder_elapsed(fdr.elapsed());
-            }
-            else {
+                self.csv_table_state
+                    .debug_stats
+                    .finder_elapsed(fdr.elapsed());
+            } else {
                 self.csv_table_state.debug_stats.finder_elapsed(None);
             }
         }
 
         // TODO: is this update too late?
-        self.csv_table_state.set_rows_offset(self.rows_view.rows_from());
+        self.csv_table_state
+            .set_rows_offset(self.rows_view.rows_from());
         self.csv_table_state.selected = self.rows_view.selected();
 
         if let Some(n) = self.rows_view.get_total_line_numbers() {
@@ -280,7 +296,6 @@ impl App {
     }
 
     fn draw<B: Backend>(&mut self, terminal: &mut Terminal<B>) -> Result<()> {
-
         terminal
             .draw(|f| {
                 self.render_frame(f);
@@ -288,7 +303,6 @@ impl App {
             .unwrap();
 
         Ok(())
-
     }
 }
 
@@ -319,7 +333,6 @@ mod tests {
     }
 
     fn step_and_draw<B: Backend>(app: &mut App, terminal: &mut Terminal<B>, control: Control) {
-
         app.step(control).unwrap();
 
         // While it's possible to step multiple times before any draw when
@@ -328,7 +341,6 @@ mod tests {
         // required for stepping to work correctly. Also, immediately drawing
         // after each step is what App::main_loop() will be doing.
         terminal.draw(|f| app.render_frame(f)).unwrap();
-
     }
 
     #[test]

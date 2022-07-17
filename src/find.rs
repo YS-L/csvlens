@@ -35,9 +35,7 @@ impl FoundRecord {
 
 impl Finder {
     pub fn new(config: Arc<csv::CsvConfig>, target: Regex) -> Result<Self> {
-        let internal = FinderInternalState::init(
-            config, target.clone()
-        );
+        let internal = FinderInternalState::init(config, target.clone());
         let finder = Finder {
             internal,
             cursor: None,
@@ -206,8 +204,8 @@ impl FinderInternalState {
             }
 
             let mut m = _m.lock().unwrap();
-            (*m).done = true;
-            (*m).elapsed = Some(start.elapsed().as_micros());
+            m.done = true;
+            m.elapsed = Some(start.elapsed().as_micros());
         });
 
         m_state

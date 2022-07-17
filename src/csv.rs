@@ -48,7 +48,7 @@ pub struct CsvLensReader {
     internal: Arc<Mutex<ReaderInternalState>>,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Row {
     pub record_num: usize,
     pub fields: Vec<String>,
@@ -166,17 +166,17 @@ impl CsvLensReader {
     }
 
     pub fn get_total_line_numbers(&self) -> Option<usize> {
-        let res = (*self.internal.lock().unwrap()).total_line_number;
+        let res = self.internal.lock().unwrap().total_line_number;
         res
     }
 
     pub fn get_total_line_numbers_approx(&self) -> Option<usize> {
-        let res = (*self.internal.lock().unwrap()).total_line_number_approx;
+        let res = self.internal.lock().unwrap().total_line_number_approx;
         res
     }
 
     pub fn get_pos_table(&self) -> Vec<Position> {
-        let res = (*self.internal.lock().unwrap()).pos_table.clone();
+        let res = self.internal.lock().unwrap().pos_table.clone();
         res
     }
 }
@@ -233,7 +233,7 @@ impl ReaderInternalState {
                 total_line_number_approx = buf_reader.lines().count().saturating_sub(1);
 
                 let mut m = _m.lock().unwrap();
-                (*m).total_line_number_approx = Some(total_line_number_approx);
+                m.total_line_number_approx = Some(total_line_number_approx);
             }
 
             let pos_table_num_entries = 10000;
@@ -255,13 +255,13 @@ impl ReaderInternalState {
                 // must not include headers position here (n > 0)
                 if n > 0 && n % pos_table_update_every == 0 {
                     let mut m = _m.lock().unwrap();
-                    (*m).pos_table.push(next_pos);
+                    m.pos_table.push(next_pos);
                 }
                 n += 1;
             }
             let mut m = _m.lock().unwrap();
-            (*m).total_line_number = Some(n);
-            (*m).done = true;
+            m.total_line_number = Some(n);
+            m.done = true;
         });
 
         (m_state, handle)
