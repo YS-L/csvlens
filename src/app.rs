@@ -291,3 +291,76 @@ impl App {
 
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use core::time;
+    use std::thread;
+
+    use super::*;
+    use tui::backend::TestBackend;
+    use tui::buffer::Buffer;
+
+    fn to_lines(buf: &Buffer) -> Vec<String> {
+        let mut symbols: String = "".to_owned();
+        let area = buf.area().clone();
+        for y in 0..area.bottom() {
+            for x in 0..area.right() {
+                let symbol = buf.get(x, y).symbol.clone();
+                symbols.push_str(&symbol);
+            }
+            if y != area.bottom() - 1 {
+                symbols.push_str("\n");
+            }
+        }
+        let res: Vec<&str> = symbols.split("\n").collect();
+        let res = res.into_iter().map(|s| s.to_string()).collect();
+        res
+    }
+
+    fn step_and_draw<B: Backend>(app: &mut App, terminal: &mut Terminal<B>, control: Control) {
+
+        app.step(control).unwrap();
+
+        // While it's possible to step multiple times before any draw when
+        // testing, App::render_frame() can update App's state (e.g. based on
+        // the current terminal frame size) with information that might be
+        // required for stepping to work correctly. Also, immediately drawing
+        // after each step is what App::main_loop() will be doing.
+        terminal.draw(|f| app.render_frame(f)).unwrap();
+
+    }
+
+    #[test]
+    fn test_simple() {
+        let mut app = App::new("tests/data/simple.csv", None, None, false).unwrap();
+        thread::sleep(time::Duration::from_millis(100));
+
+        let backend = TestBackend::new(30, 10);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        step_and_draw(&mut app, &mut terminal, Control::Nothing);
+        for _ in 0..7 {
+            step_and_draw(&mut app, &mut terminal, Control::ScrollDown);
+        }
+
+        // TODO: need a less clunky way of checking expected output, and include
+        // checking of styles. Probably using automatically generated fixtures
+        // that are readable and can be easily updated
+        let expected = vec![
+            "──────────────────────────────",
+            "      a     b                 ",
+            "───┬──────────────┬───────────",
+            "4  │  A4    B4    │           ",
+            "5  │  A5    B5    │           ",
+            "6  │  A6    B6    │           ",
+            "7  │  A7    B7    │           ",
+            "8  │  A8    B8    │           ",
+            "───┴──────────────┴───────────",
+            "stdin [Row 8/5000, Col 1/2]   ",
+        ];
+        let actual_buffer = terminal.backend().buffer().clone();
+        let lines = to_lines(&actual_buffer);
+        assert_eq!(lines, expected);
+    }
+}
