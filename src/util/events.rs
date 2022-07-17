@@ -1,4 +1,3 @@
-use std::fs::File;
 use std::sync::mpsc;
 use std::sync::{
     atomic::{AtomicBool, Ordering},
@@ -7,18 +6,17 @@ use std::sync::{
 use std::thread;
 use std::time::Duration;
 
-use termion::event::Key;
-use termion::input::TermRead;
+use crossterm::event::{read, Event, KeyEvent, KeyCode};
 
-pub enum Event<I> {
+pub enum CsvlensEvent<I> {
     Input(I),
     Tick,
 }
 
 /// A small event handler that wrap termion input and tick events. Each event
 /// type is handled in its own thread and returned to a common `Receiver`
-pub struct Events {
-    rx: mpsc::Receiver<Event<Key>>,
+pub struct CsvlensEvents {
+    rx: mpsc::Receiver<CsvlensEvent<KeyEvent>>,
     input_handle: thread::JoinHandle<()>,
     ignore_exit_key: Arc<AtomicBool>,
     tick_handle: thread::JoinHandle<()>,
@@ -26,52 +24,55 @@ pub struct Events {
 
 #[derive(Debug, Clone, Copy)]
 pub struct Config {
-    pub exit_key: Key,
+    pub exit_key: KeyCode,
     pub tick_rate: Duration,
 }
 
 impl Default for Config {
     fn default() -> Config {
         Config {
-            exit_key: Key::Char('q'),
+            exit_key: KeyCode::Char('q'),
             tick_rate: Duration::from_millis(250),
         }
     }
 }
 
-impl Events {
-    pub fn new() -> Events {
-        Events::with_config(Config::default())
+impl CsvlensEvents {
+    pub fn new() -> CsvlensEvents {
+        CsvlensEvents::with_config(Config::default())
     }
 
-    pub fn with_config(config: Config) -> Events {
+    pub fn with_config(config: Config) -> CsvlensEvents {
         let (tx, rx) = mpsc::channel();
         let ignore_exit_key = Arc::new(AtomicBool::new(true));
         let input_handle = {
             let tx = tx.clone();
-            let ignore_exit_key = ignore_exit_key.clone();
+            // TODO: not used?
+            let _ignore_exit_key = ignore_exit_key.clone();
             thread::spawn(move || {
-                let tty = File::open("/dev/tty").unwrap();
-                for key in tty.keys().flatten() {
-                    if let Err(err) = tx.send(Event::Input(key)) {
-                        eprintln!("{}", err);
-                        return;
-                    }
-                    if !ignore_exit_key.load(Ordering::Relaxed) && key == config.exit_key {
-                        return;
-                    }
+                loop {
+                    let event_result = read().unwrap();
+                    match event_result {
+                        Event::Key(event) => {
+                            if let Err(err) = tx.send(CsvlensEvent::Input(event)) {
+                                eprintln!("{}", err);
+                                return;
+                            }
+                        }
+                        _ => {},
+                    };
                 }
             })
         };
         let tick_handle = {
             thread::spawn(move || loop {
-                if tx.send(Event::Tick).is_err() {
+                if tx.send(CsvlensEvent::Tick).is_err() {
                     break;
                 }
                 thread::sleep(config.tick_rate);
             })
         };
-        Events {
+        CsvlensEvents {
             rx,
             ignore_exit_key,
             input_handle,
@@ -79,7 +80,7 @@ impl Events {
         }
     }
 
-    pub fn next(&self) -> Result<Event<Key>, mpsc::RecvError> {
+    pub fn next(&self) -> Result<CsvlensEvent<KeyEvent>, mpsc::RecvError> {
         self.rx.recv()
     }
 

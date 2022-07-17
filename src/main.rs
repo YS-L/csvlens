@@ -16,9 +16,11 @@ use std::convert::TryInto;
 use std::fs::File;
 use std::io::{self, Read, Seek, SeekFrom, Write};
 use tempfile::NamedTempFile;
-use termion::{raw::IntoRawMode, screen::AlternateScreen};
-use tui::backend::{TermionBackend};
+//use termion::{raw::IntoRawMode, screen::AlternateScreen};
+use tui::backend::CrosstermBackend;
 use tui::Terminal;
+use crossterm::terminal::{enable_raw_mode, disable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen};
+use crossterm::execute;
 
 struct SeekableFile {
     filename: Option<String>,
@@ -111,16 +113,24 @@ fn run_csvlens() -> Result<()> {
     let file = SeekableFile::new(&args.filename)?;
     let filename = file.filename();
 
-    let stdout = io::stdout().into_raw_mode().unwrap();
-    let stdout = AlternateScreen::from(stdout);
-    let backend = TermionBackend::new(stdout);
-    let mut terminal = Terminal::new(backend).unwrap();
+    // setup terminal
+    enable_raw_mode()?;
+    let mut stdout = io::stdout();
+    execute!(stdout, EnterAlternateScreen)?;
+    let backend = CrosstermBackend::new(stdout);
+    let mut terminal = Terminal::new(backend)?;
 
     let mut app = App::new(
         filename, delimiter, args.filename, show_stats,
     ).context("Failed creating app")?;
 
-    app.main_loop(&mut terminal)
+    app.main_loop(&mut terminal)?;
+
+    // restore terminal
+    disable_raw_mode()?;
+    execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
+
+    Ok(())
 }
 
 fn main() {
