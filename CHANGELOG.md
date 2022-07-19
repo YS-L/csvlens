@@ -1,3 +1,7 @@
+# v0.1.7
+
+* Ensure terminal state is restored on error
+
 # v0.1.6
 
 * Fix bug where program sometimes crashes due to unicode characters
