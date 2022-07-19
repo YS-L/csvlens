@@ -131,7 +131,7 @@ fn run_csvlens() -> Result<()> {
     disable_raw_mode()?;
     execute!(io::stdout(), LeaveAlternateScreen)?;
 
-    result.into()
+    result
 }
 
 fn main() {
