@@ -9,6 +9,7 @@ use tui::{Frame, Terminal};
 
 use anyhow::{Context, Result};
 use regex::Regex;
+use std::cmp::min;
 use std::sync::Arc;
 use std::usize;
 
@@ -54,6 +55,32 @@ fn scroll_to_found_record(
     }
 }
 
+fn get_page_left_cols_offset(frame_width: u16, csv_table_state: &CsvTableState) -> Option<u64> {
+    let columns_widths = csv_table_state.column_widths.as_ref();
+    let cols_offset = csv_table_state.cols_offset;
+    let mut total: u16 = 0;
+    let mut new_cols_offset = None;
+    if let Some(columns_widths) = columns_widths {
+        for c in (0..(cols_offset as usize).saturating_sub(1)).rev() {
+            let maybe_width = columns_widths.get(c);
+            if let Some(w) = maybe_width {
+                if total + w > frame_width {
+                    break;
+                }
+                new_cols_offset = Some(c as u64);
+                total += w;
+            }
+            else {
+                break;
+            }
+        }
+        new_cols_offset
+    }
+    else {
+        None
+    }
+}
+
 pub struct App {
     input_handler: InputHandler,
     num_rows_not_visible: u16,
@@ -63,6 +90,7 @@ pub struct App {
     csv_table_state: CsvTableState,
     finder: Option<find::Finder>,
     first_found_scrolled: bool,
+    frame_width: Option<u16>,
     user_error: Option<String>,
     show_stats: bool,
 }
@@ -97,6 +125,7 @@ impl App {
 
         let finder: Option<find::Finder> = None;
         let first_found_scrolled = false;
+        let frame_width = None;
 
         let user_error: Option<String> = None;
 
@@ -109,6 +138,7 @@ impl App {
             csv_table_state,
             finder,
             first_found_scrolled,
+            frame_width,
             user_error,
             show_stats,
         };
@@ -147,6 +177,26 @@ impl App {
             Control::ScrollRight => {
                 if self.csv_table_state.has_more_cols_to_show() {
                     let new_cols_offset = self.csv_table_state.cols_offset.saturating_add(1);
+                    self.csv_table_state.set_cols_offset(new_cols_offset);
+                }
+            }
+            Control::ScrollPageLeft => {
+                let new_cols_offset = match self.frame_width {
+                    Some(frame_width) => get_page_left_cols_offset(frame_width, &self.csv_table_state),
+                    _ => Some(0)
+                };
+                if let Some(new_cols_offset) = new_cols_offset {
+                    self.csv_table_state.set_cols_offset(new_cols_offset);
+                }
+            }
+            Control::ScrollPageRight => {
+                let mut new_cols_offset = self.csv_table_state.cols_offset.saturating_add(
+                    self.csv_table_state.num_cols_rendered
+                );
+                new_cols_offset = min(
+                    new_cols_offset, self.rows_view.headers().len().saturating_sub(1) as u64
+                );
+                if new_cols_offset != self.csv_table_state.cols_offset {
                     self.csv_table_state.set_cols_offset(new_cols_offset);
                 }
             }
@@ -289,6 +339,7 @@ impl App {
         self.rows_view
             .set_num_rows(frame_size_adjusted_num_rows)
             .unwrap();
+        self.frame_width = Some(size.width);
 
         let rows = self.rows_view.rows();
         let csv_table = CsvTable::new(&self.headers, rows);

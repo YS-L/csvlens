@@ -349,6 +349,8 @@ impl<'a> StatefulWidget for CsvTable<'a> {
 
         let status_height = 2;
         let column_widths = self.get_column_widths(area.width);
+        state.column_widths = Some(column_widths.clone());
+
         let (y_header, y_first_record) = self.render_header_borders(buf, area);
 
         // row area: including row numbers and row content
@@ -547,6 +549,7 @@ pub struct CsvTableState {
     col_ending_pos_x: u16,
     pub selected: Option<u64>,
     pub user_error: Option<String>,
+    pub column_widths: Option<Vec<u16>>,
     pub debug: String,
 }
 
@@ -567,6 +570,7 @@ impl CsvTableState {
             col_ending_pos_x: 0,
             selected: None,
             user_error: None,
+            column_widths: None,
             debug: "".into(),
         }
     }

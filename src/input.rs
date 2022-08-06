@@ -10,6 +10,8 @@ pub enum Control {
     ScrollBottom,
     ScrollPageUp,
     ScrollPageDown,
+    ScrollPageLeft,
+    ScrollPageRight,
     ScrollTo(usize),
     ScrollToNextFound,
     ScrollToPrevFound,
@@ -97,6 +99,8 @@ impl InputHandler {
             KeyModifiers::CONTROL => match key_event.code {
                 KeyCode::Char('f') => Control::ScrollPageDown,
                 KeyCode::Char('b') => Control::ScrollPageUp,
+                KeyCode::Char('h') | KeyCode::Left => Control::ScrollPageLeft,
+                KeyCode::Char('l') | KeyCode::Right => Control::ScrollPageRight,
                 _ => Control::Nothing,
             },
             _ => Control::Nothing,
