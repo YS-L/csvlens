@@ -61,7 +61,7 @@ fn get_page_left_cols_offset(frame_width: u16, csv_table_state: &CsvTableState) 
     let mut total: u16 = 0;
     let mut new_cols_offset = None;
     if let Some(columns_widths) = columns_widths {
-        for c in (0..(cols_offset as usize).saturating_sub(1)).rev() {
+        for c in (0..cols_offset as usize).rev() {
             let maybe_width = columns_widths.get(c);
             if let Some(w) = maybe_width {
                 if total + w > frame_width {
@@ -190,8 +190,9 @@ impl App {
                 }
             }
             Control::ScrollPageRight => {
+                // num_cols_rendered includes the last truncated column
                 let mut new_cols_offset = self.csv_table_state.cols_offset.saturating_add(
-                    self.csv_table_state.num_cols_rendered
+                    self.csv_table_state.num_cols_rendered.saturating_sub(1)
                 );
                 new_cols_offset = min(
                     new_cols_offset, self.rows_view.headers().len().saturating_sub(1) as u64
@@ -421,6 +422,66 @@ mod tests {
             "8  │  A8    B8    │           ",
             "───┴──────────────┴───────────",
             "stdin [Row 8/5000, Col 1/2]   ",
+        ];
+        let actual_buffer = terminal.backend().buffer().clone();
+        let lines = to_lines(&actual_buffer);
+        assert_eq!(lines, expected);
+    }
+
+    #[test]
+    fn test_scroll_horizontal() {
+        let mut app = App::new("tests/data/cities.csv", None, None, false).unwrap();
+        thread::sleep(time::Duration::from_millis(100));
+
+        let backend = TestBackend::new(30, 10);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        step_and_draw(&mut app, &mut terminal, Control::Nothing);
+        let expected = vec![
+            "──────────────────────────────",
+            "      LatD    LatM    LatS    ",
+            "───┬──────────────────────────",
+            "1  │  41      5       59      ",
+            "2  │  42      52      48      ",
+            "3  │  46      35      59      ",
+            "4  │  42      16      12      ",
+            "5  │  43      37      48      ",
+            "───┴──────────────────────────",
+            "stdin [Row 1/128, Col 1/10]   ",
+        ];
+        let actual_buffer = terminal.backend().buffer().clone();
+        let lines = to_lines(&actual_buffer);
+        assert_eq!(lines, expected);
+
+        step_and_draw(&mut app, &mut terminal, Control::ScrollPageRight);
+        let expected = vec![
+            "──────────────────────────────",
+            "      NS    LonD    LonM    … ",
+            "───┬──────────────────────────",
+            "1  │  N     80      39      … ",
+            "2  │  N     97      23      … ",
+            "3  │  N     120     30      … ",
+            "4  │  N     71      48      … ",
+            "5  │  N     89      46      … ",
+            "───┴──────────────────────────",
+            "stdin [Row 1/128, Col 4/10]   ",
+        ];
+        let actual_buffer = terminal.backend().buffer().clone();
+        let lines = to_lines(&actual_buffer);
+        assert_eq!(lines, expected);
+
+        step_and_draw(&mut app, &mut terminal, Control::ScrollPageLeft);
+        let expected = vec![
+            "──────────────────────────────",
+            "      LatD    LatM    LatS    ",
+            "───┬──────────────────────────",
+            "1  │  41      5       59      ",
+            "2  │  42      52      48      ",
+            "3  │  46      35      59      ",
+            "4  │  42      16      12      ",
+            "5  │  43      37      48      ",
+            "───┴──────────────────────────",
+            "stdin [Row 1/128, Col 1/10]   ",
         ];
         let actual_buffer = terminal.backend().buffer().clone();
         let lines = to_lines(&actual_buffer);
