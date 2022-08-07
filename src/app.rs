@@ -190,17 +190,19 @@ impl App {
                 }
             }
             Control::ScrollPageRight => {
-                // num_cols_rendered includes the last truncated column
-                let mut new_cols_offset = self
-                    .csv_table_state
-                    .cols_offset
-                    .saturating_add(self.csv_table_state.num_cols_rendered.saturating_sub(1));
-                new_cols_offset = min(
-                    new_cols_offset,
-                    self.rows_view.headers().len().saturating_sub(1) as u64,
-                );
-                if new_cols_offset != self.csv_table_state.cols_offset {
-                    self.csv_table_state.set_cols_offset(new_cols_offset);
+                if self.csv_table_state.has_more_cols_to_show() {
+                    // num_cols_rendered includes the last truncated column
+                    let mut new_cols_offset = self
+                        .csv_table_state
+                        .cols_offset
+                        .saturating_add(self.csv_table_state.num_cols_rendered.saturating_sub(1));
+                    new_cols_offset = min(
+                        new_cols_offset,
+                        self.rows_view.headers().len().saturating_sub(1) as u64,
+                    );
+                    if new_cols_offset != self.csv_table_state.cols_offset {
+                        self.csv_table_state.set_cols_offset(new_cols_offset);
+                    }
                 }
             }
             Control::ScrollToNextFound if !self.rows_view.is_filter() => {
