@@ -13,14 +13,16 @@ Run `csvlens` by providing the CSV filename:
 csvlens <filename>
 ```
 
-Pipe CSV data directly to `csvlens`t
+Pipe CSV data directly to `csvlens`:
 
 ```
 <your commands producing some csv data> | csvlens
 ```
 ### Supported interactions
-* Scroll: `hjkl`, `← ↓ ↑→ `, `Page Up`, `Page Down`
-* Horizontal scrolling: `Ctrl` + `← →` or `hl`
+* Scroll:
+  * One row or column: `hjkl`, `← ↓ ↑→ `
+  * One window vertically: `Ctrl + F` (or `Page Down`), `Ctrl-B` (or `Page Up`)
+  * One window horizontally: `Ctrl + h` (or `Ctrl + ←`), `Ctrl + l` (or `Ctrl + →`)
 * Go to bottom: `G`
 * Go to top: `g`
 * Go to line `n`: `nG`
