@@ -69,14 +69,12 @@ fn get_page_left_cols_offset(frame_width: u16, csv_table_state: &CsvTableState) 
                 }
                 new_cols_offset = Some(c as u64);
                 total += w;
-            }
-            else {
+            } else {
                 break;
             }
         }
         new_cols_offset
-    }
-    else {
+    } else {
         None
     }
 }
@@ -182,8 +180,10 @@ impl App {
             }
             Control::ScrollPageLeft => {
                 let new_cols_offset = match self.frame_width {
-                    Some(frame_width) => get_page_left_cols_offset(frame_width, &self.csv_table_state),
-                    _ => Some(0)
+                    Some(frame_width) => {
+                        get_page_left_cols_offset(frame_width, &self.csv_table_state)
+                    }
+                    _ => Some(0),
                 };
                 if let Some(new_cols_offset) = new_cols_offset {
                     self.csv_table_state.set_cols_offset(new_cols_offset);
@@ -191,11 +191,13 @@ impl App {
             }
             Control::ScrollPageRight => {
                 // num_cols_rendered includes the last truncated column
-                let mut new_cols_offset = self.csv_table_state.cols_offset.saturating_add(
-                    self.csv_table_state.num_cols_rendered.saturating_sub(1)
-                );
+                let mut new_cols_offset = self
+                    .csv_table_state
+                    .cols_offset
+                    .saturating_add(self.csv_table_state.num_cols_rendered.saturating_sub(1));
                 new_cols_offset = min(
-                    new_cols_offset, self.rows_view.headers().len().saturating_sub(1) as u64
+                    new_cols_offset,
+                    self.rows_view.headers().len().saturating_sub(1) as u64,
                 );
                 if new_cols_offset != self.csv_table_state.cols_offset {
                     self.csv_table_state.set_cols_offset(new_cols_offset);
