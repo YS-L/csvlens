@@ -160,7 +160,7 @@ impl<'a> CsvTable<'a> {
         x: u16,
         y: u16,
         is_header: bool,
-        row: &[String],
+        row: &'a [String],
         row_index: Option<usize>,
         is_selected: bool,
     ) {
@@ -188,7 +188,7 @@ impl<'a> CsvTable<'a> {
             match &state.finder_state {
                 // TODO: seems like doing a bit too much of heavy lifting of
                 // checking for matches (finder's work)
-                FinderState::FinderActive(active) if active.target.is_match(hname) => {
+                FinderState::FinderActive(active) if active.target.is_match(hname) && !is_header => {
                     let mut highlight_style = style.fg(Color::Rgb(200, 0, 0));
                     if let Some(hl) = &active.found_record {
                         if let Some(row_index) = row_index {
@@ -200,22 +200,7 @@ impl<'a> CsvTable<'a> {
                             }
                         }
                     }
-                    // highlight parts that match
-                    let mut matches = active.target.find_iter(hname);
-                    let non_matches = active.target.split(hname);
-                    let mut spans = vec![];
-                    for part in non_matches {
-                        let span = Span::styled(part, style);
-                        let cur_match = if let Some(m) = matches.next() {
-                            m.as_str()
-                        } else {
-                            ""
-                        };
-                        let p_span = Span::styled(cur_match, highlight_style);
-                        spans.push(span);
-                        spans.push(p_span.clone());
-                    }
-                    spans.pop();
+                    let spans = Self::get_highlighted_spans(active, hname, style, highlight_style);
                     self.set_spans(buf, &spans, x_offset_header, y, effective_width);
                 }
                 _ => {
@@ -235,6 +220,32 @@ impl<'a> CsvTable<'a> {
         state.set_num_cols_rendered(num_cols_rendered);
         state.set_more_cols_to_show(has_more_cols_to_show);
         state.col_ending_pos_x = col_ending_pos_x;
+    }
+
+    fn get_highlighted_spans(
+        active: &FinderActiveState,
+        hname: &'a str,
+        style: Style,
+        highlight_style: Style,
+    ) -> Vec<Span<'a>> {
+        // Each span can only have one style, hence split content into matches and non-matches and
+        // set styles accordingly
+        let mut matches = active.target.find_iter(hname);
+        let non_matches = active.target.split(hname);
+        let mut spans = vec![];
+        for part in non_matches {
+            let span = Span::styled(part, style);
+            let cur_match = if let Some(m) = matches.next() {
+                m.as_str()
+            } else {
+                ""
+            };
+            let p_span = Span::styled(cur_match, highlight_style);
+            spans.push(span);
+            spans.push(p_span.clone());
+        }
+        spans.pop();
+        spans
     }
 
     fn set_spans(&self, buf: &mut Buffer, spans: &[Span], x: u16, y: u16, width: u16) {
