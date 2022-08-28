@@ -1,3 +1,7 @@
+# v0.1.8
+
+* Support horizontal scrolling
+
 # v0.1.7
 
 * Ensure terminal state is restored on error
