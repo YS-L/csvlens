@@ -17,6 +17,7 @@ pub enum Control {
     ScrollToPrevFound,
     Find(String),
     Filter(String),
+    FilterColumns(String),
     Quit,
     BufferContent(String),
     BufferReset,
@@ -34,6 +35,7 @@ pub enum InputMode {
     GotoLine,
     Find,
     Filter,
+    FilterColumns,
 }
 
 pub struct InputHandler {
@@ -92,6 +94,11 @@ impl InputHandler {
                 KeyCode::Char('&') => {
                     self.buffer_state = BufferState::Active("".to_owned());
                     self.mode = InputMode::Filter;
+                    Control::BufferContent("".to_owned())
+                }
+                KeyCode::Char('*') => {
+                    self.buffer_state = BufferState::Active("".to_owned());
+                    self.mode = InputMode::FilterColumns;
                     Control::BufferContent("".to_owned())
                 }
                 _ => Control::Nothing,
@@ -161,6 +168,8 @@ impl InputHandler {
                     control = Control::Find(cur_buffer.to_string());
                 } else if self.mode == InputMode::Filter {
                     control = Control::Filter(cur_buffer.to_string());
+                } else if self.mode == InputMode::FilterColumns {
+                    control = Control::FilterColumns(cur_buffer.to_string());
                 } else {
                     control = Control::BufferReset;
                 }

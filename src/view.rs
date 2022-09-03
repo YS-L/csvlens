@@ -5,6 +5,7 @@ use crate::input::Control;
 use anyhow::Result;
 use std::cmp::min;
 use std::time::Instant;
+use regex::Regex;
 
 struct RowsFilter {
     indices: Vec<u64>,
@@ -19,13 +20,57 @@ impl RowsFilter {
     }
 }
 
+#[derive(Debug)]
+pub struct ColumnsFilter {
+    pattern: Regex,
+    indices: Vec<usize>,
+    filtered_headers: Vec<String>,
+    num_columns_before_filter: usize,
+}
+
+impl ColumnsFilter {
+
+    fn new(pattern: Regex, headers: &[String]) -> Self {
+        let mut indices = vec![];
+        let mut filtered_headers: Vec<String> = vec![];
+        for (i, header) in headers.iter().enumerate() {
+            if pattern.is_match(header) {
+                indices.push(i) ;
+                filtered_headers.push(header.clone());
+            }
+        }
+        Self { pattern, indices, filtered_headers, num_columns_before_filter: headers.len() }
+    }
+
+    fn filtered_headers(&self) -> &Vec<String> {
+        &self.filtered_headers
+    }
+
+    fn indices(&self) -> &Vec<usize> {
+        &self.indices
+    }
+
+    pub fn pattern(&self) -> Regex {
+        self.pattern.to_owned()
+    }
+
+    pub fn num_filtered(&self) -> usize {
+        self.indices.len()
+    }
+
+    pub fn num_original(&self) -> usize {
+        self.num_columns_before_filter
+    }
+
+}
+
 pub struct RowsView {
     reader: CsvLensReader,
-    headers: Vec<String>,
     rows: Vec<Row>,
     num_rows: u64,
     rows_from: u64,
     filter: Option<RowsFilter>,
+    columns_filter: Option<ColumnsFilter>,
     selected: Option<u64>,
     elapsed: Option<u128>,
 }
@@ -34,14 +79,13 @@ impl RowsView {
     pub fn new(mut reader: CsvLensReader, num_rows: u64) -> Result<RowsView> {
         let rows_from = 0;
         let rows = reader.get_rows(rows_from, num_rows)?;
-        let headers = reader.headers.clone();
         let view = Self {
             reader,
-            headers,
             rows,
             num_rows,
             rows_from,
             filter: None,
+            columns_filter: None,
             selected: Some(0),
             elapsed: None,
         };
@@ -49,7 +93,12 @@ impl RowsView {
     }
 
     pub fn headers(&self) -> &Vec<String> {
-        &self.headers
+        if let Some(columns_filter) = &self.columns_filter {
+            columns_filter.filtered_headers()
+        }
+        else {
+            &self.reader.headers
+        }
     }
 
     pub fn rows(&self) -> &Vec<Row> {
@@ -97,6 +146,20 @@ impl RowsView {
             return Ok(());
         }
         self.filter = None;
+        self.do_get_rows()
+    }
+
+    pub fn columns_filter(&self) -> Option<&ColumnsFilter> {
+        self.columns_filter.as_ref()
+    }
+
+    pub fn set_columns_filter(&mut self, target: Regex) -> Result<()> {
+        self.columns_filter = Some(ColumnsFilter::new(target, &self.reader.headers));
+        self.do_get_rows()
+    }
+
+    pub fn reset_columns_filter(&mut self) -> Result<()> {
+        self.columns_filter = None;
         self.do_get_rows()
     }
 
@@ -275,15 +338,26 @@ impl RowsView {
         None
     }
 
+    fn subset_columns(rows: &Vec<Row>, indices: &[usize]) -> Vec<Row> {
+        let mut out = vec![];
+        for row in rows {
+            out.push(row.subset(indices));
+        }
+        out
+    }
+
     fn do_get_rows(&mut self) -> Result<()> {
         let start = Instant::now();
-        let rows = if let Some(filter) = &self.filter {
+        let mut rows = if let Some(filter) = &self.filter {
             let indices = &filter.indices;
             self.reader.get_rows_for_indices(indices)?
         } else {
             self.reader.get_rows(self.rows_from, self.num_rows)?
         };
         let elapsed = start.elapsed().as_micros();
+        if let Some(columns_filter) = &self.columns_filter {
+            rows = Self::subset_columns(&rows, columns_filter.indices());
+        }
         self.rows = rows;
         self.elapsed = Some(elapsed);
         // current selected might be out of range, reset it

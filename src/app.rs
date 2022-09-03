@@ -1,7 +1,7 @@
 use crate::csv;
 use crate::find;
 use crate::input::{Control, InputHandler};
-use crate::ui::{CsvTable, CsvTableState, FinderState};
+use crate::ui::{CsvTable, CsvTableState, FinderState, FilterColumnsState};
 use crate::view;
 
 use tui::backend::Backend;
@@ -10,6 +10,7 @@ use tui::{Frame, Terminal};
 use anyhow::{Context, Result};
 use regex::Regex;
 use std::cmp::min;
+use std::iter::Filter;
 use std::sync::Arc;
 use std::usize;
 
@@ -84,7 +85,6 @@ pub struct App {
     num_rows_not_visible: u16,
     shared_config: Arc<csv::CsvConfig>,
     rows_view: view::RowsView,
-    headers: Vec<String>,
     csv_table_state: CsvTableState,
     finder: Option<find::Finder>,
     first_found_scrolled: bool,
@@ -116,10 +116,11 @@ impl App {
 
         let csvlens_reader = csv::CsvLensReader::new(shared_config.clone())
             .context(format!("Failed to open file: {}", filename))?;
-        let rows_view = view::RowsView::new(csvlens_reader, num_rows as u64)?;
-        let headers = rows_view.headers().clone();
+        let mut rows_view = view::RowsView::new(csvlens_reader, num_rows as u64)?;
 
-        let csv_table_state = CsvTableState::new(original_filename, headers.len());
+        let csv_table_state = CsvTableState::new(
+            original_filename, rows_view.headers().len()
+        );
 
         let finder: Option<find::Finder> = None;
         let first_found_scrolled = false;
@@ -132,7 +133,6 @@ impl App {
             shared_config,
             num_rows_not_visible,
             rows_view,
-            headers,
             csv_table_state,
             finder,
             first_found_scrolled,
@@ -254,6 +254,16 @@ impl App {
                 }
                 self.csv_table_state.reset_buffer();
             }
+            Control::FilterColumns(s) => {
+                let re = Regex::new(s.as_str());
+                if let Ok(target) = re {
+                    self.rows_view.set_columns_filter(target).unwrap();
+                } else {
+                    self.rows_view.reset_columns_filter().unwrap();
+                    self.user_error = Some(format!("Invalid regex: {}", s));
+                }
+                self.csv_table_state.reset_buffer();
+            }
             Control::BufferContent(buf) => {
                 self.csv_table_state
                     .set_buffer(self.input_handler.mode(), buf.as_str());
@@ -265,6 +275,7 @@ impl App {
                     self.csv_table_state.finder_state = FinderState::FinderInactive;
                     self.rows_view.reset_filter().unwrap();
                 }
+                self.rows_view.reset_columns_filter().unwrap();
             }
             _ => {}
         }
@@ -322,15 +333,17 @@ impl App {
         } else if let Some(n) = self.rows_view.get_total_line_numbers_approx() {
             self.csv_table_state.set_total_line_number(n);
         }
+        self.csv_table_state.set_total_cols(self.rows_view.headers().len());
 
         if let Some(f) = &self.finder {
             // TODO: need to create a new finder every time?
             self.csv_table_state.finder_state = FinderState::from_finder(f, &self.rows_view);
         }
+        self.csv_table_state.filter_columns_state = FilterColumnsState::from_rows_view(&self.rows_view);
 
         self.csv_table_state.user_error = self.user_error.clone();
 
-        //csv_table_state.debug = format!("{:?}", rows_view.rows_from());
+        // self.csv_table_state.debug = format!("{:?}", self.rows_view.columns_filter());
 
         Ok(())
     }
@@ -347,7 +360,7 @@ impl App {
         self.frame_width = Some(size.width);
 
         let rows = self.rows_view.rows();
-        let csv_table = CsvTable::new(&self.headers, rows);
+        let csv_table = CsvTable::new(self.rows_view.headers(), rows);
         f.render_stateful_widget(csv_table, size, &mut self.csv_table_state);
     }
 

@@ -54,6 +54,18 @@ pub struct Row {
     pub fields: Vec<String>,
 }
 
+impl Row {
+
+    pub fn subset(&self, indices: &[usize]) -> Row {
+        let mut subfields = vec![];
+        for i in indices {
+            subfields.push(self.fields.get(*i).unwrap().clone());
+        }
+        Row {record_num: self.record_num, fields: subfields}
+    }
+
+}
+
 impl CsvLensReader {
     pub fn new(config: Arc<CsvConfig>) -> Result<Self> {
         let mut reader = config.new_reader()?;

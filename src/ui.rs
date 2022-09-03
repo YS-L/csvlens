@@ -296,6 +296,9 @@ impl<'a> CsvTable<'a> {
                 InputMode::Filter => {
                     content = format!("Filter: {}", content);
                 }
+                InputMode::FilterColumns => {
+                    content = format!("Columns regex: {}", content);
+                }
                 _ => {}
             }
         } else {
@@ -339,6 +342,12 @@ impl<'a> CsvTable<'a> {
                 content += format!(" {}", stats_line).as_str();
             }
 
+            // Filter columns
+            if let FilterColumnsState::Enabled(info) = &state.filter_columns_state {
+                content += format!(" {}", info.status_line()).as_str();
+            }
+
+            // Debug
             if !state.debug.is_empty() {
                 content += format!(" (debug: {})", state.debug).as_str();
             }
@@ -500,6 +509,39 @@ impl FinderActiveState {
     }
 }
 
+pub enum FilterColumnsState {
+    Disabled,
+    Enabled(FilterColumnsInfo)
+}
+
+impl FilterColumnsState {
+    pub fn from_rows_view(rows_view: &view::RowsView) -> Self {
+        if let Some(columns_filter) = rows_view.columns_filter() {
+            Self::Enabled(
+                FilterColumnsInfo {
+                    pattern: columns_filter.pattern(),
+                    shown: columns_filter.num_filtered(),
+                    total: columns_filter.num_original(),
+                }
+            )
+        } else {
+            Self::Disabled
+        }
+    }
+}
+
+pub struct FilterColumnsInfo {
+    pattern: Regex,
+    shown: usize,
+    total: usize,
+}
+
+impl FilterColumnsInfo {
+    fn status_line(&self) -> String {
+        format!("[Filter \"{}\" {}/{} cols]", self.pattern, self.shown, self.total)
+    }
+}
+
 struct BordersState {
     x_row_separator: u16,
     y_first_record: u16,
@@ -555,6 +597,7 @@ pub struct CsvTableState {
     pub debug_stats: DebugStats,
     buffer_content: BufferState,
     pub finder_state: FinderState,
+    pub filter_columns_state: FilterColumnsState,
     borders_state: Option<BordersState>,
     // TODO: should probably be with BordersState
     col_ending_pos_x: u16,
@@ -577,6 +620,7 @@ impl CsvTableState {
             debug_stats: DebugStats::new(),
             buffer_content: BufferState::Disabled,
             finder_state: FinderState::FinderInactive,
+            filter_columns_state: FilterColumnsState::Disabled,
             borders_state: None,
             col_ending_pos_x: 0,
             selected: None,
@@ -608,6 +652,10 @@ impl CsvTableState {
 
     pub fn set_total_line_number(&mut self, n: usize) {
         self.total_line_number = Some(n);
+    }
+
+    pub fn set_total_cols(&mut self, n: usize) {
+        self.total_cols = n;
     }
 
     pub fn set_buffer(&mut self, mode: InputMode, buf: &str) {
