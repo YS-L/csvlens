@@ -4,6 +4,7 @@ use crate::input::Control;
 
 use anyhow::Result;
 use std::cmp::min;
+use std::f32::consts::E;
 use std::time::Instant;
 use regex::Regex;
 
@@ -26,6 +27,7 @@ pub struct ColumnsFilter {
     indices: Vec<usize>,
     filtered_headers: Vec<String>,
     num_columns_before_filter: usize,
+    disabled_because_no_match: bool,
 }
 
 impl ColumnsFilter {
@@ -39,7 +41,21 @@ impl ColumnsFilter {
                 filtered_headers.push(header.clone());
             }
         }
-        Self { pattern, indices, filtered_headers, num_columns_before_filter: headers.len() }
+        let disabled_because_no_match;
+        if indices.len() == 0 {
+            indices = (0..headers.len()).collect();
+            filtered_headers = headers.into();
+            disabled_because_no_match = true;
+        } else {
+            disabled_because_no_match = false;
+        }
+        Self {
+            pattern,
+            indices,
+            filtered_headers,
+            num_columns_before_filter: headers.len(),
+            disabled_because_no_match,
+        }
     }
 
     fn filtered_headers(&self) -> &Vec<String> {
@@ -60,6 +76,10 @@ impl ColumnsFilter {
 
     pub fn num_original(&self) -> usize {
         self.num_columns_before_filter
+    }
+
+    pub fn disabled_because_no_match(&self) -> bool {
+        self.disabled_because_no_match
     }
 
 }

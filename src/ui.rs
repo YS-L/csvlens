@@ -522,6 +522,7 @@ impl FilterColumnsState {
                     pattern: columns_filter.pattern(),
                     shown: columns_filter.num_filtered(),
                     total: columns_filter.num_original(),
+                    disabled_because_no_match: columns_filter.disabled_because_no_match(),
                 }
             )
         } else {
@@ -534,11 +535,19 @@ pub struct FilterColumnsInfo {
     pattern: Regex,
     shown: usize,
     total: usize,
+    disabled_because_no_match: bool,
 }
 
 impl FilterColumnsInfo {
     fn status_line(&self) -> String {
-        format!("[Filter \"{}\" {}/{} cols]", self.pattern, self.shown, self.total)
+        let mut line;
+        line = format!("[Filter \"{}\": ", self.pattern);
+        if self.disabled_because_no_match {
+            line += "no match, showing all columns]";
+        } else {
+            line += format!("{}/{} cols]", self.shown, self.total).as_str();
+        }
+        line 
     }
 }
 

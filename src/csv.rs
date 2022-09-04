@@ -55,7 +55,6 @@ pub struct Row {
 }
 
 impl Row {
-
     pub fn subset(&self, indices: &[usize]) -> Row {
         let mut subfields = vec![];
         for i in indices {
@@ -63,7 +62,6 @@ impl Row {
         }
         Row {record_num: self.record_num, fields: subfields}
     }
-
 }
 
 impl CsvLensReader {
