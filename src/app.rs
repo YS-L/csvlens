@@ -10,7 +10,6 @@ use tui::{Frame, Terminal};
 use anyhow::{Context, Result};
 use regex::Regex;
 use std::cmp::min;
-use std::iter::Filter;
 use std::sync::Arc;
 use std::usize;
 
@@ -116,7 +115,7 @@ impl App {
 
         let csvlens_reader = csv::CsvLensReader::new(shared_config.clone())
             .context(format!("Failed to open file: {}", filename))?;
-        let mut rows_view = view::RowsView::new(csvlens_reader, num_rows as u64)?;
+        let rows_view = view::RowsView::new(csvlens_reader, num_rows as u64)?;
 
         let csv_table_state = CsvTableState::new(
             original_filename, rows_view.headers().len()
@@ -263,6 +262,7 @@ impl App {
                     self.user_error = Some(format!("Invalid regex: {}", s));
                 }
                 self.csv_table_state.reset_buffer();
+                self.csv_table_state.set_cols_offset(0);
             }
             Control::BufferContent(buf) => {
                 self.csv_table_state
