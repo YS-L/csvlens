@@ -286,20 +286,21 @@ impl<'a> CsvTable<'a> {
             content = error.to_owned();
         } else if let BufferState::Enabled(buffer_mode, buf) = &state.buffer_content {
             content = buf.to_owned();
+            let format_buffer = |prefix: &str| format!("{}: {}█", prefix, content);
             match buffer_mode {
                 InputMode::GotoLine => {
-                    content = format!("Go to line: {}", content);
+                    content = format_buffer("Go to line");
                 }
                 InputMode::Find => {
-                    content = format!("Find: {}", content);
+                    content = format_buffer("Find");
                 }
                 InputMode::Filter => {
-                    content = format!("Filter: {}", content);
+                    content = format_buffer("Filter");
                 }
                 InputMode::FilterColumns => {
-                    content = format!("Columns regex: {}", content);
+                    content = format_buffer("Columns regex");
                 }
-                _ => {}
+                _ => { }
             }
         } else {
             // Filename
