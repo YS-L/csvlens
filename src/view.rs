@@ -3,9 +3,9 @@ use crate::find;
 use crate::input::Control;
 
 use anyhow::Result;
+use regex::Regex;
 use std::cmp::min;
 use std::time::Instant;
-use regex::Regex;
 
 struct RowsFilter {
     indices: Vec<u64>,
@@ -30,18 +30,17 @@ pub struct ColumnsFilter {
 }
 
 impl ColumnsFilter {
-
     fn new(pattern: Regex, headers: &[String]) -> Self {
         let mut indices = vec![];
         let mut filtered_headers: Vec<String> = vec![];
         for (i, header) in headers.iter().enumerate() {
             if pattern.is_match(header) {
-                indices.push(i) ;
+                indices.push(i);
                 filtered_headers.push(header.clone());
             }
         }
         let disabled_because_no_match;
-        if indices.len() == 0 {
+        if indices.is_empty() {
             indices = (0..headers.len()).collect();
             filtered_headers = headers.into();
             disabled_because_no_match = true;
@@ -80,7 +79,6 @@ impl ColumnsFilter {
     pub fn disabled_because_no_match(&self) -> bool {
         self.disabled_because_no_match
     }
-
 }
 
 pub struct RowsView {
@@ -114,8 +112,7 @@ impl RowsView {
     pub fn headers(&self) -> &Vec<String> {
         if let Some(columns_filter) = &self.columns_filter {
             columns_filter.filtered_headers()
-        }
-        else {
+        } else {
             &self.reader.headers
         }
     }

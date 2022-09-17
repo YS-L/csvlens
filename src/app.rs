@@ -1,7 +1,7 @@
 use crate::csv;
 use crate::find;
 use crate::input::{Control, InputHandler};
-use crate::ui::{CsvTable, CsvTableState, FinderState, FilterColumnsState};
+use crate::ui::{CsvTable, CsvTableState, FilterColumnsState, FinderState};
 use crate::view;
 
 use tui::backend::Backend;
@@ -117,9 +117,7 @@ impl App {
             .context(format!("Failed to open file: {}", filename))?;
         let rows_view = view::RowsView::new(csvlens_reader, num_rows as u64)?;
 
-        let csv_table_state = CsvTableState::new(
-            original_filename, rows_view.headers().len()
-        );
+        let csv_table_state = CsvTableState::new(original_filename, rows_view.headers().len());
 
         let finder: Option<find::Finder> = None;
         let first_found_scrolled = false;
@@ -333,13 +331,15 @@ impl App {
         } else if let Some(n) = self.rows_view.get_total_line_numbers_approx() {
             self.csv_table_state.set_total_line_number(n);
         }
-        self.csv_table_state.set_total_cols(self.rows_view.headers().len());
+        self.csv_table_state
+            .set_total_cols(self.rows_view.headers().len());
 
         if let Some(f) = &self.finder {
             // TODO: need to create a new finder every time?
             self.csv_table_state.finder_state = FinderState::from_finder(f, &self.rows_view);
         }
-        self.csv_table_state.filter_columns_state = FilterColumnsState::from_rows_view(&self.rows_view);
+        self.csv_table_state.filter_columns_state =
+            FilterColumnsState::from_rows_view(&self.rows_view);
 
         self.csv_table_state.user_error = self.user_error.clone();
 

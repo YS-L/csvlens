@@ -60,7 +60,10 @@ impl Row {
         for i in indices {
             subfields.push(self.fields.get(*i).unwrap().clone());
         }
-        Row {record_num: self.record_num, fields: subfields}
+        Row {
+            record_num: self.record_num,
+            fields: subfields,
+        }
     }
 }
 

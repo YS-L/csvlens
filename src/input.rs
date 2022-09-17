@@ -46,12 +46,14 @@ pub enum InputMode {
 }
 
 pub struct BufferHistory {
-    inner: HashMap<InputMode, String>
+    inner: HashMap<InputMode, String>,
 }
 
 impl BufferHistory {
     fn new() -> Self {
-        BufferHistory { inner: HashMap::new() }
+        BufferHistory {
+            inner: HashMap::new(),
+        }
     }
 
     fn set(&mut self, input_mode: InputMode, content: &str) {
@@ -206,8 +208,7 @@ impl InputHandler {
                 if self.mode == InputMode::Filter {
                     // Share buffer history between Find and Filter, see also KeyCode::Up
                     self.buffer_history.set(InputMode::Find, cur_buffer);
-                }
-                else {
+                } else {
                     self.buffer_history.set(self.mode, cur_buffer);
                 }
                 self.reset_buffer();
@@ -246,6 +247,6 @@ impl InputHandler {
     }
 
     pub fn mode(&self) -> InputMode {
-        self.mode.clone()
+        self.mode
     }
 }

@@ -188,7 +188,9 @@ impl<'a> CsvTable<'a> {
             match &state.finder_state {
                 // TODO: seems like doing a bit too much of heavy lifting of
                 // checking for matches (finder's work)
-                FinderState::FinderActive(active) if active.target.is_match(hname) && !is_header => {
+                FinderState::FinderActive(active)
+                    if active.target.is_match(hname) && !is_header =>
+                {
                     let mut highlight_style = style.fg(Color::Rgb(200, 0, 0));
                     if let Some(hl) = &active.found_record {
                         if let Some(row_index) = row_index {
@@ -300,7 +302,7 @@ impl<'a> CsvTable<'a> {
                 InputMode::FilterColumns => {
                     content = format_buffer("Columns regex");
                 }
-                _ => { }
+                _ => {}
             }
         } else {
             // Filename
@@ -512,20 +514,18 @@ impl FinderActiveState {
 
 pub enum FilterColumnsState {
     Disabled,
-    Enabled(FilterColumnsInfo)
+    Enabled(FilterColumnsInfo),
 }
 
 impl FilterColumnsState {
     pub fn from_rows_view(rows_view: &view::RowsView) -> Self {
         if let Some(columns_filter) = rows_view.columns_filter() {
-            Self::Enabled(
-                FilterColumnsInfo {
-                    pattern: columns_filter.pattern(),
-                    shown: columns_filter.num_filtered(),
-                    total: columns_filter.num_original(),
-                    disabled_because_no_match: columns_filter.disabled_because_no_match(),
-                }
-            )
+            Self::Enabled(FilterColumnsInfo {
+                pattern: columns_filter.pattern(),
+                shown: columns_filter.num_filtered(),
+                total: columns_filter.num_original(),
+                disabled_because_no_match: columns_filter.disabled_because_no_match(),
+            })
         } else {
             Self::Disabled
         }
@@ -548,7 +548,7 @@ impl FilterColumnsInfo {
         } else {
             line += format!("{}/{} cols]", self.shown, self.total).as_str();
         }
-        line 
+        line
     }
 }
 
