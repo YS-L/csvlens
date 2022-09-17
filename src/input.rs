@@ -161,13 +161,8 @@ impl InputHandler {
                     }
                     _ => "".to_owned(),
                 };
-                if !new_buffer.is_empty() {
-                    self.buffer_state = BufferState::Active(new_buffer.clone());
-                    Control::BufferContent(new_buffer)
-                } else {
-                    self.reset_buffer();
-                    Control::BufferReset
-                }
+                self.buffer_state = BufferState::Active(new_buffer.clone());
+                Control::BufferContent(new_buffer)
             }
             KeyCode::Char('g') | KeyCode::Char('G') | KeyCode::Enter
                 if self.mode == InputMode::GotoLine =>
@@ -197,7 +192,13 @@ impl InputHandler {
                 } else {
                     control = Control::BufferReset;
                 }
-                self.buffer_history.set(self.mode, cur_buffer);
+                if self.mode == InputMode::Filter {
+                    // Share buffer history between Find and Filter
+                    self.buffer_history.set(InputMode::Find, cur_buffer);
+                }
+                else {
+                    self.buffer_history.set(self.mode, cur_buffer);
+                }
                 self.reset_buffer();
                 control
             }
