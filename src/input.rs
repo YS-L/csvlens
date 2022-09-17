@@ -102,28 +102,24 @@ impl InputHandler {
                 KeyCode::PageDown => Control::ScrollPageDown,
                 KeyCode::PageUp => Control::ScrollPageUp,
                 KeyCode::Char(x) if "0123456789".contains(x.to_string().as_str()) => {
-                    let init_buffer = x.to_string();
-                    self.buffer_state = BufferState::Active(init_buffer.clone());
+                    self.buffer_state = BufferState::Active(x.to_string());
                     self.mode = InputMode::GotoLine;
-                    Control::BufferContent(init_buffer)
+                    Control::BufferContent(x.to_string())
                 }
                 KeyCode::Char('/') => {
-                    let init_buffer = self.buffer_history.get(InputMode::Find).unwrap_or("".into());
-                    self.buffer_state = BufferState::Active(init_buffer.clone());
+                    self.buffer_state = BufferState::Active("".into());
                     self.mode = InputMode::Find;
-                    Control::BufferContent(init_buffer)
+                    Control::BufferContent("".into())
                 }
                 KeyCode::Char('&') => {
-                    let init_buffer = self.buffer_history.get(InputMode::Find).unwrap_or("".into());
-                    self.buffer_state = BufferState::Active(init_buffer.clone());
+                    self.buffer_state = BufferState::Active("".into());
                     self.mode = InputMode::Filter;
-                    Control::BufferContent(init_buffer)
+                    Control::BufferContent("".into())
                 }
                 KeyCode::Char('*') => {
-                    let init_buffer = self.buffer_history.get(InputMode::FilterColumns).unwrap_or("".into());
-                    self.buffer_state = BufferState::Active(init_buffer.clone());
+                    self.buffer_state = BufferState::Active("".into());
                     self.mode = InputMode::FilterColumns;
-                    Control::BufferContent(init_buffer)
+                    Control::BufferContent("".into())
                 }
                 _ => Control::Nothing,
             },
@@ -179,6 +175,18 @@ impl InputHandler {
                 self.reset_buffer();
                 res
             }
+            KeyCode::Up => {
+                let mode = match self.mode {
+                    InputMode::Filter => InputMode::Find,
+                    _ => self.mode,
+                };
+                if let Some(buf) = self.buffer_history.get(mode) {
+                    self.buffer_state = BufferState::Active(buf.clone());
+                    Control::BufferContent(buf)
+                } else {
+                    Control::Nothing
+                }
+            }
             KeyCode::Enter => {
                 let control;
                 if cur_buffer.is_empty() {
@@ -193,7 +201,7 @@ impl InputHandler {
                     control = Control::BufferReset;
                 }
                 if self.mode == InputMode::Filter {
-                    // Share buffer history between Find and Filter
+                    // Share buffer history between Find and Filter, see also KeyCode::Up
                     self.buffer_history.set(InputMode::Find, cur_buffer);
                 }
                 else {
