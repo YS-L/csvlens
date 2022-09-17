@@ -25,6 +25,12 @@ pub enum Control {
     Nothing,
 }
 
+impl Control {
+    fn empty_buffer() -> Control {
+        Control::BufferContent("".into())
+    }
+}
+
 enum BufferState {
     Active(String),
     Inactive,
@@ -107,19 +113,16 @@ impl InputHandler {
                     Control::BufferContent(x.to_string())
                 }
                 KeyCode::Char('/') => {
-                    self.buffer_state = BufferState::Active("".into());
-                    self.mode = InputMode::Find;
-                    Control::BufferContent("".into())
+                    self.init_buffer(InputMode::Find);
+                    Control::empty_buffer()
                 }
                 KeyCode::Char('&') => {
-                    self.buffer_state = BufferState::Active("".into());
-                    self.mode = InputMode::Filter;
-                    Control::BufferContent("".into())
+                    self.init_buffer(InputMode::Filter);
+                    Control::empty_buffer()
                 }
                 KeyCode::Char('*') => {
-                    self.buffer_state = BufferState::Active("".into());
-                    self.mode = InputMode::FilterColumns;
-                    Control::BufferContent("".into())
+                    self.init_buffer(InputMode::FilterColumns);
+                    Control::empty_buffer()
                 }
                 _ => Control::Nothing,
             },
@@ -230,6 +233,11 @@ impl InputHandler {
 
     fn is_input_buffering(&self) -> bool {
         matches!(self.buffer_state, BufferState::Active(_))
+    }
+
+    fn init_buffer(&mut self, mode: InputMode) {
+        self.buffer_state = BufferState::Active("".into());
+        self.mode = mode;
     }
 
     fn reset_buffer(&mut self) {
