@@ -1,5 +1,6 @@
 use crate::util::events::{CsvlensEvent, CsvlensEvents};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use std::collections::HashMap;
 
 pub enum Control {
     ScrollUp,
@@ -29,7 +30,7 @@ enum BufferState {
     Inactive,
 }
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Hash, Copy)]
 pub enum InputMode {
     Default,
     GotoLine,
@@ -38,10 +39,29 @@ pub enum InputMode {
     FilterColumns,
 }
 
+pub struct BufferHistory {
+    inner: HashMap<InputMode, String>
+}
+
+impl BufferHistory {
+    fn new() -> Self {
+        BufferHistory { inner: HashMap::new() }
+    }
+
+    fn set(&mut self, input_mode: InputMode, content: &str) {
+        self.inner.insert(input_mode, content.to_string());
+    }
+
+    fn get(&mut self, input_mode: InputMode) -> Option<String> {
+        self.inner.get(&input_mode).cloned()
+    }
+}
+
 pub struct InputHandler {
     events: CsvlensEvents,
     mode: InputMode,
     buffer_state: BufferState,
+    buffer_history: BufferHistory,
 }
 
 impl InputHandler {
@@ -50,6 +70,7 @@ impl InputHandler {
             events: CsvlensEvents::new(),
             mode: InputMode::Default,
             buffer_state: BufferState::Inactive,
+            buffer_history: BufferHistory::new(),
         }
     }
 
@@ -87,19 +108,22 @@ impl InputHandler {
                     Control::BufferContent(init_buffer)
                 }
                 KeyCode::Char('/') => {
-                    self.buffer_state = BufferState::Active("".to_owned());
+                    let init_buffer = self.buffer_history.get(InputMode::Find).unwrap_or("".into());
+                    self.buffer_state = BufferState::Active(init_buffer.clone());
                     self.mode = InputMode::Find;
-                    Control::BufferContent("".to_owned())
+                    Control::BufferContent(init_buffer)
                 }
                 KeyCode::Char('&') => {
-                    self.buffer_state = BufferState::Active("".to_owned());
+                    let init_buffer = self.buffer_history.get(InputMode::Find).unwrap_or("".into());
+                    self.buffer_state = BufferState::Active(init_buffer.clone());
                     self.mode = InputMode::Filter;
-                    Control::BufferContent("".to_owned())
+                    Control::BufferContent(init_buffer)
                 }
                 KeyCode::Char('*') => {
-                    self.buffer_state = BufferState::Active("".to_owned());
+                    let init_buffer = self.buffer_history.get(InputMode::FilterColumns).unwrap_or("".into());
+                    self.buffer_state = BufferState::Active(init_buffer.clone());
                     self.mode = InputMode::FilterColumns;
-                    Control::BufferContent("".to_owned())
+                    Control::BufferContent(init_buffer)
                 }
                 _ => Control::Nothing,
             },
@@ -173,6 +197,7 @@ impl InputHandler {
                 } else {
                     control = Control::BufferReset;
                 }
+                self.buffer_history.set(self.mode, cur_buffer);
                 self.reset_buffer();
                 control
             }

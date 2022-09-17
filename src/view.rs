@@ -4,7 +4,6 @@ use crate::input::Control;
 
 use anyhow::Result;
 use std::cmp::min;
-use std::f32::consts::E;
 use std::time::Instant;
 use regex::Regex;
 
