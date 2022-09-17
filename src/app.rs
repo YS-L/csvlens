@@ -504,4 +504,34 @@ mod tests {
         let lines = to_lines(&actual_buffer);
         assert_eq!(lines, expected);
     }
+
+    #[test]
+    fn test_filter_columns() {
+        let mut app = App::new("tests/data/cities.csv", None, None, false).unwrap();
+        thread::sleep(time::Duration::from_millis(100));
+
+        let backend = TestBackend::new(80, 10);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        step_and_draw(
+            &mut app,
+            &mut terminal,
+            Control::FilterColumns("Lon|City".into()),
+        );
+        let expected = vec![
+            "────────────────────────────────────────────────────────────────────────────────",
+            "      LonD    LonM    LonS    City                                              ",
+            "───┬─────────────────────────────────────────────┬──────────────────────────────",
+            "1  │  80      39      0       Youngstown         │                              ",
+            "2  │  97      23      23      Yankton            │                              ",
+            "3  │  120     30      36      Yakima             │                              ",
+            "4  │  71      48      0       Worcester          │                              ",
+            "5  │  89      46      11      Wisconsin Dells    │                              ",
+            "───┴─────────────────────────────────────────────┴──────────────────────────────",
+            "stdin [Row 1/128, Col 1/4] [Filter \"Lon|City\": 4/10 cols]                       ",
+        ];
+        let actual_buffer = terminal.backend().buffer().clone();
+        let lines = to_lines(&actual_buffer);
+        assert_eq!(lines, expected);
+    }
 }
