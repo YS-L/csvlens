@@ -1,6 +1,6 @@
 # csvlens
 
-`csvlens` is a command line CSV file viewer. It is similar to `less` but made
+`csvlens` is a command line CSV file viewer. It is like `less` but made
 for CSV.
 
 ![Demo](.github/demo.gif)
@@ -18,19 +18,24 @@ Pipe CSV data directly to `csvlens`:
 ```
 <your commands producing some csv data> | csvlens
 ```
-### Supported interactions
-* Scroll:
-  * One row or column: `hjkl`, `← ↓ ↑→ `
-  * One window vertically: `Ctrl + F` (or `Page Down`), `Ctrl-B` (or `Page Up`)
-  * One window horizontally: `Ctrl + h` (or `Ctrl + ←`), `Ctrl + l` (or `Ctrl + →`)
-* Go to bottom: `G`
-* Go to top: `g`
-* Go to line `n`: `nG`
-* Search: `/<thing>`
-    * Go to next result: `n`
-    * Go to previous result: `N`
-* Filter: `&<thing>` (or `//<thing>`)
-* Exit: `q`
+### Key bindings
+
+Key | Action
+--- | ---
+`hjkl` (or `← ↓ ↑→ `) | Scroll one row or column in the given direction
+`Ctrl + f` (or `Page Down`) | Scroll one window down
+`Ctrl + b` (or `Page Up`) | Scroll one window up
+`Ctrl + h` (or `Ctrl + ←`) | Scroll one window left
+`Ctrl + l` (or `Ctrl + →`) | Scroll one window right
+`G` | Go to bottom
+`g` | Go to top
+`<n>G` | Go to line `n`
+`/<regex>` | Find content matching regex and highlight matches
+`n` (in Find mode) | Jump to next result
+`N` (in Find mode) | Jump to previous result
+`&<regex>` | Filter rows using regex (show only matches)
+`*<regex>` | Filter columns using regex (show only matches)
+`q` | Exit
 
 ### Optional parameters
 * `-d <delimiter>`: Custom delimiter to use when parsing the CSV
