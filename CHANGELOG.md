@@ -1,3 +1,8 @@
+# v0.1.9
+
+* Support filtering on columns
+* Support basic command history
+
 # v0.1.8
 
 * Support horizontal scrolling

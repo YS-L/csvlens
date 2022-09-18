@@ -1,6 +1,6 @@
 [package]
 name = "csvlens"
-version = "0.1.8"
+version = "0.1.9"
 authors = ["Yung Siang Liau <liauys@gmail.com>"]
 license = "MIT"
 description = "Command line csv viewer"
