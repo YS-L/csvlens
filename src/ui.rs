@@ -37,6 +37,9 @@ impl<'a> CsvTable<'a> {
         }
         for row in self.rows.iter() {
             for (i, value) in row.fields.iter().enumerate() {
+                if i >= column_widths.len() {
+                    continue;
+                }
                 let v = column_widths.get_mut(i).unwrap();
                 let value_len = value.len() as u16;
                 if *v < value_len {

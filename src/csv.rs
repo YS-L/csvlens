@@ -467,4 +467,16 @@ mod tests {
         let expected = vec![Row::new(1, vec!["c1"]), Row::new(2, vec!["c2", " v2"])];
         assert_eq!(rows, expected);
     }
+
+    #[test]
+    fn test_double_quoting_as_escape_chars() {
+        let config = Arc::new(CsvConfig::new("tests/data/good_double_quote.csv"));
+        let mut r = CsvLensReader::new(config).unwrap();
+        let rows = r.get_rows(0, 50).unwrap();
+        let expected = vec![
+            Row::new(1, vec!["1", "quote"]),
+            Row::new(2, vec!["5", "Comma, comma"]),
+        ];
+        assert_eq!(rows, expected);
+    }
 }

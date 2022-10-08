@@ -534,4 +534,32 @@ mod tests {
         let lines = to_lines(&actual_buffer);
         assert_eq!(lines, expected);
     }
+
+    #[test]
+    fn test_extra_fields_in_some_rows() {
+        // Test getting column widths should not fail on data with bad formatting (some rows having
+        // more fields than the header)
+        let mut app = App::new("tests/data/bad_double_quote.csv", None, None, false).unwrap();
+        thread::sleep(time::Duration::from_millis(100));
+
+        let backend = TestBackend::new(30, 10);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        step_and_draw(&mut app, &mut terminal, Control::Nothing);
+        let expected = vec![
+            "──────────────────────────────",
+            "      Column1     \"column…    ",
+            "───┬──────────────────────────",
+            "1  │  1           \"quote\"     ",
+            "2  │  5           \"Comma      ",
+            "   │                          ",
+            "   │                          ",
+            "   │                          ",
+            "───┴──────────────────────────",
+            "stdin [Row 1/2, Col 1/2]      ",
+        ];
+        let actual_buffer = terminal.backend().buffer().clone();
+        let lines = to_lines(&actual_buffer);
+        assert_eq!(lines, expected);
+    }
 }
