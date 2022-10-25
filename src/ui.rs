@@ -154,6 +154,7 @@ impl<'a> CsvTable<'a> {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn render_row(
         &self,
         buf: &mut Buffer,

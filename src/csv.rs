@@ -70,7 +70,7 @@ impl Row {
 impl CsvLensReader {
     pub fn new(config: Arc<CsvConfig>) -> Result<Self> {
         let mut reader = config.new_reader()?;
-        let headers_record = reader.headers().unwrap();
+        let headers_record = reader.headers()?;
         let headers = string_record_to_vec(headers_record);
 
         let (m_internal, _handle) = ReaderInternalState::init_internal(config);
