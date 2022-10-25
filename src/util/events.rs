@@ -1,12 +1,9 @@
-use std::sync::mpsc;
-use std::sync::{
-    atomic::{AtomicBool, Ordering},
-    Arc,
-};
-use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
-use crossterm::event::{read, Event, KeyCode, KeyEvent};
+use crossterm::{
+    event::{poll, read, Event, KeyCode, KeyEvent},
+    ErrorKind,
+};
 
 pub enum CsvlensEvent<I> {
     Input(I),
@@ -16,10 +13,7 @@ pub enum CsvlensEvent<I> {
 /// A small event handler that wrap termion input and tick events. Each event
 /// type is handled in its own thread and returned to a common `Receiver`
 pub struct CsvlensEvents {
-    rx: mpsc::Receiver<CsvlensEvent<KeyEvent>>,
-    input_handle: thread::JoinHandle<()>,
-    ignore_exit_key: Arc<AtomicBool>,
-    tick_handle: thread::JoinHandle<()>,
+    tick_rate: Duration,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -43,46 +37,25 @@ impl CsvlensEvents {
     }
 
     pub fn with_config(config: Config) -> CsvlensEvents {
-        let (tx, rx) = mpsc::channel();
-        let ignore_exit_key = Arc::new(AtomicBool::new(true));
-        let input_handle = {
-            let tx = tx.clone();
-            // TODO: not used?
-            let _ignore_exit_key = ignore_exit_key.clone();
-            thread::spawn(move || loop {
-                if let Event::Key(event) = read().unwrap() {
-                    if let Err(err) = tx.send(CsvlensEvent::Input(event)) {
-                        eprintln!("{}", err);
-                        return;
-                    }
-                }
-            })
-        };
-        let tick_handle = {
-            thread::spawn(move || loop {
-                if tx.send(CsvlensEvent::Tick).is_err() {
-                    break;
-                }
-                thread::sleep(config.tick_rate);
-            })
-        };
         CsvlensEvents {
-            rx,
-            ignore_exit_key,
-            input_handle,
-            tick_handle,
+            tick_rate: config.tick_rate,
         }
     }
 
-    pub fn next(&self) -> Result<CsvlensEvent<KeyEvent>, mpsc::RecvError> {
-        self.rx.recv()
-    }
+    pub fn next(&self) -> Result<CsvlensEvent<KeyEvent>, ErrorKind> {
+        let now = Instant::now();
+        match poll(self.tick_rate) {
+            Ok(true) => match read()? {
+                Event::Key(event) => Ok(CsvlensEvent::Input(event)),
+                _ => {
+                    let time_spent = now.elapsed();
+                    let rest = self.tick_rate - time_spent;
 
-    pub fn disable_exit_key(&mut self) {
-        self.ignore_exit_key.store(true, Ordering::Relaxed);
-    }
-
-    pub fn enable_exit_key(&mut self) {
-        self.ignore_exit_key.store(false, Ordering::Relaxed);
+                    Self { tick_rate: rest }.next()
+                }
+            },
+            Ok(false) => Ok(CsvlensEvent::Tick),
+            Err(_) => todo!(),
+        }
     }
 }
