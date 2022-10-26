@@ -386,19 +386,18 @@ mod tests {
 
     fn to_lines(buf: &Buffer) -> Vec<String> {
         let mut symbols: String = "".to_owned();
-        let area = buf.area().clone();
+        let area = buf.area();
         for y in 0..area.bottom() {
             for x in 0..area.right() {
                 let symbol = buf.get(x, y).symbol.clone();
                 symbols.push_str(&symbol);
             }
             if y != area.bottom() - 1 {
-                symbols.push_str("\n");
+                symbols.push('\n');
             }
         }
-        let res: Vec<&str> = symbols.split("\n").collect();
-        let res = res.into_iter().map(|s| s.to_string()).collect();
-        res
+
+        symbols.split('\n').map(|s| s.to_string()).collect()
     }
 
     fn step_and_draw<B: Backend>(app: &mut App, terminal: &mut Terminal<B>, control: Control) {
