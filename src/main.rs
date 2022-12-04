@@ -39,10 +39,7 @@ impl SeekableFile {
             // If not seekable, it most likely is due to process substitution using
             // pipe - write out to a temp file to make it seekable
             if f.seek(SeekFrom::Start(0)).is_err() {
-                let mut buffer: Vec<u8> = vec![];
-                // TODO: could have read by chunks, yolo for now
-                f.read_to_end(&mut buffer)?;
-                inner_file.write_all(&buffer)?;
+                Self::chunked_copy(&mut f,  &mut inner_file)?;
                 inner_file_res = Some(inner_file);
             } else {
                 inner_file_res = None;
@@ -50,9 +47,7 @@ impl SeekableFile {
         } else {
             // Handle input from stdin
             let mut stdin = std::io::stdin();
-            let mut buffer: Vec<u8> = vec![];
-            stdin.read_to_end(&mut buffer)?;
-            inner_file.write_all(&buffer)?;
+            Self::chunked_copy(&mut stdin,  &mut inner_file)?;
             inner_file_res = Some(inner_file);
         }
 
@@ -70,6 +65,22 @@ impl SeekableFile {
             self.filename.as_ref().unwrap()
         }
     }
+
+    fn chunked_copy<R: Read, W: Write>(source: &mut R, dest: &mut W) -> Result<usize> {
+        let mut total_copied = 0;
+        let mut buffer = vec![0; 1_000_000];
+        loop {
+            let n = source.read(&mut buffer)?;
+            if n == 0 {
+                break;
+            }
+            let n_written = dest.write(&buffer[..n])?;
+            total_copied += n_written;
+        }
+        Ok(total_copied)
+    }
+
+
 }
 
 #[derive(Parser, Debug)]
