@@ -1,3 +1,8 @@
+# v0.1.10
+* Handle irregular CSV when calculating column widths
+* Improved event loop handling
+* Improved memory usage when creating temporary file from stdin
+
 # v0.1.9
 
 * Support filtering on columns
