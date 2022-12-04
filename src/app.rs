@@ -114,7 +114,7 @@ impl App {
         let shared_config = Arc::new(config);
 
         let csvlens_reader = csv::CsvLensReader::new(shared_config.clone())
-            .context(format!("Failed to open file: {}", filename))?;
+            .context(format!("Failed to open file: {filename}"))?;
         let rows_view = view::RowsView::new(csvlens_reader, num_rows as u64)?;
 
         let csv_table_state = CsvTableState::new(original_filename, rows_view.headers().len());
@@ -247,7 +247,7 @@ impl App {
                 } else {
                     self.finder = None;
                     // TODO: how to show multi-line error
-                    self.user_error = Some(format!("Invalid regex: {}", s));
+                    self.user_error = Some(format!("Invalid regex: {s}"));
                 }
                 self.csv_table_state.reset_buffer();
             }
@@ -257,7 +257,7 @@ impl App {
                     self.rows_view.set_columns_filter(target).unwrap();
                 } else {
                     self.rows_view.reset_columns_filter().unwrap();
-                    self.user_error = Some(format!("Invalid regex: {}", s));
+                    self.user_error = Some(format!("Invalid regex: {s}"));
                 }
                 self.csv_table_state.reset_buffer();
                 self.csv_table_state.set_cols_offset(0);
@@ -353,7 +353,7 @@ impl App {
 
         // TODO: check type of num_rows too big?
         let frame_size_adjusted_num_rows =
-            size.height.saturating_sub(self.num_rows_not_visible as u16) as u64;
+            size.height.saturating_sub(self.num_rows_not_visible) as u64;
         self.rows_view
             .set_num_rows(frame_size_adjusted_num_rows)
             .unwrap();

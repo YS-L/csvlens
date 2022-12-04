@@ -63,7 +63,7 @@ impl<'a> CsvTable<'a> {
     ) -> u16 {
         // TODO: better to derminte width from total number of records, so this is always fixed
         let max_row_num = rows.iter().map(|x| x.record_num).max().unwrap_or(0);
-        let mut section_width = format!("{}", max_row_num).len() as u16;
+        let mut section_width = format!("{max_row_num}").len() as u16;
 
         // Render line numbers
         let y_first_record = area.y;
@@ -292,7 +292,7 @@ impl<'a> CsvTable<'a> {
             content = error.to_owned();
         } else if let BufferState::Enabled(buffer_mode, buf) = &state.buffer_content {
             content = buf.to_owned();
-            let format_buffer = |prefix: &str| format!("{}: {}█", prefix, content);
+            let format_buffer = |prefix: &str| format!("{prefix}: {content}█");
             match buffer_mode {
                 InputMode::GotoLine => {
                     content = format_buffer("Go to line");
@@ -346,7 +346,7 @@ impl<'a> CsvTable<'a> {
             }
 
             if let Some(stats_line) = &state.debug_stats.status_line() {
-                content += format!(" {}", stats_line).as_str();
+                content += format!(" {stats_line}").as_str();
             }
 
             // Filter columns
@@ -509,10 +509,10 @@ impl FinderActiveState {
             } else {
                 cursor_str = "-".to_owned();
             }
-            line = format!("{}/{}{}", cursor_str, self.total_found, plus_marker,);
+            line = format!("{cursor_str}/{}{plus_marker}", self.total_found);
         }
         let action = if self.is_filter { "Filter" } else { "Find" };
-        format!("[{} \"{}\": {}]", action, self.target, line)
+        format!("[{action} \"{}\": {line}]", self.target)
     }
 }
 
@@ -585,10 +585,10 @@ impl DebugStats {
     pub fn status_line(&self) -> Option<String> {
         let mut line = "[".to_string();
         if let Some(elapsed) = self.rows_view_elapsed {
-            line += format!("rows:{}ms", elapsed).as_str();
+            line += format!("rows:{elapsed}ms").as_str();
         }
         if let Some(elapsed) = self.finder_elapsed {
-            line += format!(" finder:{}ms", elapsed).as_str();
+            line += format!(" finder:{elapsed}ms").as_str();
         }
         line += "]";
         if line == "[]" {

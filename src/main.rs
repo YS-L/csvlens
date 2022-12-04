@@ -34,12 +34,12 @@ impl SeekableFile {
         let inner_file_res;
 
         if let Some(filename) = maybe_filename {
-            let err = format!("Failed to open file: {}", filename);
+            let err = format!("Failed to open file: {filename}");
             let mut f = File::open(filename).context(err)?;
             // If not seekable, it most likely is due to process substitution using
             // pipe - write out to a temp file to make it seekable
             if f.seek(SeekFrom::Start(0)).is_err() {
-                Self::chunked_copy(&mut f,  &mut inner_file)?;
+                Self::chunked_copy(&mut f, &mut inner_file)?;
                 inner_file_res = Some(inner_file);
             } else {
                 inner_file_res = None;
@@ -47,7 +47,7 @@ impl SeekableFile {
         } else {
             // Handle input from stdin
             let mut stdin = std::io::stdin();
-            Self::chunked_copy(&mut stdin,  &mut inner_file)?;
+            Self::chunked_copy(&mut stdin, &mut inner_file)?;
             inner_file_res = Some(inner_file);
         }
 
@@ -79,8 +79,6 @@ impl SeekableFile {
         }
         Ok(total_copied)
     }
-
-
 }
 
 #[derive(Parser, Debug)]
@@ -146,7 +144,7 @@ fn run_csvlens() -> Result<()> {
 
 fn main() {
     if let Err(e) = run_csvlens() {
-        println!("{}", e);
+        println!("{e}");
         std::process::exit(1);
     }
 }
