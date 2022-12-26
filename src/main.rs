@@ -19,7 +19,7 @@ use crossterm::terminal::{
 use std::convert::TryInto;
 use std::fs::File;
 use std::io::{self, Read, Seek, SeekFrom, Write};
-use std::thread::panicking;
+use std::panic;
 use tempfile::NamedTempFile;
 use tui::backend::CrosstermBackend;
 use tui::Terminal;
@@ -117,16 +117,24 @@ fn parse_delimiter(args: &Args) -> Result<Option<u8>> {
 
 struct AppRunner {
     app: App,
-    debug: bool,
     to_revert_raw_mode: bool,
     to_revert_alternate_screen: bool,
 }
 
 impl AppRunner {
-    fn new(app: App, debug: bool) -> AppRunner {
+    fn new(app: App) -> AppRunner {
+        let original_panic_hook = panic::take_hook();
+
+        panic::set_hook(Box::new(move |info| {
+            // Restore terminal states first so that the backtrace on panic can
+            // be printed with proper line breaks
+            disable_raw_mode().unwrap();
+            execute!(io::stdout(), LeaveAlternateScreen).unwrap();
+            original_panic_hook(info);
+        }));
+
         AppRunner {
             app,
-            debug,
             to_revert_raw_mode: false,
             to_revert_alternate_screen: false,
         }
@@ -143,9 +151,7 @@ impl AppRunner {
         let backend = CrosstermBackend::new(stdout);
         let mut terminal = Terminal::new(backend)?;
 
-        let result = self.app.main_loop(&mut terminal);
-
-        result
+        self.app.main_loop(&mut terminal)
     }
 }
 
@@ -155,12 +161,7 @@ impl Drop for AppRunner {
             disable_raw_mode().unwrap();
         }
         if self.to_revert_alternate_screen {
-            if !(panicking() && self.debug) {
-                execute!(io::stdout(), LeaveAlternateScreen).unwrap();
-            }
-        }
-        if panicking() {
-            println!("csvlens panicked! Run with --debug flag for more information.");
+            execute!(io::stdout(), LeaveAlternateScreen).unwrap();
         }
     }
 }
@@ -177,7 +178,7 @@ fn run_csvlens() -> Result<()> {
     let app =
         App::new(filename, delimiter, args.filename, show_stats).context("Failed creating app")?;
 
-    let mut app_runner = AppRunner::new(app, args.debug);
+    let mut app_runner = AppRunner::new(app);
     app_runner.run()
 }
 
