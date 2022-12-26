@@ -19,6 +19,7 @@ use crossterm::terminal::{
 use std::convert::TryInto;
 use std::fs::File;
 use std::io::{self, Read, Seek, SeekFrom, Write};
+use std::thread::panicking;
 use tempfile::NamedTempFile;
 use tui::backend::CrosstermBackend;
 use tui::Terminal;
@@ -116,21 +117,22 @@ fn parse_delimiter(args: &Args) -> Result<Option<u8>> {
 
 struct AppRunner {
     app: App,
+    debug: bool,
     to_revert_raw_mode: bool,
     to_revert_alternate_screen: bool,
 }
 
 impl AppRunner {
-    fn new(app: App) -> AppRunner {
+    fn new(app: App, debug: bool) -> AppRunner {
         AppRunner {
-            app: app,
+            app,
+            debug,
             to_revert_raw_mode: false,
             to_revert_alternate_screen: false,
         }
     }
 
     fn run(&mut self) -> Result<()> {
-
         enable_raw_mode()?;
         self.to_revert_raw_mode = true;
 
@@ -153,7 +155,12 @@ impl Drop for AppRunner {
             disable_raw_mode().unwrap();
         }
         if self.to_revert_alternate_screen {
-            execute!(io::stdout(), LeaveAlternateScreen).unwrap();
+            if !(panicking() && self.debug) {
+                execute!(io::stdout(), LeaveAlternateScreen).unwrap();
+            }
+        }
+        if panicking() {
+            println!("csvlens panicked! Run with --debug flag for more information.");
         }
     }
 }
@@ -170,7 +177,7 @@ fn run_csvlens() -> Result<()> {
     let app =
         App::new(filename, delimiter, args.filename, show_stats).context("Failed creating app")?;
 
-    let mut app_runner = AppRunner::new(app);
+    let mut app_runner = AppRunner::new(app, args.debug);
     app_runner.run()
 }
 
