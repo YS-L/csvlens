@@ -117,8 +117,6 @@ fn parse_delimiter(args: &Args) -> Result<Option<u8>> {
 
 struct AppRunner {
     app: App,
-    to_revert_raw_mode: bool,
-    to_revert_alternate_screen: bool,
 }
 
 impl AppRunner {
@@ -133,20 +131,13 @@ impl AppRunner {
             original_panic_hook(info);
         }));
 
-        AppRunner {
-            app,
-            to_revert_raw_mode: false,
-            to_revert_alternate_screen: false,
-        }
+        AppRunner { app }
     }
 
     fn run(&mut self) -> Result<()> {
         enable_raw_mode()?;
-        self.to_revert_raw_mode = true;
-
         let mut stdout = io::stdout();
         execute!(stdout, EnterAlternateScreen)?;
-        self.to_revert_alternate_screen = true;
 
         let backend = CrosstermBackend::new(stdout);
         let mut terminal = Terminal::new(backend)?;
@@ -157,12 +148,8 @@ impl AppRunner {
 
 impl Drop for AppRunner {
     fn drop(&mut self) {
-        if self.to_revert_raw_mode {
-            disable_raw_mode().unwrap();
-        }
-        if self.to_revert_alternate_screen {
-            execute!(io::stdout(), LeaveAlternateScreen).unwrap();
-        }
+        disable_raw_mode().unwrap();
+        execute!(io::stdout(), LeaveAlternateScreen).unwrap();
     }
 }
 
