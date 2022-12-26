@@ -114,6 +114,50 @@ fn parse_delimiter(args: &Args) -> Result<Option<u8>> {
     }
 }
 
+struct AppRunner {
+    app: App,
+    to_revert_raw_mode: bool,
+    to_revert_alternate_screen: bool,
+}
+
+impl AppRunner {
+    fn new(app: App) -> AppRunner {
+        AppRunner {
+            app: app,
+            to_revert_raw_mode: false,
+            to_revert_alternate_screen: false,
+        }
+    }
+
+    fn run(&mut self) -> Result<()> {
+
+        enable_raw_mode()?;
+        self.to_revert_raw_mode = true;
+
+        let mut stdout = io::stdout();
+        execute!(stdout, EnterAlternateScreen)?;
+        self.to_revert_alternate_screen = true;
+
+        let backend = CrosstermBackend::new(stdout);
+        let mut terminal = Terminal::new(backend)?;
+
+        let result = self.app.main_loop(&mut terminal);
+
+        result
+    }
+}
+
+impl Drop for AppRunner {
+    fn drop(&mut self) {
+        if self.to_revert_raw_mode {
+            disable_raw_mode().unwrap();
+        }
+        if self.to_revert_alternate_screen {
+            execute!(io::stdout(), LeaveAlternateScreen).unwrap();
+        }
+    }
+}
+
 fn run_csvlens() -> Result<()> {
     let args = Args::parse();
 
@@ -123,23 +167,11 @@ fn run_csvlens() -> Result<()> {
     let file = SeekableFile::new(&args.filename)?;
     let filename = file.filename();
 
-    let mut app =
+    let app =
         App::new(filename, delimiter, args.filename, show_stats).context("Failed creating app")?;
 
-    // setup terminal
-    enable_raw_mode()?;
-    let mut stdout = io::stdout();
-    execute!(stdout, EnterAlternateScreen)?;
-    let backend = CrosstermBackend::new(stdout);
-    let mut terminal = Terminal::new(backend)?;
-
-    let result = app.main_loop(&mut terminal);
-
-    // restore terminal
-    disable_raw_mode()?;
-    execute!(io::stdout(), LeaveAlternateScreen)?;
-
-    result
+    let mut app_runner = AppRunner::new(app);
+    app_runner.run()
 }
 
 fn main() {
