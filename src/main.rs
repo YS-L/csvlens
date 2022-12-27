@@ -20,6 +20,7 @@ use std::convert::TryInto;
 use std::fs::File;
 use std::io::{self, Read, Seek, SeekFrom, Write};
 use std::panic;
+use std::thread::panicking;
 use tempfile::NamedTempFile;
 use tui::backend::CrosstermBackend;
 use tui::Terminal;
@@ -148,8 +149,13 @@ impl AppRunner {
 
 impl Drop for AppRunner {
     fn drop(&mut self) {
-        disable_raw_mode().unwrap();
-        execute!(io::stdout(), LeaveAlternateScreen).unwrap();
+        // If panicked, restoring of terminal states would have been done in the
+        // panic hook. Avoid doing that twice since that would clear the printed
+        // backtrace.
+        if !panicking() {
+            disable_raw_mode().unwrap();
+            execute!(io::stdout(), LeaveAlternateScreen).unwrap();
+        }
     }
 }
 
