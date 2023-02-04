@@ -1,4 +1,10 @@
+# v0.1.11
+
+* Attempt to restore terminal state on panic
+* Fix piped input not working on macOS
+
 # v0.1.10
+
 * Handle irregular CSV when calculating column widths
 * Improved event loop handling
 * Improved memory usage when creating temporary file from stdin
