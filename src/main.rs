@@ -11,7 +11,7 @@ use crate::app::App;
 extern crate csv as sushi_csv;
 
 use anyhow::{bail, Context, Result};
-use clap::Parser;
+use clap::{Parser, command};
 use crossterm::execute;
 use crossterm::terminal::{
     disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
@@ -84,6 +84,7 @@ impl SeekableFile {
 }
 
 #[derive(Parser, Debug)]
+#[command(version)]
 struct Args {
     /// CSV filename
     filename: Option<String>,
