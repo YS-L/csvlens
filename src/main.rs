@@ -11,7 +11,7 @@ use crate::app::App;
 extern crate csv as sushi_csv;
 
 use anyhow::{bail, Context, Result};
-use clap::{Parser, command};
+use clap::{command, Parser};
 use crossterm::execute;
 use crossterm::terminal::{
     disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
@@ -129,7 +129,7 @@ impl AppRunner {
             // Restore terminal states first so that the backtrace on panic can
             // be printed with proper line breaks
             disable_raw_mode().unwrap();
-            execute!(io::stdout(), LeaveAlternateScreen).unwrap();
+            execute!(io::stderr(), LeaveAlternateScreen).unwrap();
             original_panic_hook(info);
         }));
 
@@ -138,10 +138,10 @@ impl AppRunner {
 
     fn run(&mut self) -> Result<()> {
         enable_raw_mode()?;
-        let mut stdout = io::stdout();
-        execute!(stdout, EnterAlternateScreen)?;
+        let mut output = io::stderr();
+        execute!(output, EnterAlternateScreen)?;
 
-        let backend = CrosstermBackend::new(stdout);
+        let backend = CrosstermBackend::new(output);
         let mut terminal = Terminal::new(backend)?;
 
         self.app.main_loop(&mut terminal)
