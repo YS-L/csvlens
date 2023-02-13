@@ -22,6 +22,7 @@ pub enum Control {
     Quit,
     BufferContent(String),
     BufferReset,
+    Select,
     Nothing,
 }
 
@@ -126,6 +127,7 @@ impl InputHandler {
                     self.init_buffer(InputMode::FilterColumns);
                     Control::empty_buffer()
                 }
+                KeyCode::Enter => Control::Select,
                 _ => Control::Nothing,
             },
             KeyModifiers::CONTROL => match key_event.code {

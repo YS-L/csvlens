@@ -93,6 +93,10 @@ struct Args {
     #[clap(short, long)]
     delimiter: Option<String>,
 
+    /// Print the value of this column to stdout when selected
+    #[arg(long)]
+    echo: Option<String>,
+
     /// Show stats for debugging
     #[clap(long)]
     debug: bool,
@@ -136,7 +140,7 @@ impl AppRunner {
         AppRunner { app }
     }
 
-    fn run(&mut self) -> Result<()> {
+    fn run(&mut self) -> Result<Option<String>> {
         enable_raw_mode()?;
         let mut output = io::stderr();
         execute!(output, EnterAlternateScreen)?;
@@ -155,12 +159,12 @@ impl Drop for AppRunner {
         // backtrace.
         if !panicking() {
             disable_raw_mode().unwrap();
-            execute!(io::stdout(), LeaveAlternateScreen).unwrap();
+            execute!(io::stderr(), LeaveAlternateScreen).unwrap();
         }
     }
 }
 
-fn run_csvlens() -> Result<()> {
+fn run_csvlens() -> Result<Option<String>> {
     let args = Args::parse();
 
     let show_stats = args.debug;
@@ -169,16 +173,21 @@ fn run_csvlens() -> Result<()> {
     let file = SeekableFile::new(&args.filename)?;
     let filename = file.filename();
 
-    let app =
-        App::new(filename, delimiter, args.filename, show_stats).context("Failed creating app")?;
+    let app = App::new(filename, delimiter, args.filename, show_stats, args.echo)?;
 
     let mut app_runner = AppRunner::new(app);
     app_runner.run()
 }
 
 fn main() {
-    if let Err(e) = run_csvlens() {
-        println!("{e}");
-        std::process::exit(1);
+    match run_csvlens() {
+        Err(e) => {
+            println!("{e}");
+            std::process::exit(1);
+        }
+        Ok(Some(selection)) => {
+            println!("{selection}");
+        }
+        _ => {}
     }
 }

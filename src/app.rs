@@ -4,6 +4,7 @@ use crate::input::{Control, InputHandler};
 use crate::ui::{CsvTable, CsvTableState, FilterColumnsState, FinderState};
 use crate::view;
 
+use anyhow::ensure;
 use tui::backend::Backend;
 use tui::{Frame, Terminal};
 
@@ -90,6 +91,7 @@ pub struct App {
     frame_width: Option<u16>,
     user_error: Option<String>,
     show_stats: bool,
+    echo: Option<String>,
 }
 
 impl App {
@@ -98,6 +100,7 @@ impl App {
         delimiter: Option<u8>,
         original_filename: Option<String>,
         show_stats: bool,
+        echo: Option<String>,
     ) -> Result<Self> {
         let input_handler = InputHandler::new();
 
@@ -116,6 +119,13 @@ impl App {
         let csvlens_reader = csv::CsvLensReader::new(shared_config.clone())
             .context(format!("Failed to open file: {filename}"))?;
         let rows_view = view::RowsView::new(csvlens_reader, num_rows as u64)?;
+
+        if let Some(column_name) = &echo {
+            ensure!(
+                rows_view.headers().contains(column_name),
+                format!("Column name not found: {column_name}"),
+            );
+        }
 
         let csv_table_state = CsvTableState::new(original_filename, rows_view.headers().len());
 
@@ -136,21 +146,28 @@ impl App {
             frame_width,
             user_error,
             show_stats,
+            echo,
         };
 
         Ok(app)
     }
 
-    pub fn main_loop<B: Backend>(&mut self, terminal: &mut Terminal<B>) -> Result<()> {
+    pub fn main_loop<B: Backend>(&mut self, terminal: &mut Terminal<B>) -> Result<Option<String>> {
         loop {
             let control = self.input_handler.next();
             if matches!(control, Control::Quit) {
-                break;
+                return Ok(None);
+            }
+            if matches!(control, Control::Select) {
+                if let Some(column_name) = &self.echo {
+                    if let Some(result) = self.rows_view.get_cell_value(column_name) {
+                        return Ok(Some(result));
+                    }
+                }
             }
             self.step(control)?;
             self.draw(terminal)?;
         }
-        Ok(())
     }
 
     fn step(&mut self, control: Control) -> Result<()> {
@@ -413,7 +430,7 @@ mod tests {
 
     #[test]
     fn test_simple() {
-        let mut app = App::new("tests/data/simple.csv", None, None, false).unwrap();
+        let mut app = App::new("tests/data/simple.csv", None, None, false, None).unwrap();
         thread::sleep(time::Duration::from_millis(100));
 
         let backend = TestBackend::new(30, 10);
@@ -446,7 +463,7 @@ mod tests {
 
     #[test]
     fn test_scroll_horizontal() {
-        let mut app = App::new("tests/data/cities.csv", None, None, false).unwrap();
+        let mut app = App::new("tests/data/cities.csv", None, None, false, None).unwrap();
         thread::sleep(time::Duration::from_millis(100));
 
         let backend = TestBackend::new(30, 10);
@@ -506,7 +523,7 @@ mod tests {
 
     #[test]
     fn test_filter_columns() {
-        let mut app = App::new("tests/data/cities.csv", None, None, false).unwrap();
+        let mut app = App::new("tests/data/cities.csv", None, None, false, None).unwrap();
         thread::sleep(time::Duration::from_millis(100));
 
         let backend = TestBackend::new(80, 10);
@@ -538,7 +555,7 @@ mod tests {
     fn test_extra_fields_in_some_rows() {
         // Test getting column widths should not fail on data with bad formatting (some rows having
         // more fields than the header)
-        let mut app = App::new("tests/data/bad_double_quote.csv", None, None, false).unwrap();
+        let mut app = App::new("tests/data/bad_double_quote.csv", None, None, false, None).unwrap();
         thread::sleep(time::Duration::from_millis(100));
 
         let backend = TestBackend::new(30, 10);
