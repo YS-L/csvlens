@@ -122,15 +122,15 @@ impl RowsView {
     }
 
     pub fn get_cell_value(&self, column_name: &str) -> Option<String> {
-        if let Some(column_index) = self.headers().iter().position(|col| col == column_name) {
-            if let Some(row_index) = self.selected {
-                return self
-                    .rows()
-                    .get(row_index as usize)
-                    .and_then(|row| row.fields.get(column_index))
-                    .cloned();
-            }
-            return None;
+        if let (Some(column_index), Some(row_index)) = (
+            self.headers().iter().position(|col| col == column_name),
+            self.selected,
+        ) {
+            return self
+                .rows()
+                .get(row_index as usize)
+                .and_then(|row| row.fields.get(column_index))
+                .cloned();
         }
         None
     }
