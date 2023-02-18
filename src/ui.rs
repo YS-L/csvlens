@@ -354,6 +354,11 @@ impl<'a> CsvTable<'a> {
                 content += format!(" {}", info.status_line()).as_str();
             }
 
+            // Echo option
+            if let Some(column_name) = &state.echo {
+                content += format!(" [Echo {column_name} ↵]").as_str();
+            }
+
             // Debug
             if !state.debug.is_empty() {
                 content += format!(" (debug: {})", state.debug).as_str();
@@ -618,11 +623,12 @@ pub struct CsvTableState {
     pub selected: Option<u64>,
     pub user_error: Option<String>,
     pub column_widths: Option<Vec<u16>>,
+    pub echo: Option<String>,
     pub debug: String,
 }
 
 impl CsvTableState {
-    pub fn new(filename: Option<String>, total_cols: usize) -> Self {
+    pub fn new(filename: Option<String>, total_cols: usize, echo: &Option<String>) -> Self {
         Self {
             rows_offset: 0,
             cols_offset: 0,
@@ -640,6 +646,7 @@ impl CsvTableState {
             selected: None,
             user_error: None,
             column_widths: None,
+            echo: echo.clone(),
             debug: "".into(),
         }
     }

@@ -127,7 +127,8 @@ impl App {
             );
         }
 
-        let csv_table_state = CsvTableState::new(original_filename, rows_view.headers().len());
+        let csv_table_state =
+            CsvTableState::new(original_filename, rows_view.headers().len(), &echo);
 
         let finder: Option<find::Finder> = None;
         let first_found_scrolled = false;
