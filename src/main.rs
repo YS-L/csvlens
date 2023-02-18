@@ -93,9 +93,9 @@ struct Args {
     #[clap(short, long)]
     delimiter: Option<String>,
 
-    /// Print the value of this column to stdout when selected
+    /// Print the value of this column to stdout for the selected row
     #[arg(long)]
-    echo: Option<String>,
+    echo_column: Option<String>,
 
     /// Show stats for debugging
     #[clap(long)]
@@ -173,7 +173,13 @@ fn run_csvlens() -> Result<Option<String>> {
     let file = SeekableFile::new(&args.filename)?;
     let filename = file.filename();
 
-    let app = App::new(filename, delimiter, args.filename, show_stats, args.echo)?;
+    let app = App::new(
+        filename,
+        delimiter,
+        args.filename,
+        show_stats,
+        args.echo_column,
+    )?;
 
     let mut app_runner = AppRunner::new(app);
     app_runner.run()

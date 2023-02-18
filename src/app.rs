@@ -91,7 +91,7 @@ pub struct App {
     frame_width: Option<u16>,
     user_error: Option<String>,
     show_stats: bool,
-    echo: Option<String>,
+    echo_column: Option<String>,
 }
 
 impl App {
@@ -100,7 +100,7 @@ impl App {
         delimiter: Option<u8>,
         original_filename: Option<String>,
         show_stats: bool,
-        echo: Option<String>,
+        echo_column: Option<String>,
     ) -> Result<Self> {
         let input_handler = InputHandler::new();
 
@@ -120,7 +120,7 @@ impl App {
             .context(format!("Failed to open file: {filename}"))?;
         let rows_view = view::RowsView::new(csvlens_reader, num_rows as u64)?;
 
-        if let Some(column_name) = &echo {
+        if let Some(column_name) = &echo_column {
             ensure!(
                 rows_view.headers().contains(column_name),
                 format!("Column name not found: {column_name}"),
@@ -128,7 +128,7 @@ impl App {
         }
 
         let csv_table_state =
-            CsvTableState::new(original_filename, rows_view.headers().len(), &echo);
+            CsvTableState::new(original_filename, rows_view.headers().len(), &echo_column);
 
         let finder: Option<find::Finder> = None;
         let first_found_scrolled = false;
@@ -147,7 +147,7 @@ impl App {
             frame_width,
             user_error,
             show_stats,
-            echo,
+            echo_column,
         };
 
         Ok(app)
@@ -160,7 +160,7 @@ impl App {
                 return Ok(None);
             }
             if matches!(control, Control::Select) {
-                if let Some(column_name) = &self.echo {
+                if let Some(column_name) = &self.echo_column {
                     if let Some(result) = self.rows_view.get_cell_value(column_name) {
                         return Ok(Some(result));
                     }
