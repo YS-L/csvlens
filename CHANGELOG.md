@@ -1,3 +1,9 @@
+# v0.1.12
+
+* Add --version option
+* Add --echo-column option to print column's value at selected row to stdout
+* Use stderr as tui buffer to support piping from csvlens
+
 # v0.1.11
 
 * Attempt to restore terminal state on panic
