@@ -1,0 +1,38 @@
+on:
+  push:
+    branches:
+      - release/v*
+env:
+  TARGET: x86_64-unknown-linux-gnu
+jobs:
+  cargo-build:
+    permissions: write-all
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repo Code
+        uses: actions/checkout@v3
+      - name: Install stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - name: Run cargo check
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+      - name: Build
+        uses: actions-rs/cargo@v1
+        with:
+          use-cross: false
+          command: build
+          args: --target ${{ env.TARGET }} --release --locked
+      - name: Github Upload Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          UPLOADTOOL_ISPRERELEASE: true
+          VERSION: ${{  github.ref_name }}
+        run: |
+          mv target/${TARGET}/release/csvlens csvlens
+          tar -cavf csvlens-${VERSION##*/}-${TARGET}.tar.gz csvlens README.md LICENSE
+          gh release create ${VERSION##*/} csvlens-${VERSION##*/}-${TARGET}.tar.gz
