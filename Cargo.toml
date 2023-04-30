@@ -16,7 +16,7 @@ edition = "2021"
 [dependencies]
 csv = "1.2"
 tui = "0.19"
-crossterm = { version = "0.26", features = ["use-dev-tty"] }
+crossterm = { version = "0.26.1", features = ["use-dev-tty"] }
 anyhow = "1.0"
 clap = { version = "4.2", features = ["derive"] }
 tempfile = "3.5"
