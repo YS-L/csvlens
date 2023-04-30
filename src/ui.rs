@@ -306,7 +306,7 @@ impl<'a> CsvTable<'a> {
                 InputMode::FilterColumns => {
                     content = format_buffer("Columns regex");
                 }
-                _ => {}
+                InputMode::Default => {}
             }
         } else {
             // Filename
