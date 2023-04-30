@@ -59,7 +59,7 @@ impl Finder {
 
     pub fn cursor_row_index(&self) -> Option<usize> {
         let m_guard = self.internal.lock().unwrap();
-        self.get_found_record_at_cursor(m_guard)
+        self.get_found_record_at_cursor(&m_guard)
             .map(|x| x.row_index())
     }
 
@@ -85,7 +85,7 @@ impl Finder {
         } else if count > 0 {
             self.cursor = Some(m_guard.next_from(self.row_hint));
         }
-        self.get_found_record_at_cursor(m_guard)
+        self.get_found_record_at_cursor(&m_guard)
     }
 
     pub fn prev(&mut self) -> Option<FoundRecord> {
@@ -98,21 +98,20 @@ impl Finder {
                 self.cursor = Some(m_guard.prev_from(self.row_hint));
             }
         }
-        self.get_found_record_at_cursor(m_guard)
+        self.get_found_record_at_cursor(&m_guard)
     }
 
     pub fn current(&self) -> Option<FoundRecord> {
         let m_guard = self.internal.lock().unwrap();
-        self.get_found_record_at_cursor(m_guard)
+        self.get_found_record_at_cursor(&m_guard)
     }
 
     fn get_found_record_at_cursor(
         &self,
-        m_guard: MutexGuard<FinderInternalState>,
+        m_guard: &MutexGuard<FinderInternalState>,
     ) -> Option<FoundRecord> {
         if let Some(n) = self.cursor {
             // TODO: this weird ref massaging really needed?
-            // TODO: really need to get a copy of the whole list of of mutex?
             let res = m_guard.founds.get(n);
             res.cloned()
         } else {
