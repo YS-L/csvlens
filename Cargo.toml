@@ -9,15 +9,15 @@ homepage = "http://github.com/YS-L/csvlens"
 repository = "http://github.com/YS-L/csvlens"
 exclude = [".github/*", "tests/*"]
 keywords = ["cli"]
-edition = "2018"
+edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-csv = "1.1"
-tui = "0.18"
+csv = "1.2"
+tui = "0.19"
 crossterm = { version = "0.26", features = ["use-dev-tty"] }
 anyhow = "1.0"
-clap = { version = "4.1.4", features = ["derive"] }
-tempfile = "3.3.0"
-regex = "1.5.5"
+clap = { version = "4.2", features = ["derive"] }
+tempfile = "3.5"
+regex = "1.8"
