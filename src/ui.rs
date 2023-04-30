@@ -186,7 +186,8 @@ impl<'a> CsvTable<'a> {
             }
             if is_selected {
                 style = style
-                    .fg(Color::Rgb(255, 200, 0))
+                    .fg(Color::Rgb(192, 192, 192))
+                    .bg(Color::Rgb(64, 64, 64))
                     .add_modifier(Modifier::BOLD);
             }
             match &state.finder_state {
@@ -207,11 +208,11 @@ impl<'a> CsvTable<'a> {
                         }
                     }
                     let spans = Self::get_highlighted_spans(active, hname, style, highlight_style);
-                    self.set_spans(buf, &spans, x_offset_header, y, effective_width);
+                    self.set_spans(buf, &spans, x_offset_header, y, effective_width, style);
                 }
                 _ => {
                     let span = Span::styled((*hname).as_str(), style);
-                    self.set_spans(buf, &[span], x_offset_header, y, effective_width);
+                    self.set_spans(buf, &[span], x_offset_header, y, effective_width, style);
                 }
             };
             x_offset_header += hlen;
@@ -254,7 +255,7 @@ impl<'a> CsvTable<'a> {
         spans
     }
 
-    fn set_spans(&self, buf: &mut Buffer, spans: &[Span], x: u16, y: u16, width: u16) {
+    fn set_spans(&self, buf: &mut Buffer, spans: &[Span], x: u16, y: u16, width: u16, filler_style: Style) {
         const SUFFIX: &str = "…";
         const SUFFIX_LEN: u16 = 1;
 
@@ -271,12 +272,19 @@ impl<'a> CsvTable<'a> {
                 let max_content_length = remaining_width.saturating_sub(SUFFIX_LEN) as usize;
                 let truncated_content: String =
                     span.content.chars().take(max_content_length).collect();
-                let truncated_span = Span::styled(truncated_content, span.style);
+                let truncated_span = Span::styled(truncated_content.clone(), span.style);
                 cur_spans.push(truncated_span);
-                cur_spans.push(Span::raw(SUFFIX));
+                cur_spans.push(Span::styled(SUFFIX, filler_style));
+                remaining_width = 0;
                 // TODO: handle breaking into multiple lines, for now don't care about remaining_width
                 break;
             }
+        }
+
+        // Pad with spaces to the right (now inclusive of the buffer space reserved previously)
+        let padding_width = min(remaining_width as usize + 4, width as usize);
+        if padding_width > 0 {
+            cur_spans.push(Span::styled(" ".repeat(padding_width), filler_style));
         }
 
         let spans = Spans::from(cur_spans);
