@@ -47,7 +47,7 @@ impl<'a> CsvTable<'a> {
                 }
             }
         }
-        for w in column_widths.iter_mut() {
+        for w in &mut column_widths {
             *w += 4;
             *w = min(*w, (area_width as f32 * 0.8) as u16);
         }
