@@ -61,7 +61,7 @@ impl<'a> CsvTable<'a> {
         area: Rect,
         rows: &[Row],
     ) -> u16 {
-        // TODO: better to derminte width from total number of records, so this is always fixed
+        // TODO: better to determine width from total number of records, so this is always fixed
         let max_row_num = rows.iter().map(|x| x.record_num).max().unwrap_or(0);
         let mut section_width = format!("{max_row_num}").len() as u16;
 
