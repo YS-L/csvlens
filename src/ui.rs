@@ -32,7 +32,7 @@ impl<'a> CsvTable<'a> {
 impl<'a> CsvTable<'a> {
     fn get_column_widths(&self, area_width: u16) -> Vec<u16> {
         let mut column_widths = Vec::new();
-        for s in self.header.iter() {
+        for s in &self.header {
             column_widths.push(s.len() as u16);
         }
         for row in self.rows.iter() {
