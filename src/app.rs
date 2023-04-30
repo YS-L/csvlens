@@ -15,7 +15,7 @@ use std::sync::Arc;
 use std::usize;
 
 fn get_offsets_to_make_visible(
-    found_record: find::FoundRecord,
+    found_record: &find::FoundRecord,
     rows_view: &view::RowsView,
     csv_table_state: &CsvTableState,
 ) -> (Option<u64>, Option<u64>) {
@@ -44,7 +44,7 @@ fn scroll_to_found_record(
     csv_table_state: &mut CsvTableState,
 ) {
     let (new_rows_offset, new_cols_offset) =
-        get_offsets_to_make_visible(found_record, rows_view, csv_table_state);
+        get_offsets_to_make_visible(&found_record, rows_view, csv_table_state);
 
     if let Some(rows_offset) = new_rows_offset {
         rows_view.set_rows_from(rows_offset).unwrap();
