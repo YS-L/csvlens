@@ -177,7 +177,7 @@ impl App {
             self.user_error = None;
         }
 
-        self.rows_view.handle_control(&control)?;
+        self.rows_view.handle_control(control)?;
 
         match &control {
             Control::ScrollTo(_) => {
