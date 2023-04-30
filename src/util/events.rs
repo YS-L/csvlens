@@ -45,15 +45,16 @@ impl CsvlensEvents {
     pub fn next(&self) -> Result<CsvlensEvent<KeyEvent>, ErrorKind> {
         let now = Instant::now();
         match poll(self.tick_rate) {
-            Ok(true) => match read()? {
-                Event::Key(event) => Ok(CsvlensEvent::Input(event)),
-                _ => {
+            Ok(true) => {
+                if let Event::Key(event) = read()? {
+                    Ok(CsvlensEvent::Input(event))
+                } else {
                     let time_spent = now.elapsed();
                     let rest = self.tick_rate - time_spent;
 
                     Self { tick_rate: rest }.next()
                 }
-            },
+            }
             Ok(false) => Ok(CsvlensEvent::Tick),
             Err(_) => todo!(),
         }
