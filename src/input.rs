@@ -144,7 +144,7 @@ impl InputHandler {
     fn handler_buffering(&mut self, key_event: KeyEvent) -> Control {
         let cur_buffer = match &self.buffer_state {
             BufferState::Active(buffer) => buffer.as_str(),
-            _ => "",
+            BufferState::Inactive => "",
         };
         // SHIFT needed to capture capitalised characters
         if key_event.modifiers != KeyModifiers::NONE && key_event.modifiers != KeyModifiers::SHIFT {
@@ -162,7 +162,7 @@ impl InputHandler {
                         chars.next_back();
                         chars.as_str().to_owned()
                     }
-                    _ => "".to_owned(),
+                    BufferState::Inactive => "".to_owned(),
                 };
                 self.buffer_state = BufferState::Active(new_buffer.clone());
                 Control::BufferContent(new_buffer)
@@ -172,7 +172,7 @@ impl InputHandler {
             {
                 let goto_line = match &self.buffer_state {
                     BufferState::Active(buf) => buf.parse::<usize>().ok(),
-                    _ => None,
+                    BufferState::Inactive => None,
                 };
                 let res = if let Some(n) = goto_line {
                     Control::ScrollTo(n)
@@ -225,7 +225,7 @@ impl InputHandler {
             KeyCode::Char(x) => {
                 let new_buffer = match &self.buffer_state {
                     BufferState::Active(buffer) => buffer.to_owned() + x.to_string().as_str(),
-                    _ => x.to_string(),
+                    BufferState::Inactive => x.to_string(),
                 };
                 self.buffer_state = BufferState::Active(new_buffer.clone());
                 Control::BufferContent(new_buffer)
