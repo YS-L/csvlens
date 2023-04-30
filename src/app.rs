@@ -138,8 +138,8 @@ impl App {
 
         let app = App {
             input_handler,
-            shared_config,
             num_rows_not_visible,
+            shared_config,
             rows_view,
             csv_table_state,
             finder,
