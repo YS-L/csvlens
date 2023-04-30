@@ -166,12 +166,12 @@ impl App {
                     }
                 }
             }
-            self.step(control)?;
+            self.step(&control)?;
             self.draw(terminal)?;
         }
     }
 
-    fn step(&mut self, control: Control) -> Result<()> {
+    fn step(&mut self, control: &Control) -> Result<()> {
         // clear error message without changing other states on any action
         if !matches!(control, Control::Nothing) {
             self.user_error = None;
@@ -419,7 +419,7 @@ mod tests {
     }
 
     fn step_and_draw<B: Backend>(app: &mut App, terminal: &mut Terminal<B>, control: Control) {
-        app.step(control).unwrap();
+        app.step(&control).unwrap();
 
         // While it's possible to step multiple times before any draw when
         // testing, App::render_frame() can update App's state (e.g. based on
