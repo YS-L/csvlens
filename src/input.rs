@@ -167,9 +167,7 @@ impl InputHandler {
                 self.buffer_state = BufferState::Active(new_buffer.clone());
                 Control::BufferContent(new_buffer)
             }
-            KeyCode::Char('g' | 'G') | KeyCode::Enter
-                if self.mode == InputMode::GotoLine =>
-            {
+            KeyCode::Char('g' | 'G') | KeyCode::Enter if self.mode == InputMode::GotoLine => {
                 let goto_line = match &self.buffer_state {
                     BufferState::Active(buf) => buf.parse::<usize>().ok(),
                     BufferState::Inactive => None,
