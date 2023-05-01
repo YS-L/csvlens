@@ -1,3 +1,9 @@
+# v0.1.13
+
+* Switch to Rust 2021 edition and update dependencies (#25)
+* Fix crossterm panic by upgrading to version 0.26.1
+* New styling for selected row
+
 # v0.1.12
 
 * Add --version option
