@@ -255,7 +255,15 @@ impl<'a> CsvTable<'a> {
         spans
     }
 
-    fn set_spans(&self, buf: &mut Buffer, spans: &[Span], x: u16, y: u16, width: u16, filler_style: Style) {
+    fn set_spans(
+        &self,
+        buf: &mut Buffer,
+        spans: &[Span],
+        x: u16,
+        y: u16,
+        width: u16,
+        filler_style: Style,
+    ) {
         const SUFFIX: &str = "…";
         const SUFFIX_LEN: u16 = 1;
 
@@ -272,7 +280,7 @@ impl<'a> CsvTable<'a> {
                 let max_content_length = remaining_width.saturating_sub(SUFFIX_LEN) as usize;
                 let truncated_content: String =
                     span.content.chars().take(max_content_length).collect();
-                let truncated_span = Span::styled(truncated_content.clone(), span.style);
+                let truncated_span = Span::styled(truncated_content, span.style);
                 cur_spans.push(truncated_span);
                 cur_spans.push(Span::styled(SUFFIX, filler_style));
                 remaining_width = 0;
