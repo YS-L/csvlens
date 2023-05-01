@@ -358,6 +358,11 @@ impl<'a> CsvTable<'a> {
                 content += format!(" [Echo {column_name} ↵]").as_str();
             }
 
+            // Ignore case option
+            if state.ignore_case {
+                content += format!(" (ignore-case: {})", state.ignore_case).as_str();
+            }
+
             // Debug
             if !state.debug.is_empty() {
                 content += format!(" (debug: {})", state.debug).as_str();
@@ -623,11 +628,17 @@ pub struct CsvTableState {
     pub user_error: Option<String>,
     pub column_widths: Option<Vec<u16>>,
     pub echo_column: Option<String>,
+    pub ignore_case: bool,
     pub debug: String,
 }
 
 impl CsvTableState {
-    pub fn new(filename: Option<String>, total_cols: usize, echo_column: &Option<String>) -> Self {
+    pub fn new(
+        filename: Option<String>,
+        total_cols: usize,
+        echo_column: &Option<String>,
+        ignore_case: bool,
+    ) -> Self {
         Self {
             rows_offset: 0,
             cols_offset: 0,
@@ -646,6 +657,7 @@ impl CsvTableState {
             user_error: None,
             column_widths: None,
             echo_column: echo_column.clone(),
+            ignore_case,
             debug: "".into(),
         }
     }
