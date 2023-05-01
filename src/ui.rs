@@ -32,7 +32,7 @@ impl<'a> CsvTable<'a> {
 impl<'a> CsvTable<'a> {
     fn get_column_widths(&self, area_width: u16) -> Vec<u16> {
         let mut column_widths = Vec::new();
-        for s in self.header.iter() {
+        for s in &self.header {
             column_widths.push(s.len() as u16);
         }
         for row in self.rows.iter() {
@@ -47,7 +47,7 @@ impl<'a> CsvTable<'a> {
                 }
             }
         }
-        for w in column_widths.iter_mut() {
+        for w in &mut column_widths {
             *w += 4;
             *w = min(*w, (area_width as f32 * 0.8) as u16);
         }
@@ -61,7 +61,7 @@ impl<'a> CsvTable<'a> {
         area: Rect,
         rows: &[Row],
     ) -> u16 {
-        // TODO: better to derminte width from total number of records, so this is always fixed
+        // TODO: better to determine width from total number of records, so this is always fixed
         let max_row_num = rows.iter().map(|x| x.record_num).max().unwrap_or(0);
         let mut section_width = format!("{max_row_num}").len() as u16;
 
@@ -255,9 +255,8 @@ impl<'a> CsvTable<'a> {
     }
 
     fn set_spans(&self, buf: &mut Buffer, spans: &[Span], x: u16, y: u16, width: u16) {
-        // TODO: make constant?
-        let suffix = "…";
-        let suffix_len = suffix.chars().count();
+        const SUFFIX: &str = "…";
+        const SUFFIX_LEN: u16 = 1;
 
         // Reserve some space before the next column (same number used in get_column_widths)
         let mut remaining_width = width.saturating_sub(4);
@@ -269,12 +268,12 @@ impl<'a> CsvTable<'a> {
                 cur_spans.push(span.clone());
                 remaining_width = remaining_width.saturating_sub(span.content.len() as u16);
             } else {
-                let max_content_length = remaining_width.saturating_sub(suffix_len as u16) as usize;
+                let max_content_length = remaining_width.saturating_sub(SUFFIX_LEN) as usize;
                 let truncated_content: String =
                     span.content.chars().take(max_content_length).collect();
                 let truncated_span = Span::styled(truncated_content, span.style);
                 cur_spans.push(truncated_span);
-                cur_spans.push(Span::raw(suffix));
+                cur_spans.push(Span::raw(SUFFIX));
                 // TODO: handle breaking into multiple lines, for now don't care about remaining_width
                 break;
             }
@@ -306,7 +305,7 @@ impl<'a> CsvTable<'a> {
                 InputMode::FilterColumns => {
                     content = format_buffer("Columns regex");
                 }
-                _ => {}
+                InputMode::Default => {}
             }
         } else {
             // Filename

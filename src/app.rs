@@ -15,7 +15,7 @@ use std::sync::Arc;
 use std::usize;
 
 fn get_offsets_to_make_visible(
-    found_record: find::FoundRecord,
+    found_record: &find::FoundRecord,
     rows_view: &view::RowsView,
     csv_table_state: &CsvTableState,
 ) -> (Option<u64>, Option<u64>) {
@@ -44,7 +44,7 @@ fn scroll_to_found_record(
     csv_table_state: &mut CsvTableState,
 ) {
     let (new_rows_offset, new_cols_offset) =
-        get_offsets_to_make_visible(found_record, rows_view, csv_table_state);
+        get_offsets_to_make_visible(&found_record, rows_view, csv_table_state);
 
     if let Some(rows_offset) = new_rows_offset {
         rows_view.set_rows_from(rows_offset).unwrap();
@@ -138,8 +138,8 @@ impl App {
 
         let app = App {
             input_handler,
-            shared_config,
             num_rows_not_visible,
+            shared_config,
             rows_view,
             csv_table_state,
             finder,
@@ -166,18 +166,18 @@ impl App {
                     }
                 }
             }
-            self.step(control)?;
+            self.step(&control)?;
             self.draw(terminal)?;
         }
     }
 
-    fn step(&mut self, control: Control) -> Result<()> {
+    fn step(&mut self, control: &Control) -> Result<()> {
         // clear error message without changing other states on any action
         if !matches!(control, Control::Nothing) {
             self.user_error = None;
         }
 
-        self.rows_view.handle_control(&control)?;
+        self.rows_view.handle_control(control)?;
 
         match &control {
             Control::ScrollTo(_) => {
@@ -419,7 +419,7 @@ mod tests {
     }
 
     fn step_and_draw<B: Backend>(app: &mut App, terminal: &mut Terminal<B>, control: Control) {
-        app.step(control).unwrap();
+        app.step(&control).unwrap();
 
         // While it's possible to step multiple times before any draw when
         // testing, App::render_frame() can update App's state (e.g. based on
