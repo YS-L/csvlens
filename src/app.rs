@@ -250,12 +250,7 @@ impl App {
                 }
             }
             Control::Find(s) | Control::Filter(s) => {
-                let lower_s = s.to_lowercase();
-                let re = if self.ignore_case && lower_s.starts_with(s) {
-                    Regex::new(&format!("(?i){}", s.as_str()))
-                } else {
-                    Regex::new(s.as_str())
-                };
+                let re = self.create_regex(s);
                 if let Ok(target) = re {
                     // TODO: need to reset row views filter if any first?
                     self.finder =
@@ -282,12 +277,7 @@ impl App {
                 self.csv_table_state.reset_buffer();
             }
             Control::FilterColumns(s) => {
-                let lower_s = s.to_lowercase();
-                let re = if self.ignore_case && lower_s.starts_with(s) {
-                    Regex::new(&format!("(?i){}", s.as_str()))
-                } else {
-                    Regex::new(s.as_str())
-                };
+                let re = self.create_regex(s);
                 if let Ok(target) = re {
                     self.rows_view.set_columns_filter(target).unwrap();
                 } else {
@@ -381,6 +371,16 @@ impl App {
         // self.csv_table_state.debug = format!("{:?}", self.rows_view.columns_filter());
 
         Ok(())
+    }
+
+    fn create_regex(&mut self, s: &String) -> std::result::Result<Regex, regex::Error> {
+        let lower_s = s.to_lowercase();
+        let re = if self.ignore_case && lower_s.starts_with(s) {
+            Regex::new(&format!("(?i){}", s.as_str()))
+        } else {
+            Regex::new(s.as_str())
+        };
+        re
     }
 
     fn render_frame<B: Backend>(&mut self, f: &mut Frame<B>) {
@@ -621,7 +621,7 @@ mod tests {
             "4  │  Worcester          MA       │                                             ",
             "5  │  Wisconsin Dells    WI       │                                             ",
             "───┴──────────────────────────────┴─────────────────────────────────────────────",
-            "stdin [Row 1/128, Col 1/2] [Filter \"(?i)city|state|wa\": 2/10 cols] (ignore-case:",
+            "stdin [Row 1/128, Col 1/2] [Filter \"(?i)city|state|wa\": 2/10 cols] [ignore-case]",
         ];
         let actual_buffer = terminal.backend().buffer().clone();
         let lines = to_lines(&actual_buffer);
