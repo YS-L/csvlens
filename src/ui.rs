@@ -360,7 +360,7 @@ impl<'a> CsvTable<'a> {
 
             // Ignore case option
             if state.ignore_case {
-                content += format!(" (ignore-case: {})", state.ignore_case).as_str();
+                content += " [ignore-case]";
             }
 
             // Debug
