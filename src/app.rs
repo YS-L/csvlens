@@ -92,6 +92,7 @@ pub struct App {
     user_error: Option<String>,
     show_stats: bool,
     echo_column: Option<String>,
+    ignore_case: bool,
 }
 
 impl App {
@@ -101,6 +102,7 @@ impl App {
         original_filename: Option<String>,
         show_stats: bool,
         echo_column: Option<String>,
+        ignore_case: bool,
     ) -> Result<Self> {
         let input_handler = InputHandler::new();
 
@@ -127,8 +129,12 @@ impl App {
             );
         }
 
-        let csv_table_state =
-            CsvTableState::new(original_filename, rows_view.headers().len(), &echo_column);
+        let csv_table_state = CsvTableState::new(
+            original_filename,
+            rows_view.headers().len(),
+            &echo_column,
+            ignore_case,
+        );
 
         let finder: Option<find::Finder> = None;
         let first_found_scrolled = false;
@@ -148,6 +154,7 @@ impl App {
             user_error,
             show_stats,
             echo_column,
+            ignore_case,
         };
 
         Ok(app)
@@ -243,7 +250,7 @@ impl App {
                 }
             }
             Control::Find(s) | Control::Filter(s) => {
-                let re = Regex::new(s.as_str());
+                let re = self.create_regex(s);
                 if let Ok(target) = re {
                     // TODO: need to reset row views filter if any first?
                     self.finder =
@@ -270,7 +277,7 @@ impl App {
                 self.csv_table_state.reset_buffer();
             }
             Control::FilterColumns(s) => {
-                let re = Regex::new(s.as_str());
+                let re = self.create_regex(s);
                 if let Ok(target) = re {
                     self.rows_view.set_columns_filter(target).unwrap();
                 } else {
@@ -366,6 +373,16 @@ impl App {
         Ok(())
     }
 
+    fn create_regex(&mut self, s: &String) -> std::result::Result<Regex, regex::Error> {
+        let lower_s = s.to_lowercase();
+        let re = if self.ignore_case && lower_s.starts_with(s) {
+            Regex::new(&format!("(?i){}", s.as_str()))
+        } else {
+            Regex::new(s.as_str())
+        };
+        re
+    }
+
     fn render_frame<B: Backend>(&mut self, f: &mut Frame<B>) {
         let size = f.size();
 
@@ -392,7 +409,6 @@ impl App {
         Ok(())
     }
 }
-
 #[cfg(test)]
 mod tests {
     use core::time;
@@ -431,7 +447,7 @@ mod tests {
 
     #[test]
     fn test_simple() {
-        let mut app = App::new("tests/data/simple.csv", None, None, false, None).unwrap();
+        let mut app = App::new("tests/data/simple.csv", None, None, false, None, false).unwrap();
         thread::sleep(time::Duration::from_millis(100));
 
         let backend = TestBackend::new(30, 10);
@@ -464,7 +480,7 @@ mod tests {
 
     #[test]
     fn test_scroll_horizontal() {
-        let mut app = App::new("tests/data/cities.csv", None, None, false, None).unwrap();
+        let mut app = App::new("tests/data/cities.csv", None, None, false, None, false).unwrap();
         thread::sleep(time::Duration::from_millis(100));
 
         let backend = TestBackend::new(30, 10);
@@ -524,7 +540,7 @@ mod tests {
 
     #[test]
     fn test_filter_columns() {
-        let mut app = App::new("tests/data/cities.csv", None, None, false, None).unwrap();
+        let mut app = App::new("tests/data/cities.csv", None, None, false, None, false).unwrap();
         thread::sleep(time::Duration::from_millis(100));
 
         let backend = TestBackend::new(80, 10);
@@ -553,10 +569,78 @@ mod tests {
     }
 
     #[test]
+    fn test_filter_columns_case_sensitive() {
+        let mut app = App::new("tests/data/cities.csv", None, None, false, None, false).unwrap();
+        thread::sleep(time::Duration::from_millis(100));
+
+        let backend = TestBackend::new(80, 10);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        step_and_draw(
+            &mut app,
+            &mut terminal,
+            Control::FilterColumns("city|state|wa".into()),
+        );
+        let expected = vec![
+            "────────────────────────────────────────────────────────────────────────────────",
+            "      LatD    LatM    LatS    NS    LonD    LonM    LonS    EW    City          ",
+            "───┬────────────────────────────────────────────────────────────────────────────",
+            "1  │  41      5       59      N     80      39      0       W     Youngstown    ",
+            "2  │  42      52      48      N     97      23      23            Yankton       ",
+            "3  │  46      35      59      N     120     30      36      W     Yakima        ",
+            "4  │  42      16      12      N     71      48      0       W     Worcester     ",
+            "5  │  43      37      48      N     89      46      11      W     Wisconsin…    ",
+            "───┴────────────────────────────────────────────────────────────────────────────",
+            "stdin [Row 1/128, Col 1/10] [Filter \"city|state|wa\": no match, showing all colum",
+        ];
+        let actual_buffer = terminal.backend().buffer().clone();
+        let lines = to_lines(&actual_buffer);
+        assert_eq!(lines, expected);
+    }
+
+    #[test]
+    fn test_filter_columns_ignore_case() {
+        let mut app = App::new("tests/data/cities.csv", None, None, false, None, true).unwrap();
+        thread::sleep(time::Duration::from_millis(100));
+
+        let backend = TestBackend::new(80, 10);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        step_and_draw(
+            &mut app,
+            &mut terminal,
+            Control::FilterColumns("city|state|wa".into()),
+        );
+        let expected = vec![
+            "────────────────────────────────────────────────────────────────────────────────",
+            "      City               State                                                  ",
+            "───┬──────────────────────────────┬─────────────────────────────────────────────",
+            "1  │  Youngstown         OH       │                                             ",
+            "2  │  Yankton            SD       │                                             ",
+            "3  │  Yakima             WA       │                                             ",
+            "4  │  Worcester          MA       │                                             ",
+            "5  │  Wisconsin Dells    WI       │                                             ",
+            "───┴──────────────────────────────┴─────────────────────────────────────────────",
+            "stdin [Row 1/128, Col 1/2] [Filter \"(?i)city|state|wa\": 2/10 cols] [ignore-case]",
+        ];
+        let actual_buffer = terminal.backend().buffer().clone();
+        let lines = to_lines(&actual_buffer);
+        assert_eq!(lines, expected);
+    }
+
+    #[test]
     fn test_extra_fields_in_some_rows() {
         // Test getting column widths should not fail on data with bad formatting (some rows having
         // more fields than the header)
-        let mut app = App::new("tests/data/bad_double_quote.csv", None, None, false, None).unwrap();
+        let mut app = App::new(
+            "tests/data/bad_double_quote.csv",
+            None,
+            None,
+            false,
+            None,
+            false,
+        )
+        .unwrap();
         thread::sleep(time::Duration::from_millis(100));
 
         let backend = TestBackend::new(30, 10);

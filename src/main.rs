@@ -93,6 +93,10 @@ struct Args {
     #[clap(short, long)]
     delimiter: Option<String>,
 
+    /// Searches ignore case. Ignored if any uppercase letters are present in the search string
+    #[clap(short, long)]
+    ignore_case: bool,
+
     /// Print the value of this column to stdout for the selected row
     #[arg(long)]
     echo_column: Option<String>,
@@ -179,6 +183,7 @@ fn run_csvlens() -> Result<Option<String>> {
         args.filename,
         show_stats,
         args.echo_column,
+        args.ignore_case,
     )?;
 
     let mut app_runner = AppRunner::new(app);
