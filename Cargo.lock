@@ -213,6 +213,7 @@ version = "0.1.13"
 dependencies = [
  "anyhow",
  "clap",
+ "crossterm 0.25.0",
  "crossterm 0.26.1",
  "csv",
  "regex",
