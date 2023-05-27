@@ -1,3 +1,8 @@
+# v0.1.14
+
+* Implement --ignore-case option
+* Fix crossterm double input issue on Windows
+
 # v0.1.13
 
 * Switch to Rust 2021 edition and update dependencies (#25)

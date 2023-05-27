@@ -40,7 +40,7 @@ Key | Action
 ### Optional parameters
 * `-d <delimiter>`: Custom delimiter to use when parsing the CSV
    (e.g. `csvlens file.csv -d \t`)
-*  `-i, --ignore-case`: Searches ignore case. Ignored if any uppercase letters are present in the search string
+* `-i, --ignore-case`: Searches ignore case. Ignored if any uppercase letters are present in the search string
 
 ## Installation
 
