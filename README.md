@@ -39,7 +39,7 @@ Key | Action
 
 ### Optional parameters
 * `-d <delimiter>`: Custom delimiter to use when parsing the CSV
-   (e.g. `csvlens file.csv -d $\t`). Specify `-d auto` to auto-detect the delimiter.
+   (e.g. `csvlens file.csv -d $'\t'`). Specify `-d auto` to auto-detect the delimiter.
 * `-i, --ignore-case`: Searches ignore case. Ignored if any uppercase letters are present in the search string.
 
 ## Installation
