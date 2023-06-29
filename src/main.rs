@@ -1,5 +1,6 @@
 mod app;
 mod csv;
+mod delimiter;
 mod find;
 mod input;
 mod ui;
@@ -7,6 +8,7 @@ mod ui;
 mod util;
 mod view;
 use crate::app::App;
+use crate::delimiter::Delimiter;
 
 extern crate csv as sushi_csv;
 
@@ -89,7 +91,7 @@ struct Args {
     /// CSV filename
     filename: Option<String>,
 
-    /// Delimiter character (comma by default)
+    /// Delimiter character (comma by default) or "auto" to auto-detect the delimiter
     #[clap(short, long)]
     delimiter: Option<String>,
 
@@ -106,8 +108,11 @@ struct Args {
     debug: bool,
 }
 
-fn parse_delimiter(args: &Args) -> Result<Option<u8>> {
+fn parse_delimiter(args: &Args) -> Result<Delimiter> {
     if let Some(s) = &args.delimiter {
+        if s == "auto" {
+            return Ok(Delimiter::Auto);
+        }
         let mut chars = s.chars();
         let c = chars.next().context("Delimiter should not be empty")?;
         if !c.is_ascii() {
@@ -119,9 +124,9 @@ fn parse_delimiter(args: &Args) -> Result<Option<u8>> {
         if chars.next().is_some() {
             bail!("Delimiter should be exactly one character, got {}", s);
         }
-        Ok(Some(c.try_into()?))
+        Ok(Delimiter::Character(c.try_into()?))
     } else {
-        Ok(None)
+        Ok(Delimiter::Default)
     }
 }
 

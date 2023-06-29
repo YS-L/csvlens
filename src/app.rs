@@ -1,6 +1,7 @@
 extern crate csv_sniffer;
 
 use crate::csv;
+use crate::delimiter::Delimiter;
 use crate::find;
 use crate::input::{Control, InputHandler};
 use crate::ui::{CsvTable, CsvTableState, FilterColumnsState, FinderState};
@@ -109,7 +110,7 @@ pub struct App {
 impl App {
     pub fn new(
         filename: &str,
-        delimiter: Option<u8>,
+        delimiter: Delimiter,
         original_filename: Option<String>,
         show_stats: bool,
         echo_column: Option<String>,
@@ -124,8 +125,9 @@ impl App {
         let num_rows = 50 - num_rows_not_visible;
 
         let delimiter = match delimiter {
-            Some(d) => d,
-            None => sniff_delimiter(filename).unwrap_or(b','),
+            Delimiter::Default => b',',
+            Delimiter::Character(d) => d,
+            Delimiter::Auto => sniff_delimiter(filename).unwrap_or(b','),
         };
         let config = csv::CsvConfig::new(filename, delimiter);
         let shared_config = Arc::new(config);
@@ -459,7 +461,15 @@ mod tests {
 
     #[test]
     fn test_simple() {
-        let mut app = App::new("tests/data/simple.csv", None, None, false, None, false).unwrap();
+        let mut app = App::new(
+            "tests/data/simple.csv",
+            Delimiter::Default,
+            None,
+            false,
+            None,
+            false,
+        )
+        .unwrap();
         thread::sleep(time::Duration::from_millis(100));
 
         let backend = TestBackend::new(30, 10);
@@ -492,7 +502,15 @@ mod tests {
 
     #[test]
     fn test_scroll_horizontal() {
-        let mut app = App::new("tests/data/cities.csv", None, None, false, None, false).unwrap();
+        let mut app = App::new(
+            "tests/data/cities.csv",
+            Delimiter::Default,
+            None,
+            false,
+            None,
+            false,
+        )
+        .unwrap();
         thread::sleep(time::Duration::from_millis(100));
 
         let backend = TestBackend::new(30, 10);
@@ -552,7 +570,15 @@ mod tests {
 
     #[test]
     fn test_filter_columns() {
-        let mut app = App::new("tests/data/cities.csv", None, None, false, None, false).unwrap();
+        let mut app = App::new(
+            "tests/data/cities.csv",
+            Delimiter::Default,
+            None,
+            false,
+            None,
+            false,
+        )
+        .unwrap();
         thread::sleep(time::Duration::from_millis(100));
 
         let backend = TestBackend::new(80, 10);
@@ -582,7 +608,15 @@ mod tests {
 
     #[test]
     fn test_filter_columns_case_sensitive() {
-        let mut app = App::new("tests/data/cities.csv", None, None, false, None, false).unwrap();
+        let mut app = App::new(
+            "tests/data/cities.csv",
+            Delimiter::Default,
+            None,
+            false,
+            None,
+            false,
+        )
+        .unwrap();
         thread::sleep(time::Duration::from_millis(100));
 
         let backend = TestBackend::new(80, 10);
@@ -612,7 +646,15 @@ mod tests {
 
     #[test]
     fn test_filter_columns_ignore_case() {
-        let mut app = App::new("tests/data/cities.csv", None, None, false, None, true).unwrap();
+        let mut app = App::new(
+            "tests/data/cities.csv",
+            Delimiter::Default,
+            None,
+            false,
+            None,
+            true,
+        )
+        .unwrap();
         thread::sleep(time::Duration::from_millis(100));
 
         let backend = TestBackend::new(80, 10);
@@ -646,7 +688,7 @@ mod tests {
         // more fields than the header)
         let mut app = App::new(
             "tests/data/bad_double_quote.csv",
-            Some(b','),
+            Delimiter::Default,
             None,
             false,
             None,
@@ -678,7 +720,15 @@ mod tests {
 
     #[test]
     fn test_sniff_delimiter() {
-        let mut app = App::new("tests/data/small.bsv", None, None, false, None, false).unwrap();
+        let mut app = App::new(
+            "tests/data/small.bsv",
+            Delimiter::Auto,
+            None,
+            false,
+            None,
+            false,
+        )
+        .unwrap();
         thread::sleep(time::Duration::from_millis(100));
 
         let backend = TestBackend::new(30, 10);
