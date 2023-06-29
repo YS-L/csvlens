@@ -208,6 +208,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "csv-sniffer"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a1e32aa93b952410d55c1ae03048cc22a6cc62a323711b8e9245ef4b5578051c"
+dependencies = [
+ "bitflags",
+ "csv",
+ "csv-core",
+ "memchr",
+ "regex",
+]
+
+[[package]]
 name = "csvlens"
 version = "0.1.14"
 dependencies = [
@@ -216,6 +229,7 @@ dependencies = [
  "crossterm 0.25.0",
  "crossterm 0.26.1",
  "csv",
+ "csv-sniffer",
  "regex",
  "tempfile",
  "tui",

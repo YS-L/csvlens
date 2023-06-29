@@ -21,6 +21,7 @@ anyhow = "1.0"
 clap = { version = "4.2", features = ["derive"] }
 tempfile = "3.5"
 regex = "1.8"
+csv-sniffer = "0.3.1"
 
 [target.'cfg(windows)'.dependencies]
 crossterm = "0.25"

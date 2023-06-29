@@ -1,3 +1,5 @@
+extern crate csv_sniffer;
+
 use crate::csv;
 use crate::find;
 use crate::input::{Control, InputHandler};
@@ -80,6 +82,15 @@ fn get_page_left_cols_offset(frame_width: u16, csv_table_state: &CsvTableState) 
     }
 }
 
+fn sniff_delimiter(filename: &str) -> Option<u8> {
+    let mut sniffer = csv_sniffer::Sniffer::new();
+    sniffer.sample_size(csv_sniffer::SampleSize::Records(200));
+    if let Ok(metadata) = sniffer.sniff_path(filename) {
+        return Some(metadata.dialect.delimiter);
+    }
+    None
+}
+
 pub struct App {
     input_handler: InputHandler,
     num_rows_not_visible: u16,
@@ -112,10 +123,11 @@ impl App {
         // Number of rows that are visible in the current frame
         let num_rows = 50 - num_rows_not_visible;
 
-        let mut config = csv::CsvConfig::new(filename);
-        if let Some(d) = delimiter {
-            config.delimiter = d;
-        }
+        let delimiter = match delimiter {
+            Some(d) => d,
+            None => sniff_delimiter(filename).unwrap_or(b','),
+        };
+        let config = csv::CsvConfig::new(filename, delimiter);
         let shared_config = Arc::new(config);
 
         let csvlens_reader = csv::CsvLensReader::new(shared_config.clone())
@@ -634,7 +646,7 @@ mod tests {
         // more fields than the header)
         let mut app = App::new(
             "tests/data/bad_double_quote.csv",
-            None,
+            Some(b','),
             None,
             false,
             None,
@@ -657,6 +669,32 @@ mod tests {
             "   │                          ",
             "   │                          ",
             "───┴──────────────────────────",
+            "stdin [Row 1/2, Col 1/2]      ",
+        ];
+        let actual_buffer = terminal.backend().buffer().clone();
+        let lines = to_lines(&actual_buffer);
+        assert_eq!(lines, expected);
+    }
+
+    #[test]
+    fn test_sniff_delimiter() {
+        let mut app = App::new("tests/data/small.bsv", None, None, false, None, false).unwrap();
+        thread::sleep(time::Duration::from_millis(100));
+
+        let backend = TestBackend::new(30, 10);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        step_and_draw(&mut app, &mut terminal, Control::Nothing);
+        let expected = vec![
+            "──────────────────────────────",
+            "      COL1    COL2            ",
+            "───┬──────────────────┬───────",
+            "1  │  c1      v1      │       ",
+            "2  │  c2      v2      │       ",
+            "   │                  │       ",
+            "   │                  │       ",
+            "   │                  │       ",
+            "───┴──────────────────┴───────",
             "stdin [Row 1/2, Col 1/2]      ",
         ];
         let actual_buffer = terminal.backend().buffer().clone();

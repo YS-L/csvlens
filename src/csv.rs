@@ -18,14 +18,14 @@ fn string_record_to_vec(record: &csv::StringRecord) -> Vec<String> {
 
 pub struct CsvConfig {
     path: String,
-    pub delimiter: u8,
+    delimiter: u8,
 }
 
 impl CsvConfig {
-    pub fn new(path: &str) -> CsvConfig {
+    pub fn new(path: &str, delimiter: u8) -> CsvConfig {
         CsvConfig {
             path: path.to_string(),
-            delimiter: b',',
+            delimiter,
         }
     }
 
@@ -309,7 +309,7 @@ mod tests {
 
     #[test]
     fn test_cities_get_rows() {
-        let config = Arc::new(CsvConfig::new("tests/data/cities.csv"));
+        let config = Arc::new(CsvConfig::new("tests/data/cities.csv", b','));
         let mut r = CsvLensReader::new(config).unwrap();
         r.wait_internal();
         let rows = r.get_rows(2, 3).unwrap();
@@ -356,7 +356,7 @@ mod tests {
 
     #[test]
     fn test_simple_get_rows() {
-        let config = Arc::new(CsvConfig::new("tests/data/simple.csv"));
+        let config = Arc::new(CsvConfig::new("tests/data/simple.csv", b','));
         let mut r = CsvLensReader::new(config).unwrap();
         r.wait_internal();
         let rows = r.get_rows(1234, 2).unwrap();
@@ -369,7 +369,7 @@ mod tests {
 
     #[test]
     fn test_simple_get_rows_out_of_bound() {
-        let config = Arc::new(CsvConfig::new("tests/data/simple.csv"));
+        let config = Arc::new(CsvConfig::new("tests/data/simple.csv", b','));
         let mut r = CsvLensReader::new(config).unwrap();
         r.wait_internal();
         let indices = vec![5000];
@@ -379,7 +379,7 @@ mod tests {
 
     #[test]
     fn test_simple_get_rows_impl_1() {
-        let config = Arc::new(CsvConfig::new("tests/data/simple.csv"));
+        let config = Arc::new(CsvConfig::new("tests/data/simple.csv", b','));
         let mut r = CsvLensReader::new(config).unwrap();
         r.wait_internal();
         let indices = vec![1, 3, 5, 1234, 2345, 3456, 4999];
@@ -403,7 +403,7 @@ mod tests {
 
     #[test]
     fn test_simple_get_rows_impl_2() {
-        let config = Arc::new(CsvConfig::new("tests/data/simple.csv"));
+        let config = Arc::new(CsvConfig::new("tests/data/simple.csv", b','));
         let mut r = CsvLensReader::new(config).unwrap();
         r.wait_internal();
         let indices = vec![1234];
@@ -419,7 +419,7 @@ mod tests {
 
     #[test]
     fn test_simple_get_rows_impl_3() {
-        let config = Arc::new(CsvConfig::new("tests/data/simple.csv"));
+        let config = Arc::new(CsvConfig::new("tests/data/simple.csv", b','));
         let mut r = CsvLensReader::new(config).unwrap();
         r.wait_internal();
         let indices = vec![2];
@@ -435,7 +435,7 @@ mod tests {
 
     #[test]
     fn test_small() {
-        let config = Arc::new(CsvConfig::new("tests/data/small.csv"));
+        let config = Arc::new(CsvConfig::new("tests/data/small.csv", b','));
         let mut r = CsvLensReader::new(config).unwrap();
         let rows = r.get_rows(0, 50).unwrap();
         let expected = vec![
@@ -447,21 +447,16 @@ mod tests {
 
     #[test]
     fn test_small_delimiter() {
-        let mut config = CsvConfig::new("tests/data/small.bsv");
-        config.delimiter = b'|';
-        let config = Arc::new(config);
+        let config = Arc::new(CsvConfig::new("tests/data/small.bsv", b'|'));
         let mut r = CsvLensReader::new(config).unwrap();
         let rows = r.get_rows(0, 50).unwrap();
-        let expected = vec![
-            Row::new(1, vec!["c1", " v1"]),
-            Row::new(2, vec!["c2", " v2"]),
-        ];
+        let expected = vec![Row::new(1, vec!["c1", "v1"]), Row::new(2, vec!["c2", "v2"])];
         assert_eq!(rows, expected);
     }
 
     #[test]
     fn test_irregular() {
-        let config = Arc::new(CsvConfig::new("tests/data/irregular.csv"));
+        let config = Arc::new(CsvConfig::new("tests/data/irregular.csv", b','));
         let mut r = CsvLensReader::new(config).unwrap();
         let rows = r.get_rows(0, 50).unwrap();
         let expected = vec![Row::new(1, vec!["c1"]), Row::new(2, vec!["c2", " v2"])];
@@ -470,7 +465,7 @@ mod tests {
 
     #[test]
     fn test_double_quoting_as_escape_chars() {
-        let config = Arc::new(CsvConfig::new("tests/data/good_double_quote.csv"));
+        let config = Arc::new(CsvConfig::new("tests/data/good_double_quote.csv", b','));
         let mut r = CsvLensReader::new(config).unwrap();
         let rows = r.get_rows(0, 50).unwrap();
         let expected = vec![
