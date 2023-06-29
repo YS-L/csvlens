@@ -1,7 +1,7 @@
 extern crate csv_sniffer;
 
 use crate::csv;
-use crate::delimiter::Delimiter;
+use crate::delimiter::{sniff_delimiter, Delimiter};
 use crate::find;
 use crate::input::{Control, InputHandler};
 use crate::ui::{CsvTable, CsvTableState, FilterColumnsState, FinderState};
@@ -81,15 +81,6 @@ fn get_page_left_cols_offset(frame_width: u16, csv_table_state: &CsvTableState) 
     } else {
         None
     }
-}
-
-fn sniff_delimiter(filename: &str) -> Option<u8> {
-    let mut sniffer = csv_sniffer::Sniffer::new();
-    sniffer.sample_size(csv_sniffer::SampleSize::Records(200));
-    if let Ok(metadata) = sniffer.sniff_path(filename) {
-        return Some(metadata.dialect.delimiter);
-    }
-    None
 }
 
 pub struct App {

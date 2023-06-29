@@ -12,13 +12,12 @@ use crate::delimiter::Delimiter;
 
 extern crate csv as sushi_csv;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 use clap::{command, Parser};
 use crossterm::execute;
 use crossterm::terminal::{
     disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
 };
-use std::convert::TryInto;
 use std::fs::File;
 use std::io::{self, Read, Seek, SeekFrom, Write};
 use std::panic;
@@ -108,28 +107,6 @@ struct Args {
     debug: bool,
 }
 
-fn parse_delimiter(args: &Args) -> Result<Delimiter> {
-    if let Some(s) = &args.delimiter {
-        if s == "auto" {
-            return Ok(Delimiter::Auto);
-        }
-        let mut chars = s.chars();
-        let c = chars.next().context("Delimiter should not be empty")?;
-        if !c.is_ascii() {
-            bail!(
-                "Delimiter should be within the ASCII range: {} is too fancy",
-                c
-            );
-        }
-        if chars.next().is_some() {
-            bail!("Delimiter should be exactly one character, got {}", s);
-        }
-        Ok(Delimiter::Character(c.try_into()?))
-    } else {
-        Ok(Delimiter::Default)
-    }
-}
-
 struct AppRunner {
     app: App,
 }
@@ -177,7 +154,7 @@ fn run_csvlens() -> Result<Option<String>> {
     let args = Args::parse();
 
     let show_stats = args.debug;
-    let delimiter = parse_delimiter(&args)?;
+    let delimiter = Delimiter::from_arg(&args.delimiter)?;
 
     let file = SeekableFile::new(&args.filename)?;
     let filename = file.filename();
