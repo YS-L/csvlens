@@ -81,6 +81,24 @@ impl ColumnsFilter {
     }
 }
 
+pub struct Selection {
+    row_index: Option<u64>,
+}
+
+impl Selection {
+    pub fn default() -> Self {
+        Selection { row_index: Some(0) }
+    }
+
+    pub fn row_index(&self) -> Option<u64> {
+        self.row_index
+    }
+
+    pub fn set_row_index(&mut self, row_index: u64) {
+        self.row_index = Some(row_index);
+    }
+}
+
 pub struct RowsView {
     reader: CsvLensReader,
     rows: Vec<Row>,
@@ -88,7 +106,7 @@ pub struct RowsView {
     rows_from: u64,
     filter: Option<RowsFilter>,
     columns_filter: Option<ColumnsFilter>,
-    selected: Option<u64>,
+    selection: Selection,
     elapsed: Option<u128>,
 }
 
@@ -103,7 +121,7 @@ impl RowsView {
             rows_from,
             filter: None,
             columns_filter: None,
-            selected: Some(0),
+            selection: Selection::default(),
             elapsed: None,
         };
         Ok(view)
@@ -124,7 +142,7 @@ impl RowsView {
     pub fn get_cell_value(&self, column_name: &str) -> Option<String> {
         if let (Some(column_index), Some(row_index)) = (
             self.headers().iter().position(|col| col == column_name),
-            self.selected,
+            self.selection.row_index(),
         ) {
             return self
                 .rows()
@@ -212,23 +230,19 @@ impl RowsView {
     }
 
     pub fn set_selected(&mut self, selected: u64) {
+        // TODO: or is it better to make Selection be aware of bounds and make the adjustment by itself?
         let selected = min(selected, (self.rows.len() as u64).saturating_sub(1));
-        self.selected = Some(selected);
-    }
-
-    #[allow(dead_code)]
-    pub fn reset_selected(&mut self) {
-        self.selected = None;
+        self.selection.set_row_index(selected);
     }
 
     pub fn increase_selected(&mut self) {
-        if let Some(i) = self.selected {
+        if let Some(i) = self.selection.row_index() {
             self.set_selected(i.saturating_add(1));
         };
     }
 
     pub fn decrease_selected(&mut self) {
-        if let Some(i) = self.selected {
+        if let Some(i) = self.selection.row_index() {
             self.set_selected(i.saturating_sub(1));
         }
     }
@@ -242,11 +256,13 @@ impl RowsView {
     }
 
     pub fn selected(&self) -> Option<u64> {
-        self.selected
+        self.selection.row_index()
     }
 
     pub fn selected_offset(&self) -> Option<u64> {
-        self.selected.map(|x| x.saturating_add(self.rows_from))
+        self.selection
+            .row_index()
+            .map(|x| x.saturating_add(self.rows_from))
     }
 
     pub fn elapsed(&self) -> Option<u128> {
@@ -272,7 +288,7 @@ impl RowsView {
     pub fn handle_control(&mut self, control: &Control) -> Result<()> {
         match control {
             Control::ScrollDown => {
-                if let Some(i) = self.selected {
+                if let Some(i) = self.selection.row_index() {
                     if i == self.num_rows - 1 {
                         self.increase_rows_from(1)?;
                     } else {
@@ -284,12 +300,13 @@ impl RowsView {
             }
             Control::ScrollPageDown => {
                 self.increase_rows_from(self.num_rows)?;
-                if self.selected.is_some() {
+                // TODO: need to always check for None or just always call select_top and then no-op if None?
+                if self.selection.row_index().is_some() {
                     self.select_top()
                 }
             }
             Control::ScrollUp => {
-                if let Some(i) = self.selected {
+                if let Some(i) = self.selection.row_index() {
                     if i == 0 {
                         self.decrease_rows_from(1)?;
                     } else {
@@ -301,13 +318,13 @@ impl RowsView {
             }
             Control::ScrollPageUp => {
                 self.decrease_rows_from(self.num_rows)?;
-                if self.selected.is_some() {
+                if self.selection.row_index().is_some() {
                     self.select_top()
                 }
             }
             Control::ScrollTop => {
                 self.set_rows_from(0)?;
-                if self.selected.is_some() {
+                if self.selection.row_index().is_some() {
                     self.select_top()
                 }
             }
@@ -316,7 +333,7 @@ impl RowsView {
                     let rows_from = total.saturating_sub(self.num_rows as usize) as u64;
                     self.set_rows_from(rows_from)?;
                 }
-                if self.selected.is_some() {
+                if self.selection.row_index().is_some() {
                     self.select_bottom()
                 }
             }
@@ -326,7 +343,7 @@ impl RowsView {
                     rows_from = min(rows_from, n);
                 }
                 self.set_rows_from(rows_from)?;
-                if self.selected.is_some() {
+                if self.selection.row_index().is_some() {
                     self.select_top()
                 }
             }
@@ -391,7 +408,8 @@ impl RowsView {
         self.rows = rows;
         self.elapsed = Some(elapsed);
         // current selected might be out of range, reset it
-        if let Some(i) = self.selected {
+        // TODO: if Selection is aware of bounds, then this should be updating the bounds
+        if let Some(i) = self.selection.row_index() {
             self.set_selected(i);
         }
         Ok(())
