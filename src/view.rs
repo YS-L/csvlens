@@ -128,6 +128,20 @@ impl Selection {
             self.set_row_index(i.saturating_sub(1));
         };
     }
+
+    /// Select the first row. Does nothing if no row is currently selected.
+    pub fn select_top(&mut self) {
+        if self.row_index.is_some() {
+            self.set_row_index(0);
+        }
+    }
+
+    /// Select the last row. Does nothing if no row is currently selected.
+    pub fn select_bottom(&mut self) {
+        if self.row_index.is_some() {
+            self.set_row_index(self.row_bound.saturating_sub(1))
+        }
+    }
 }
 
 pub struct RowsView {
@@ -260,15 +274,6 @@ impl RowsView {
         Ok(())
     }
 
-    pub fn select_top(&mut self) {
-        self.selection.set_row_index(0);
-    }
-
-    pub fn select_bottom(&mut self) {
-        self.selection
-            .set_row_index((self.rows.len() as u64).saturating_sub(1))
-    }
-
     pub fn selected(&self) -> Option<u64> {
         self.selection.row_index()
     }
@@ -314,10 +319,7 @@ impl RowsView {
             }
             Control::ScrollPageDown => {
                 self.increase_rows_from(self.num_rows)?;
-                // TODO: need to always check for None or just always call select_top and then no-op if None?
-                if self.selection.row_index().is_some() {
-                    self.select_top()
-                }
+                self.selection.select_top()
             }
             Control::ScrollUp => {
                 if let Some(i) = self.selection.row_index() {
@@ -332,24 +334,18 @@ impl RowsView {
             }
             Control::ScrollPageUp => {
                 self.decrease_rows_from(self.num_rows)?;
-                if self.selection.row_index().is_some() {
-                    self.select_top()
-                }
+                self.selection.select_top()
             }
             Control::ScrollTop => {
                 self.set_rows_from(0)?;
-                if self.selection.row_index().is_some() {
-                    self.select_top()
-                }
+                self.selection.select_top()
             }
             Control::ScrollBottom => {
                 if let Some(total) = self.get_total() {
                     let rows_from = total.saturating_sub(self.num_rows as usize) as u64;
                     self.set_rows_from(rows_from)?;
                 }
-                if self.selection.row_index().is_some() {
-                    self.select_bottom()
-                }
+                self.selection.select_bottom()
             }
             Control::ScrollTo(n) => {
                 let mut rows_from = n.saturating_sub(1) as u64;
@@ -357,9 +353,7 @@ impl RowsView {
                     rows_from = min(rows_from, n);
                 }
                 self.set_rows_from(rows_from)?;
-                if self.selection.row_index().is_some() {
-                    self.select_top()
-                }
+                self.selection.select_top()
             }
             _ => {}
         }
