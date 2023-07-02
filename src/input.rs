@@ -23,6 +23,7 @@ pub enum Control {
     BufferContent(String),
     BufferReset,
     Select,
+    ToggleSelectionType,
     Nothing,
 }
 
@@ -128,6 +129,7 @@ impl InputHandler {
                     Control::empty_buffer()
                 }
                 KeyCode::Enter => Control::Select,
+                KeyCode::Tab => Control::ToggleSelectionType,
                 _ => Control::Nothing,
             },
             KeyModifiers::CONTROL => match key_event.code {

@@ -190,22 +190,36 @@ impl App {
         }
 
         self.rows_view.handle_control(control)?;
+        self.rows_view
+            .selection
+            .column
+            .set_bound(self.csv_table_state.num_cols_rendered);
 
         match &control {
             Control::ScrollTo(_) => {
                 self.csv_table_state.reset_buffer();
             }
             Control::ScrollLeft => {
-                let new_cols_offset = self.csv_table_state.cols_offset.saturating_sub(1);
-                self.csv_table_state.set_cols_offset(new_cols_offset);
-                self.rows_view.selection.column.select_previous();
+                if let Some(i) = self.rows_view.selection.column.index() {
+                    if i == 0 {
+                        self.decrease_cols_offset();
+                    } else {
+                        self.rows_view.selection.column.select_previous();
+                    }
+                } else {
+                    self.decrease_cols_offset();
+                }
             }
             Control::ScrollRight => {
-                if self.csv_table_state.has_more_cols_to_show() {
-                    let new_cols_offset = self.csv_table_state.cols_offset.saturating_add(1);
-                    self.csv_table_state.set_cols_offset(new_cols_offset);
+                if let Some(i) = self.rows_view.selection.column.index() {
+                    if i == self.csv_table_state.num_cols_rendered - 1 {
+                        self.increase_cols_offset();
+                    } else {
+                        self.rows_view.selection.column.select_next();
+                    }
+                } else {
+                    self.increase_cols_offset();
                 }
-                self.rows_view.selection.column.select_next();
             }
             Control::ScrollPageLeft => {
                 let new_cols_offset = match self.frame_width {
@@ -307,6 +321,9 @@ impl App {
                 }
                 self.rows_view.reset_columns_filter().unwrap();
             }
+            Control::ToggleSelectionType => {
+                self.rows_view.selection.toggle_selection_type();
+            }
             _ => {}
         }
 
@@ -388,6 +405,18 @@ impl App {
             Regex::new(s.as_str())
         };
         re
+    }
+
+    fn increase_cols_offset(&mut self) {
+        if self.csv_table_state.has_more_cols_to_show() {
+            let new_cols_offset = self.csv_table_state.cols_offset.saturating_add(1);
+            self.csv_table_state.set_cols_offset(new_cols_offset);
+        }
+    }
+
+    fn decrease_cols_offset(&mut self) {
+        let new_cols_offset = self.csv_table_state.cols_offset.saturating_sub(1);
+        self.csv_table_state.set_cols_offset(new_cols_offset);
     }
 
     fn render_frame<B: Backend>(&mut self, f: &mut Frame<B>) {

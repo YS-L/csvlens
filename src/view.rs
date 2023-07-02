@@ -183,6 +183,40 @@ impl Selection {
             SelectionType::None
         }
     }
+
+    fn set_selection_type(&mut self, selection_type: SelectionType) {
+        let current_row_index = self.row.index();
+        let current_column_index = self.column.index();
+
+        match selection_type {
+            SelectionType::Row => {
+                self.row.set_index(current_row_index.unwrap_or(0));
+                self.column.index = None;
+            }
+            SelectionType::Column => {
+                self.column.set_index(0);
+                self.row.index = None;
+            }
+            SelectionType::Cell => {
+                self.row.set_index(current_row_index.unwrap_or(0));
+                self.column.set_index(current_column_index.unwrap_or(0));
+            }
+            SelectionType::None => {
+                self.row.index = None;
+                self.column.index = None;
+            }
+        }
+    }
+
+    pub fn toggle_selection_type(&mut self) {
+        let selection_type = self.selection_type();
+        match selection_type {
+            SelectionType::Row => self.set_selection_type(SelectionType::Column),
+            SelectionType::Column => self.set_selection_type(SelectionType::Cell),
+            SelectionType::Cell => self.set_selection_type(SelectionType::Row), // for now don't allow toggling to None
+            SelectionType::None => self.set_selection_type(SelectionType::Row),
+        }
+    }
 }
 
 pub struct RowsView {
@@ -455,9 +489,6 @@ impl RowsView {
         self.elapsed = Some(elapsed);
         // current selected might be out of range, reset it
         self.selection.row.set_bound(self.rows.len() as u64);
-        if let Some(row) = self.rows().first() {
-            self.selection.column.set_bound(row.fields.len() as u64);
-        }
         Ok(())
     }
 }
