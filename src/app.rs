@@ -198,12 +198,14 @@ impl App {
             Control::ScrollLeft => {
                 let new_cols_offset = self.csv_table_state.cols_offset.saturating_sub(1);
                 self.csv_table_state.set_cols_offset(new_cols_offset);
+                self.rows_view.selection.column.select_previous();
             }
             Control::ScrollRight => {
                 if self.csv_table_state.has_more_cols_to_show() {
                     let new_cols_offset = self.csv_table_state.cols_offset.saturating_add(1);
                     self.csv_table_state.set_cols_offset(new_cols_offset);
                 }
+                self.rows_view.selection.column.select_next();
             }
             Control::ScrollPageLeft => {
                 let new_cols_offset = match self.frame_width {
@@ -354,7 +356,7 @@ impl App {
         // TODO: is this update too late?
         self.csv_table_state
             .set_rows_offset(self.rows_view.rows_from());
-        self.csv_table_state.selected = self.rows_view.selected();
+        self.csv_table_state.selection = Some(self.rows_view.selection.clone());
 
         if let Some(n) = self.rows_view.get_total_line_numbers() {
             self.csv_table_state.set_total_line_number(n);
@@ -373,7 +375,7 @@ impl App {
 
         self.csv_table_state.user_error = self.user_error.clone();
 
-        // self.csv_table_state.debug = format!("{:?}", self.rows_view.columns_filter());
+        // self.csv_table_state.debug = format!("{:?}", self.rows_view.selection.column.index());
 
         Ok(())
     }

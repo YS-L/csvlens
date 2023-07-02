@@ -81,9 +81,10 @@ impl ColumnsFilter {
     }
 }
 
+#[derive(Clone)]
 pub struct SelectionDimension {
     index: Option<u64>,
-    bound: u64,
+    pub bound: u64,
 }
 
 impl SelectionDimension {
@@ -135,10 +136,26 @@ impl SelectionDimension {
             self.set_index(self.bound.saturating_sub(1))
         }
     }
+
+    pub fn is_selected(&self, i: usize) -> bool {
+        if let Some(selected) = self.index {
+            return selected == i as u64;
+        }
+        false
+    }
 }
 
+pub enum SelectionType {
+    Row,
+    Column,
+    Cell,
+    None,
+}
+
+#[derive(Clone)]
 pub struct Selection {
-    row: SelectionDimension,
+    pub row: SelectionDimension,
+    pub column: SelectionDimension,
 }
 
 impl Selection {
@@ -148,6 +165,22 @@ impl Selection {
                 index: Some(0),
                 bound: row_bound,
             },
+            column: SelectionDimension {
+                index: None,
+                bound: 0,
+            },
+        }
+    }
+
+    pub fn selection_type(&self) -> SelectionType {
+        if self.row.index.is_some() && self.column.index.is_some() {
+            SelectionType::Cell
+        } else if self.row.index.is_some() {
+            SelectionType::Row
+        } else if self.column.index.is_some() {
+            SelectionType::Column
+        } else {
+            SelectionType::None
         }
     }
 }
@@ -159,7 +192,7 @@ pub struct RowsView {
     rows_from: u64,
     filter: Option<RowsFilter>,
     columns_filter: Option<ColumnsFilter>,
-    selection: Selection,
+    pub selection: Selection,
     elapsed: Option<u128>,
 }
 
@@ -280,10 +313,6 @@ impl RowsView {
         self.rows_from = rows_from;
         self.do_get_rows()?;
         Ok(())
-    }
-
-    pub fn selected(&self) -> Option<u64> {
-        self.selection.row.index()
     }
 
     pub fn selected_offset(&self) -> Option<u64> {
@@ -426,6 +455,9 @@ impl RowsView {
         self.elapsed = Some(elapsed);
         // current selected might be out of range, reset it
         self.selection.row.set_bound(self.rows.len() as u64);
+        if let Some(row) = self.rows().first() {
+            self.selection.column.set_bound(row.fields.len() as u64);
+        }
         Ok(())
     }
 }

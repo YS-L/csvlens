@@ -163,10 +163,9 @@ impl<'a> CsvTable<'a> {
         area: Rect,
         x: u16,
         y: u16,
-        is_header: bool,
+        row_type: RowType,
         row: &'a [String],
         row_index: Option<usize>,
-        is_selected: bool,
     ) {
         let mut x_offset_header = x;
         let mut remaining_width = area.width.saturating_sub(x);
@@ -174,16 +173,21 @@ impl<'a> CsvTable<'a> {
         // TODO: seems strange that these have to be set every row
         let mut has_more_cols_to_show = false;
         let mut col_ending_pos_x = 0;
-        let mut num_cols_rendered = 0;
+        let mut num_cols_rendered: u64 = 0;
         for (col_index, (hname, &hlen)) in row.iter().zip(column_widths).enumerate() {
             if col_index < cols_offset {
                 continue;
             }
             let effective_width = min(remaining_width, hlen);
             let mut style = Style::default();
-            if is_header {
+            if let RowType::Header = row_type {
                 style = style.add_modifier(Modifier::BOLD);
             }
+            let is_selected = if let Some(selection) = &state.selection {
+                Self::is_position_selected(selection, &row_type, num_cols_rendered)
+            } else {
+                false
+            };
             if is_selected {
                 style = style
                     .fg(Color::Rgb(192, 192, 192))
@@ -194,7 +198,7 @@ impl<'a> CsvTable<'a> {
                 // TODO: seems like doing a bit too much of heavy lifting of
                 // checking for matches (finder's work)
                 FinderState::FinderActive(active)
-                    if active.target.is_match(hname) && !is_header =>
+                    if active.target.is_match(hname) && !matches!(row_type, RowType::Header) =>
                 {
                     let mut highlight_style = style.fg(Color::Rgb(200, 0, 0));
                     if let Some(hl) = &active.found_record {
@@ -227,6 +231,32 @@ impl<'a> CsvTable<'a> {
         state.set_num_cols_rendered(num_cols_rendered);
         state.set_more_cols_to_show(has_more_cols_to_show);
         state.col_ending_pos_x = col_ending_pos_x;
+    }
+
+    fn is_position_selected(
+        selection: &view::Selection,
+        row_type: &RowType,
+        num_cols_rendered: u64,
+    ) -> bool {
+        match selection.selection_type() {
+            view::SelectionType::Row => {
+                if let RowType::Record(i) = *row_type {
+                    selection.row.is_selected(i)
+                } else {
+                    false
+                }
+            }
+            view::SelectionType::Column => selection.column.is_selected(num_cols_rendered as usize),
+            view::SelectionType::Cell => {
+                if let RowType::Record(i) = *row_type {
+                    selection.row.is_selected(i)
+                        && selection.column.is_selected(num_cols_rendered as usize)
+                } else {
+                    false
+                }
+            }
+            _ => false,
+        }
     }
 
     fn get_highlighted_spans(
@@ -337,11 +367,17 @@ impl<'a> CsvTable<'a> {
             } else {
                 "?".to_owned()
             };
-            let current_row = if let Some(i) = state.selected {
-                self.rows.get(i as usize)
+            let current_row;
+            if let Some(selection) = &state.selection {
+                current_row = if let Some(i) = selection.row.index() {
+                    self.rows.get(i as usize)
+                } else {
+                    self.rows.first()
+                }
             } else {
-                self.rows.first()
-            };
+                current_row = self.rows.first()
+            }
+
             let row_num = match current_row {
                 Some(row) => row.record_num.to_string(),
                 _ => "-".to_owned(),
@@ -424,19 +460,13 @@ impl<'a> StatefulWidget for CsvTable<'a> {
             rows_area,
             row_num_section_width,
             y_header,
-            true,
+            RowType::Header,
             &self.header,
             None,
-            false,
         );
 
         let mut y_offset = y_first_record;
         for (i, row) in self.rows.iter().enumerate() {
-            let is_selected = if let Some(selected_row) = state.selected {
-                i as u64 == selected_row
-            } else {
-                false
-            };
             self.render_row(
                 buf,
                 state,
@@ -444,10 +474,9 @@ impl<'a> StatefulWidget for CsvTable<'a> {
                 rows_area,
                 row_num_section_width,
                 y_offset,
-                false,
+                RowType::Record(i),
                 &row.fields,
                 Some(row.record_num - 1),
-                is_selected,
             );
             y_offset += 1;
             if y_offset >= rows_area.bottom() {
@@ -465,6 +494,13 @@ impl<'a> StatefulWidget for CsvTable<'a> {
 
         self.render_other_borders(buf, rows_area, state);
     }
+}
+
+pub enum RowType {
+    /// Header row
+    Header,
+    /// Regular row. Contains the row index (not the record number) and the row itself.
+    Record(usize),
 }
 
 pub enum BufferState {
@@ -640,7 +676,7 @@ pub struct CsvTableState {
     borders_state: Option<BordersState>,
     // TODO: should probably be with BordersState
     col_ending_pos_x: u16,
-    pub selected: Option<u64>,
+    pub selection: Option<view::Selection>,
     pub user_error: Option<String>,
     pub column_widths: Option<Vec<u16>>,
     pub echo_column: Option<String>,
@@ -669,7 +705,7 @@ impl CsvTableState {
             filter_columns_state: FilterColumnsState::Disabled,
             borders_state: None,
             col_ending_pos_x: 0,
-            selected: None,
+            selection: None,
             user_error: None,
             column_widths: None,
             echo_column: echo_column.clone(),
