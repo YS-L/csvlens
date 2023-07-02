@@ -83,19 +83,50 @@ impl ColumnsFilter {
 
 pub struct Selection {
     row_index: Option<u64>,
+    row_bound: u64,
 }
 
 impl Selection {
-    pub fn default() -> Self {
-        Selection { row_index: Some(0) }
+    pub fn default(row_bound: u64) -> Self {
+        Selection {
+            row_index: Some(0),
+            row_bound,
+        }
     }
 
+    /// The currently selected row index
+    ///
+    /// This index is dumb as in it is always between 0 and row_bound - 1 and
+    /// has nothing to do with the actual record number in the data.
     pub fn row_index(&self) -> Option<u64> {
         self.row_index
     }
 
+    /// Set selected row to the given index and adjust it to be within bounds
     pub fn set_row_index(&mut self, row_index: u64) {
-        self.row_index = Some(row_index);
+        self.row_index = Some(min(row_index, self.row_bound.saturating_sub(1)));
+    }
+
+    /// Set the maximum allowed value for for row index
+    pub fn set_row_bound(&mut self, row_bound: u64) {
+        self.row_bound = row_bound;
+        if let Some(i) = self.row_index {
+            self.set_row_index(i);
+        }
+    }
+
+    /// Increase selected row index by 1. Does nothing if no row is currently selected.
+    pub fn select_next_row(&mut self) {
+        if let Some(i) = self.row_index() {
+            self.set_row_index(i.saturating_add(1));
+        };
+    }
+
+    /// Decrease selected row index by 1. Does nothing if no row is currently selected.
+    pub fn select_previous_row(&mut self) {
+        if let Some(i) = self.row_index() {
+            self.set_row_index(i.saturating_sub(1));
+        };
     }
 }
 
@@ -121,7 +152,7 @@ impl RowsView {
             rows_from,
             filter: None,
             columns_filter: None,
-            selection: Selection::default(),
+            selection: Selection::default(num_rows),
             elapsed: None,
         };
         Ok(view)
@@ -229,30 +260,13 @@ impl RowsView {
         Ok(())
     }
 
-    pub fn set_selected(&mut self, selected: u64) {
-        // TODO: or is it better to make Selection be aware of bounds and make the adjustment by itself?
-        let selected = min(selected, (self.rows.len() as u64).saturating_sub(1));
-        self.selection.set_row_index(selected);
-    }
-
-    pub fn increase_selected(&mut self) {
-        if let Some(i) = self.selection.row_index() {
-            self.set_selected(i.saturating_add(1));
-        };
-    }
-
-    pub fn decrease_selected(&mut self) {
-        if let Some(i) = self.selection.row_index() {
-            self.set_selected(i.saturating_sub(1));
-        }
-    }
-
     pub fn select_top(&mut self) {
-        self.set_selected(0);
+        self.selection.set_row_index(0);
     }
 
     pub fn select_bottom(&mut self) {
-        self.set_selected((self.rows.len() as u64).saturating_sub(1))
+        self.selection
+            .set_row_index((self.rows.len() as u64).saturating_sub(1))
     }
 
     pub fn selected(&self) -> Option<u64> {
@@ -292,7 +306,7 @@ impl RowsView {
                     if i == self.num_rows - 1 {
                         self.increase_rows_from(1)?;
                     } else {
-                        self.increase_selected();
+                        self.selection.select_next_row();
                     }
                 } else {
                     self.increase_rows_from(1)?;
@@ -310,7 +324,7 @@ impl RowsView {
                     if i == 0 {
                         self.decrease_rows_from(1)?;
                     } else {
-                        self.decrease_selected();
+                        self.selection.select_previous_row();
                     }
                 } else {
                     self.decrease_rows_from(1)?;
@@ -408,10 +422,7 @@ impl RowsView {
         self.rows = rows;
         self.elapsed = Some(elapsed);
         // current selected might be out of range, reset it
-        // TODO: if Selection is aware of bounds, then this should be updating the bounds
-        if let Some(i) = self.selection.row_index() {
-            self.set_selected(i);
-        }
+        self.selection.set_row_bound(self.rows.len() as u64);
         Ok(())
     }
 }
