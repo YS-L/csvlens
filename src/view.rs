@@ -81,65 +81,73 @@ impl ColumnsFilter {
     }
 }
 
+pub struct SelectionDimension {
+    index: Option<u64>,
+    bound: u64,
+}
+
+impl SelectionDimension {
+    /// The currently selected index
+    ///
+    /// This index is dumb as in it is always between 0 and bound - 1 and
+    /// has nothing to do with the actual record number in the data.
+    pub fn index(&self) -> Option<u64> {
+        self.index
+    }
+
+    /// Set selected to the given index and adjust it to be within bounds
+    pub fn set_index(&mut self, index: u64) {
+        self.index = Some(min(index, self.bound.saturating_sub(1)));
+    }
+
+    /// Set the maximum allowed value for for index
+    pub fn set_bound(&mut self, bound: u64) {
+        self.bound = bound;
+        if let Some(i) = self.index {
+            self.set_index(i);
+        }
+    }
+
+    /// Increase selected index by 1. Does nothing if nothing is currently selected.
+    pub fn select_next(&mut self) {
+        if let Some(i) = self.index() {
+            self.set_index(i.saturating_add(1));
+        };
+    }
+
+    /// Decrease selected index by 1. Does nothing if nothing is currently selected.
+    pub fn select_previous(&mut self) {
+        if let Some(i) = self.index() {
+            self.set_index(i.saturating_sub(1));
+        };
+    }
+
+    /// Select the first index. Does nothing if nothing is currently selected.
+    pub fn select_first(&mut self) {
+        if self.index.is_some() {
+            self.set_index(0);
+        }
+    }
+
+    /// Select the last index. Does nothing if nothing is currently selected.
+    pub fn select_last(&mut self) {
+        if self.index.is_some() {
+            self.set_index(self.bound.saturating_sub(1))
+        }
+    }
+}
+
 pub struct Selection {
-    row_index: Option<u64>,
-    row_bound: u64,
+    row: SelectionDimension,
 }
 
 impl Selection {
     pub fn default(row_bound: u64) -> Self {
         Selection {
-            row_index: Some(0),
-            row_bound,
-        }
-    }
-
-    /// The currently selected row index
-    ///
-    /// This index is dumb as in it is always between 0 and row_bound - 1 and
-    /// has nothing to do with the actual record number in the data.
-    pub fn row_index(&self) -> Option<u64> {
-        self.row_index
-    }
-
-    /// Set selected row to the given index and adjust it to be within bounds
-    pub fn set_row_index(&mut self, row_index: u64) {
-        self.row_index = Some(min(row_index, self.row_bound.saturating_sub(1)));
-    }
-
-    /// Set the maximum allowed value for for row index
-    pub fn set_row_bound(&mut self, row_bound: u64) {
-        self.row_bound = row_bound;
-        if let Some(i) = self.row_index {
-            self.set_row_index(i);
-        }
-    }
-
-    /// Increase selected row index by 1. Does nothing if no row is currently selected.
-    pub fn select_next_row(&mut self) {
-        if let Some(i) = self.row_index() {
-            self.set_row_index(i.saturating_add(1));
-        };
-    }
-
-    /// Decrease selected row index by 1. Does nothing if no row is currently selected.
-    pub fn select_previous_row(&mut self) {
-        if let Some(i) = self.row_index() {
-            self.set_row_index(i.saturating_sub(1));
-        };
-    }
-
-    /// Select the first row. Does nothing if no row is currently selected.
-    pub fn select_top(&mut self) {
-        if self.row_index.is_some() {
-            self.set_row_index(0);
-        }
-    }
-
-    /// Select the last row. Does nothing if no row is currently selected.
-    pub fn select_bottom(&mut self) {
-        if self.row_index.is_some() {
-            self.set_row_index(self.row_bound.saturating_sub(1))
+            row: SelectionDimension {
+                index: Some(0),
+                bound: row_bound,
+            },
         }
     }
 }
@@ -187,7 +195,7 @@ impl RowsView {
     pub fn get_cell_value(&self, column_name: &str) -> Option<String> {
         if let (Some(column_index), Some(row_index)) = (
             self.headers().iter().position(|col| col == column_name),
-            self.selection.row_index(),
+            self.selection.row.index(),
         ) {
             return self
                 .rows()
@@ -275,12 +283,13 @@ impl RowsView {
     }
 
     pub fn selected(&self) -> Option<u64> {
-        self.selection.row_index()
+        self.selection.row.index()
     }
 
     pub fn selected_offset(&self) -> Option<u64> {
         self.selection
-            .row_index()
+            .row
+            .index()
             .map(|x| x.saturating_add(self.rows_from))
     }
 
@@ -307,11 +316,11 @@ impl RowsView {
     pub fn handle_control(&mut self, control: &Control) -> Result<()> {
         match control {
             Control::ScrollDown => {
-                if let Some(i) = self.selection.row_index() {
+                if let Some(i) = self.selection.row.index() {
                     if i == self.num_rows - 1 {
                         self.increase_rows_from(1)?;
                     } else {
-                        self.selection.select_next_row();
+                        self.selection.row.select_next();
                     }
                 } else {
                     self.increase_rows_from(1)?;
@@ -319,14 +328,14 @@ impl RowsView {
             }
             Control::ScrollPageDown => {
                 self.increase_rows_from(self.num_rows)?;
-                self.selection.select_top()
+                self.selection.row.select_first()
             }
             Control::ScrollUp => {
-                if let Some(i) = self.selection.row_index() {
+                if let Some(i) = self.selection.row.index() {
                     if i == 0 {
                         self.decrease_rows_from(1)?;
                     } else {
-                        self.selection.select_previous_row();
+                        self.selection.row.select_previous();
                     }
                 } else {
                     self.decrease_rows_from(1)?;
@@ -334,18 +343,18 @@ impl RowsView {
             }
             Control::ScrollPageUp => {
                 self.decrease_rows_from(self.num_rows)?;
-                self.selection.select_top()
+                self.selection.row.select_first()
             }
             Control::ScrollTop => {
                 self.set_rows_from(0)?;
-                self.selection.select_top()
+                self.selection.row.select_first()
             }
             Control::ScrollBottom => {
                 if let Some(total) = self.get_total() {
                     let rows_from = total.saturating_sub(self.num_rows as usize) as u64;
                     self.set_rows_from(rows_from)?;
                 }
-                self.selection.select_bottom()
+                self.selection.row.select_last()
             }
             Control::ScrollTo(n) => {
                 let mut rows_from = n.saturating_sub(1) as u64;
@@ -353,7 +362,7 @@ impl RowsView {
                     rows_from = min(rows_from, n);
                 }
                 self.set_rows_from(rows_from)?;
-                self.selection.select_top()
+                self.selection.row.select_first()
             }
             _ => {}
         }
@@ -416,7 +425,7 @@ impl RowsView {
         self.rows = rows;
         self.elapsed = Some(elapsed);
         // current selected might be out of range, reset it
-        self.selection.set_row_bound(self.rows.len() as u64);
+        self.selection.row.set_bound(self.rows.len() as u64);
         Ok(())
     }
 }
