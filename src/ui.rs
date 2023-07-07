@@ -68,9 +68,16 @@ impl<'a> CsvTable<'a> {
         // Render line numbers
         let y_first_record = area.y;
         let mut y = area.y;
-        for row in rows.iter() {
+        for (i, row) in rows.iter().enumerate() {
             let row_num_formatted = row.record_num.to_string();
-            let style = Style::default().fg(Color::Rgb(64, 64, 64));
+            let mut style = Style::default().fg(Color::Rgb(64, 64, 64));
+            if let Some(selection) = &state.selection {
+                if selection.row.is_selected(i) {
+                    style = style
+                        .add_modifier(Modifier::BOLD)
+                        .add_modifier(Modifier::UNDERLINED);
+                }
+            }
             let span = Span::styled(row_num_formatted, style);
             buf.set_span(0, y, &span, section_width);
             y += 1;
@@ -179,20 +186,28 @@ impl<'a> CsvTable<'a> {
                 continue;
             }
             let effective_width = min(remaining_width, hlen);
-            let mut style = Style::default();
+            let mut content_style = Style::default();
             if let RowType::Header = row_type {
-                style = style.add_modifier(Modifier::BOLD);
+                content_style = content_style.add_modifier(Modifier::BOLD);
+                if let Some(selection) = &state.selection {
+                    if selection.column.is_selected(num_cols_rendered as usize) {
+                        content_style = content_style.add_modifier(Modifier::UNDERLINED);
+                    }
+                }
             }
             let is_selected = if let Some(selection) = &state.selection {
                 Self::is_position_selected(selection, &row_type, num_cols_rendered)
             } else {
                 false
             };
+            let mut filler_style = Style::default();
             if is_selected {
-                style = style
+                let selected_style = Style::default()
                     .fg(Color::Rgb(192, 192, 192))
                     .bg(Color::Rgb(64, 64, 64))
                     .add_modifier(Modifier::BOLD);
+                filler_style = filler_style.patch(selected_style);
+                content_style = content_style.patch(selected_style);
             }
             match &state.finder_state {
                 // TODO: seems like doing a bit too much of heavy lifting of
@@ -200,7 +215,7 @@ impl<'a> CsvTable<'a> {
                 FinderState::FinderActive(active)
                     if active.target.is_match(hname) && !matches!(row_type, RowType::Header) =>
                 {
-                    let mut highlight_style = style.fg(Color::Rgb(200, 0, 0));
+                    let mut highlight_style = filler_style.fg(Color::Rgb(200, 0, 0));
                     if let Some(hl) = &active.found_record {
                         if let Some(row_index) = row_index {
                             // TODO: vec::contains slow or does it even matter?
@@ -211,12 +226,27 @@ impl<'a> CsvTable<'a> {
                             }
                         }
                     }
-                    let spans = Self::get_highlighted_spans(active, hname, style, highlight_style);
-                    self.set_spans(buf, &spans, x_offset_header, y, effective_width, style);
+                    let spans =
+                        Self::get_highlighted_spans(active, hname, content_style, highlight_style);
+                    self.set_spans(
+                        buf,
+                        &spans,
+                        x_offset_header,
+                        y,
+                        effective_width,
+                        filler_style,
+                    );
                 }
                 _ => {
-                    let span = Span::styled((*hname).as_str(), style);
-                    self.set_spans(buf, &[span], x_offset_header, y, effective_width, style);
+                    let span = Span::styled((*hname).as_str(), content_style);
+                    self.set_spans(
+                        buf,
+                        &[span],
+                        x_offset_header,
+                        y,
+                        effective_width,
+                        filler_style,
+                    );
                 }
             };
             x_offset_header += hlen;
