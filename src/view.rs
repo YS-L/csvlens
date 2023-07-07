@@ -85,9 +85,19 @@ impl ColumnsFilter {
 pub struct SelectionDimension {
     index: Option<u64>,
     pub bound: u64,
+    last_selected: Option<u64>,
 }
 
 impl SelectionDimension {
+    /// Create a new SelectionDimension
+    pub fn new(index: Option<u64>, bound: u64) -> Self {
+        Self {
+            index,
+            bound,
+            last_selected: None,
+        }
+    }
+
     /// The currently selected index
     ///
     /// This index is dumb as in it is always between 0 and bound - 1 and
@@ -99,6 +109,12 @@ impl SelectionDimension {
     /// Set selected to the given index and adjust it to be within bounds
     pub fn set_index(&mut self, index: u64) {
         self.index = Some(min(index, self.bound.saturating_sub(1)));
+        self.last_selected = Some(index);
+    }
+
+    /// Unset the selected index
+    pub fn unset_index(&mut self) {
+        self.index = None;
     }
 
     /// Set the maximum allowed value for for index
@@ -137,11 +153,17 @@ impl SelectionDimension {
         }
     }
 
+    /// Whether the given index is currently selected
     pub fn is_selected(&self, i: usize) -> bool {
         if let Some(selected) = self.index {
             return selected == i as u64;
         }
         false
+    }
+
+    /// The last selected index even if the current selection is None
+    pub fn last_selected(&self) -> Option<u64> {
+        self.last_selected
     }
 }
 
@@ -161,14 +183,8 @@ pub struct Selection {
 impl Selection {
     pub fn default(row_bound: u64) -> Self {
         Selection {
-            row: SelectionDimension {
-                index: Some(0),
-                bound: row_bound,
-            },
-            column: SelectionDimension {
-                index: None,
-                bound: 0,
-            },
+            row: SelectionDimension::new(Some(0), row_bound),
+            column: SelectionDimension::new(None, 0),
         }
     }
 
@@ -185,25 +201,25 @@ impl Selection {
     }
 
     fn set_selection_type(&mut self, selection_type: SelectionType) {
-        let current_row_index = self.row.index();
-        let current_column_index = self.column.index();
+        let target_row_index = self.row.last_selected().unwrap_or(0);
+        let target_column_index = self.column.last_selected().unwrap_or(0);
 
         match selection_type {
             SelectionType::Row => {
-                self.row.set_index(current_row_index.unwrap_or(0));
-                self.column.index = None;
+                self.row.set_index(target_row_index);
+                self.column.unset_index();
             }
             SelectionType::Column => {
-                self.column.set_index(0);
-                self.row.index = None;
+                self.row.unset_index();
+                self.column.set_index(target_column_index);
             }
             SelectionType::Cell => {
-                self.row.set_index(current_row_index.unwrap_or(0));
-                self.column.set_index(current_column_index.unwrap_or(0));
+                self.row.set_index(target_row_index);
+                self.column.set_index(target_column_index);
             }
             SelectionType::None => {
-                self.row.index = None;
-                self.column.index = None;
+                self.row.unset_index();
+                self.column.unset_index();
             }
         }
     }
