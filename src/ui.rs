@@ -246,7 +246,13 @@ impl<'a> CsvTable<'a> {
                     false
                 }
             }
-            view::SelectionType::Column => selection.column.is_selected(num_cols_rendered as usize),
+            view::SelectionType::Column => {
+                if let RowType::Record(_) = *row_type {
+                    selection.column.is_selected(num_cols_rendered as usize)
+                } else {
+                    false
+                }
+            }
             view::SelectionType::Cell => {
                 if let RowType::Record(i) = *row_type {
                     selection.row.is_selected(i)
