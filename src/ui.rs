@@ -13,6 +13,8 @@ use tui::widgets::{Block, Borders, StatefulWidget};
 
 use std::cmp::min;
 
+const NUM_SPACES_BETWEEN_COLUMNS: u16 = 4;
+
 #[derive(Debug)]
 pub struct CsvTable<'a> {
     header: Vec<String>,
@@ -48,7 +50,7 @@ impl<'a> CsvTable<'a> {
             }
         }
         for w in &mut column_widths {
-            *w += 4;
+            *w += NUM_SPACES_BETWEEN_COLUMNS;
             *w = min(*w, (area_width as f32 * 0.8) as u16);
         }
         column_widths
@@ -209,13 +211,21 @@ impl<'a> CsvTable<'a> {
                 filler_style = filler_style.patch(selected_style);
                 content_style = content_style.patch(selected_style);
             }
+            let short_padding = match &state.selection {
+                Some(selection) => !matches!(selection.selection_type(), view::SelectionType::Row),
+                None => false,
+            };
+            let filler_style = FillerStyle {
+                style: filler_style,
+                short_padding,
+            };
             match &state.finder_state {
                 // TODO: seems like doing a bit too much of heavy lifting of
                 // checking for matches (finder's work)
                 FinderState::FinderActive(active)
                     if active.target.is_match(hname) && !matches!(row_type, RowType::Header) =>
                 {
-                    let mut highlight_style = filler_style.fg(Color::Rgb(200, 0, 0));
+                    let mut highlight_style = filler_style.style.fg(Color::Rgb(200, 0, 0));
                     if let Some(hl) = &active.found_record {
                         if let Some(row_index) = row_index {
                             // TODO: vec::contains slow or does it even matter?
@@ -328,13 +338,13 @@ impl<'a> CsvTable<'a> {
         x: u16,
         y: u16,
         width: u16,
-        filler_style: Style,
+        filler_style: FillerStyle,
     ) {
         const SUFFIX: &str = "…";
         const SUFFIX_LEN: u16 = 1;
 
         // Reserve some space before the next column (same number used in get_column_widths)
-        let mut remaining_width = width.saturating_sub(4);
+        let mut remaining_width = width.saturating_sub(NUM_SPACES_BETWEEN_COLUMNS);
 
         // Pack as many spans as possible until hitting width limit
         let mut cur_spans = vec![];
@@ -348,17 +358,24 @@ impl<'a> CsvTable<'a> {
                     span.content.chars().take(max_content_length).collect();
                 let truncated_span = Span::styled(truncated_content, span.style);
                 cur_spans.push(truncated_span);
-                cur_spans.push(Span::styled(SUFFIX, filler_style));
+                cur_spans.push(Span::styled(SUFFIX, filler_style.style));
                 remaining_width = 0;
                 // TODO: handle breaking into multiple lines, for now don't care about remaining_width
                 break;
             }
         }
 
-        // Pad with spaces to the right (now inclusive of the buffer space reserved previously)
-        let padding_width = min(remaining_width as usize + 4, width as usize);
+        // Pad with spaces to the right (now inclusive of the buffer space
+        // reserved previously). Use short padding when selecting column or cell
+        // to not pad all the way to the next column.
+        let buffer_space = if filler_style.short_padding {
+            NUM_SPACES_BETWEEN_COLUMNS / 2
+        } else {
+            NUM_SPACES_BETWEEN_COLUMNS
+        } as usize;
+        let padding_width = min(remaining_width as usize + buffer_space, width as usize);
         if padding_width > 0 {
-            cur_spans.push(Span::styled(" ".repeat(padding_width), filler_style));
+            cur_spans.push(Span::styled(" ".repeat(padding_width), filler_style.style));
         }
 
         let spans = Spans::from(cur_spans);
@@ -537,6 +554,13 @@ pub enum RowType {
     Header,
     /// Regular row. Contains the row index (not the record number) and the row itself.
     Record(usize),
+}
+
+/// Style to use for the fillers (spaces and elipses) between columns
+#[derive(Clone, Copy)]
+struct FillerStyle {
+    style: Style,
+    short_padding: bool,
 }
 
 pub enum BufferState {
