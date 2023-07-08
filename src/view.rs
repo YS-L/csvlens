@@ -240,6 +240,7 @@ pub struct RowsView {
     rows: Vec<Row>,
     num_rows: u64,
     rows_from: u64,
+    cols_offset: u64,
     filter: Option<RowsFilter>,
     columns_filter: Option<ColumnsFilter>,
     pub selection: Selection,
@@ -255,6 +256,7 @@ impl RowsView {
             rows,
             num_rows,
             rows_from,
+            cols_offset: 0,
             filter: None,
             columns_filter: None,
             selection: Selection::default(num_rows),
@@ -284,6 +286,25 @@ impl RowsView {
                 .rows()
                 .get(row_index as usize)
                 .and_then(|row| row.fields.get(column_index))
+                .cloned();
+        }
+        None
+    }
+
+    /// Get the value of the cell at the current selection. Only returns a value
+    /// if the selection type is Cell.
+    pub fn get_cell_value_from_selection(&self) -> Option<String> {
+        if let (Some(column_index), Some(row_index)) =
+            (self.selection.column.index(), self.selection.row.index())
+        {
+            // Note: row_index and column_index are "local" index.
+            return self
+                .rows()
+                .get(row_index as usize)
+                .and_then(|row| {
+                    row.fields
+                        .get(column_index.saturating_add(self.cols_offset()) as usize)
+                })
                 .cloned();
         }
         None
@@ -363,6 +384,16 @@ impl RowsView {
         self.rows_from = rows_from;
         self.do_get_rows()?;
         Ok(())
+    }
+
+    /// Offset of the first column to show. All columns are still read into Row
+    /// (per ColumnsFilter if any).
+    pub fn cols_offset(&self) -> u64 {
+        self.cols_offset
+    }
+
+    pub fn set_cols_offset(&mut self, cols_offset: u64) {
+        self.cols_offset = min(cols_offset, self.headers().len() as u64);
     }
 
     pub fn selected_offset(&self) -> Option<u64> {

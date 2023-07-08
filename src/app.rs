@@ -172,7 +172,9 @@ impl App {
                 return Ok(None);
             }
             if matches!(control, Control::Select) {
-                if let Some(column_name) = &self.echo_column {
+                if let Some(result) = self.rows_view.get_cell_value_from_selection() {
+                    return Ok(Some(result));
+                } else if let Some(column_name) = &self.echo_column {
                     if let Some(result) = self.rows_view.get_cell_value(column_name) {
                         return Ok(Some(result));
                     }
@@ -229,7 +231,7 @@ impl App {
                     _ => Some(0),
                 };
                 if let Some(new_cols_offset) = new_cols_offset {
-                    self.csv_table_state.set_cols_offset(new_cols_offset);
+                    self.rows_view.set_cols_offset(new_cols_offset);
                 }
             }
             Control::ScrollPageRight => {
@@ -244,7 +246,7 @@ impl App {
                         self.rows_view.headers().len().saturating_sub(1) as u64,
                     );
                     if new_cols_offset != self.csv_table_state.cols_offset {
-                        self.csv_table_state.set_cols_offset(new_cols_offset);
+                        self.rows_view.set_cols_offset(new_cols_offset);
                     }
                 }
             }
@@ -373,6 +375,8 @@ impl App {
         // TODO: is this update too late?
         self.csv_table_state
             .set_rows_offset(self.rows_view.rows_from());
+        self.csv_table_state
+            .set_cols_offset(self.rows_view.cols_offset());
         self.csv_table_state.selection = Some(self.rows_view.selection.clone());
 
         if let Some(n) = self.rows_view.get_total_line_numbers() {
@@ -409,14 +413,14 @@ impl App {
 
     fn increase_cols_offset(&mut self) {
         if self.csv_table_state.has_more_cols_to_show() {
-            let new_cols_offset = self.csv_table_state.cols_offset.saturating_add(1);
-            self.csv_table_state.set_cols_offset(new_cols_offset);
+            let new_cols_offset = self.rows_view.cols_offset().saturating_add(1);
+            self.rows_view.set_cols_offset(new_cols_offset);
         }
     }
 
     fn decrease_cols_offset(&mut self) {
-        let new_cols_offset = self.csv_table_state.cols_offset.saturating_sub(1);
-        self.csv_table_state.set_cols_offset(new_cols_offset);
+        let new_cols_offset = self.rows_view.cols_offset().saturating_sub(1);
+        self.rows_view.set_cols_offset(new_cols_offset);
     }
 
     fn render_frame<B: Backend>(&mut self, f: &mut Frame<B>) {
