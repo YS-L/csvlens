@@ -27,20 +27,30 @@ Key | Action
 `Ctrl + b` (or `Page Up`) | Scroll one window up
 `Ctrl + h` (or `Ctrl + ←`) | Scroll one window left
 `Ctrl + l` (or `Ctrl + →`) | Scroll one window right
-`G` | Go to bottom
-`g` | Go to top
+`G` (or `End`) | Go to bottom
+`g` (or `Home`) | Go to top
 `<n>G` | Go to line `n`
 `/<regex>` | Find content matching regex and highlight matches
 `n` (in Find mode) | Jump to next result
 `N` (in Find mode) | Jump to previous result
 `&<regex>` | Filter rows using regex (show only matches)
 `*<regex>` | Filter columns using regex (show only matches)
+`TAB` | Toggle between row, column or cell selection modes
+`Enter` (in Cell mode) | Print the selected cell to stdout and exit
 `q` | Exit
 
 ### Optional parameters
-* `-d <delimiter>`: Custom delimiter to use when parsing the CSV
-   (e.g. `csvlens file.csv -d $'\t'`). Specify `-d auto` to auto-detect the delimiter.
-* `-i, --ignore-case`: Searches ignore case. Ignored if any uppercase letters are present in the search string.
+
+* `-d <delimiter>`: Use this delimiter when parsing the CSV
+  (e.g. `csvlens file.csv -d $'\t'`).
+
+  Specify `-d auto` to auto-detect the delimiter.
+
+* `-i, --ignore-case`: Ignore case when searching. This flag is ignored if any
+  uppercase letters are present in the search string.
+
+* `--echo-column <column_name>`: Print the value of this column at the selected
+  row to stdout on `Enter` key and then exit.
 
 ## Installation
 
