@@ -1,3 +1,9 @@
+# v0.2.0
+
+* Add `-d auto` option to auto-detect delimiter
+* Add `Home` and `End` key bindings
+* Support row, column and cell selection modes (toggle via `TAB`)
+
 # v0.1.14
 
 * Implement --ignore-case option
