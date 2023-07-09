@@ -2,6 +2,7 @@ use crate::csv::Row;
 use crate::find;
 use crate::input::InputMode;
 use crate::view;
+use crate::wrap;
 use regex::Regex;
 use tui::buffer::Buffer;
 use tui::layout::Rect;
@@ -11,7 +12,8 @@ use tui::text::{Span, Spans};
 use tui::widgets::Widget;
 use tui::widgets::{Block, Borders, StatefulWidget};
 
-use std::cmp::min;
+use std::cmp::{max, min};
+use std::num;
 
 const NUM_SPACES_BETWEEN_COLUMNS: u16 = 4;
 
@@ -43,10 +45,12 @@ impl<'a> CsvTable<'a> {
                     continue;
                 }
                 let v = column_widths.get_mut(i).unwrap();
-                let value_len = value.len() as u16;
-                if *v < value_len {
-                    *v = value_len;
-                }
+                value.split('\n').for_each(|x| {
+                    let value_len = x.len() as u16;
+                    if *v < value_len {
+                        *v = value_len;
+                    }
+                });
             }
         }
         for w in &mut column_widths {
@@ -56,12 +60,39 @@ impl<'a> CsvTable<'a> {
         column_widths
     }
 
+    fn get_row_heights(&self, rows: &[Row], column_widths: &[u16], cols_offset: u64) -> Vec<u16> {
+        let mut row_heights = Vec::new();
+        for (i, row) in rows.iter().enumerate() {
+            for (j, content) in row.fields.iter().enumerate() {
+                // if j < cols_offset as usize{
+                //     continue;
+                // }
+                let mut num_lines = 0;
+                for parts in content.split('\n') {
+                    num_lines += max(
+                        1,
+                        (parts.len() as f32 / *column_widths.get(j).unwrap() as f32).ceil() as u16,
+                    );
+                }
+                if let Some(height) = row_heights.get_mut(i) {
+                    if *height < num_lines {
+                        *height = num_lines;
+                    }
+                } else {
+                    row_heights.push(num_lines);
+                }
+            }
+        }
+        row_heights
+    }
+
     fn render_row_numbers(
         &self,
         buf: &mut Buffer,
         state: &mut CsvTableState,
         area: Rect,
         rows: &[Row],
+        view_layout: &ViewLayout,
     ) -> u16 {
         // TODO: better to determine width from total number of records, so this is always fixed
         let max_row_num = rows.iter().map(|x| x.record_num).max().unwrap_or(0);
@@ -82,7 +113,7 @@ impl<'a> CsvTable<'a> {
             }
             let span = Span::styled(row_num_formatted, style);
             buf.set_span(0, y, &span, section_width);
-            y += 1;
+            y += view_layout.row_heights[i];
             if y >= area.bottom() {
                 break;
             }
@@ -175,6 +206,7 @@ impl<'a> CsvTable<'a> {
         row_type: RowType,
         row: &'a [String],
         row_index: Option<usize>,
+        view_layout: &ViewLayout,
     ) {
         let mut x_offset_header = x;
         let mut remaining_width = area.width.saturating_sub(x);
@@ -219,6 +251,10 @@ impl<'a> CsvTable<'a> {
                 style: filler_style,
                 short_padding,
             };
+            let row_height = match row_type {
+                RowType::Header => 1,
+                RowType::Record(i) => view_layout.row_heights[i],
+            };
             match &state.finder_state {
                 // TODO: seems like doing a bit too much of heavy lifting of
                 // checking for matches (finder's work)
@@ -236,14 +272,19 @@ impl<'a> CsvTable<'a> {
                             }
                         }
                     }
-                    let spans =
-                        Self::get_highlighted_spans(active, hname, content_style, highlight_style);
+                    let spans = CsvTable::get_highlighted_spans(
+                        active,
+                        hname,
+                        content_style,
+                        highlight_style,
+                    );
                     self.set_spans(
                         buf,
                         &spans,
                         x_offset_header,
                         y,
                         effective_width,
+                        row_height,
                         filler_style,
                     );
                 }
@@ -255,6 +296,7 @@ impl<'a> CsvTable<'a> {
                         x_offset_header,
                         y,
                         effective_width,
+                        row_height,
                         filler_style,
                     );
                 }
@@ -325,12 +367,13 @@ impl<'a> CsvTable<'a> {
             };
             let p_span = Span::styled(cur_match, highlight_style);
             spans.push(span);
-            spans.push(p_span.clone());
+            spans.push(p_span);
         }
         spans.pop();
         spans
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn set_spans(
         &self,
         buf: &mut Buffer,
@@ -338,48 +381,43 @@ impl<'a> CsvTable<'a> {
         x: u16,
         y: u16,
         width: u16,
+        height: u16,
         filler_style: FillerStyle,
     ) {
         const SUFFIX: &str = "…";
         const SUFFIX_LEN: u16 = 1;
 
         // Reserve some space before the next column (same number used in get_column_widths)
-        let mut remaining_width = width.saturating_sub(NUM_SPACES_BETWEEN_COLUMNS);
+        let effective_width = width.saturating_sub(NUM_SPACES_BETWEEN_COLUMNS);
 
-        // Pack as many spans as possible until hitting width limit
-        let mut cur_spans = vec![];
-        for span in spans {
-            if span.content.len() <= remaining_width.into() {
-                cur_spans.push(span.clone());
-                remaining_width = remaining_width.saturating_sub(span.content.len() as u16);
-            } else {
-                let max_content_length = remaining_width.saturating_sub(SUFFIX_LEN) as usize;
-                let truncated_content: String =
-                    span.content.chars().take(max_content_length).collect();
-                let truncated_span = Span::styled(truncated_content, span.style);
-                cur_spans.push(truncated_span);
-                cur_spans.push(Span::styled(SUFFIX, filler_style.style));
-                remaining_width = 0;
-                // TODO: handle breaking into multiple lines, for now don't care about remaining_width
-                break;
-            }
-        }
-
-        // Pad with spaces to the right (now inclusive of the buffer space
-        // reserved previously). Use short padding when selecting column or cell
-        // to not pad all the way to the next column.
         let buffer_space = if filler_style.short_padding {
             NUM_SPACES_BETWEEN_COLUMNS / 2
         } else {
             NUM_SPACES_BETWEEN_COLUMNS
         } as usize;
-        let padding_width = min(remaining_width as usize + buffer_space, width as usize);
-        if padding_width > 0 {
-            cur_spans.push(Span::styled(" ".repeat(padding_width), filler_style.style));
-        }
 
-        let spans = Spans::from(cur_spans);
-        buf.set_spans(x, y, &spans, width);
+        let mut spans_wrapper = wrap::SpansWrapper::new(spans, effective_width as usize);
+        for offset in 0..height {
+            let spans = spans_wrapper.next();
+            if let Some(mut spans) = spans {
+                let padding_width = min(
+                    (effective_width as usize).saturating_sub(spans.width()) + buffer_space,
+                    width as usize,
+                );
+                if padding_width > 0 {
+                    spans
+                        .0
+                        .push(Span::styled(" ".repeat(padding_width), filler_style.style));
+                }
+                buf.set_spans(x, y + offset, &spans, width);
+            } else {
+                let span = Span::styled(
+                    " ".repeat(effective_width as usize + NUM_SPACES_BETWEEN_COLUMNS as usize),
+                    filler_style.style,
+                );
+                buf.set_spans(x, y + offset, &Spans::from(vec![span]), width);
+            }
+        }
     }
 
     fn render_status(&self, area: Rect, buf: &mut Buffer, state: &mut CsvTableState) {
@@ -476,6 +514,15 @@ impl<'a> CsvTable<'a> {
         let span = Span::styled(content, style);
         buf.set_span(area.x, area.bottom().saturating_sub(1), &span, area.width);
     }
+
+    fn get_view_layout(&self, area: Rect, state: &CsvTableState) -> ViewLayout {
+        let column_widths = self.get_column_widths(area.width);
+        let row_heights = self.get_row_heights(self.rows, &column_widths, state.cols_offset);
+        ViewLayout {
+            column_widths,
+            row_heights,
+        }
+    }
 }
 
 impl<'a> StatefulWidget for CsvTable<'a> {
@@ -492,6 +539,8 @@ impl<'a> StatefulWidget for CsvTable<'a> {
         let column_widths = self.get_column_widths(area.width);
         state.column_widths = Some(column_widths.clone());
 
+        let layout = self.get_view_layout(area, state);
+
         let (y_header, y_first_record) = self.render_header_borders(buf, area);
 
         // row area: including row numbers and row content
@@ -504,7 +553,8 @@ impl<'a> StatefulWidget for CsvTable<'a> {
                 .saturating_sub(status_height),
         );
 
-        let row_num_section_width = self.render_row_numbers(buf, state, rows_area, self.rows);
+        let row_num_section_width =
+            self.render_row_numbers(buf, state, rows_area, self.rows, &layout);
 
         self.render_row(
             buf,
@@ -516,6 +566,7 @@ impl<'a> StatefulWidget for CsvTable<'a> {
             RowType::Header,
             &self.header,
             None,
+            &layout,
         );
 
         let mut y_offset = y_first_record;
@@ -530,8 +581,9 @@ impl<'a> StatefulWidget for CsvTable<'a> {
                 RowType::Record(i),
                 &row.fields,
                 Some(row.record_num - 1),
+                &layout,
             );
-            y_offset += 1;
+            y_offset += layout.row_heights[i];
             if y_offset >= rows_area.bottom() {
                 break;
             }
@@ -561,6 +613,11 @@ pub enum RowType {
 struct FillerStyle {
     style: Style,
     short_padding: bool,
+}
+
+struct ViewLayout {
+    column_widths: Vec<u16>,
+    row_heights: Vec<u16>,
 }
 
 pub enum BufferState {

@@ -7,6 +7,7 @@ mod ui;
 #[allow(dead_code)]
 mod util;
 mod view;
+mod wrap;
 use crate::app::App;
 use crate::delimiter::Delimiter;
 
