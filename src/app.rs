@@ -396,7 +396,7 @@ impl App {
 
         self.csv_table_state.user_error = self.user_error.clone();
 
-        // self.csv_table_state.debug = format!("{:?}", self.rows_view.selection.column.index());
+        // self.csv_table_state.debug = format!("{:?}", self.rows_view.num_rows());
 
         Ok(())
     }
@@ -427,11 +427,20 @@ impl App {
         let size = f.size();
 
         // TODO: check type of num_rows too big?
-        let frame_size_adjusted_num_rows =
-            size.height.saturating_sub(self.num_rows_not_visible) as u64;
-        self.rows_view
-            .set_num_rows(frame_size_adjusted_num_rows)
-            .unwrap();
+        let num_rows_adjusted = size.height.saturating_sub(self.num_rows_not_visible) as u64;
+        if let Some(view_layout) = &self.csv_table_state.view_layout {
+            self.rows_view.set_num_rows_rendered(
+                view_layout.num_rows_renderable(num_rows_adjusted as u16) as u64,
+            );
+            self.csv_table_state.debug = format!(
+                "frame height: {:?} num_rows: {:?} num_rows_rendered: {:?} row bound: {:?}",
+                size.height.saturating_sub(self.num_rows_not_visible),
+                self.rows_view.num_rows(),
+                self.rows_view.num_rows_rendered(),
+                self.rows_view.selection.row.bound,
+            );
+        }
+        self.rows_view.set_num_rows(num_rows_adjusted).unwrap();
         self.frame_width = Some(size.width);
 
         let rows = self.rows_view.rows();

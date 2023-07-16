@@ -239,6 +239,7 @@ pub struct RowsView {
     reader: CsvLensReader,
     rows: Vec<Row>,
     num_rows: u64,
+    num_rows_rendered: u64,
     rows_from: u64,
     cols_offset: u64,
     filter: Option<RowsFilter>,
@@ -255,6 +256,7 @@ impl RowsView {
             reader,
             rows,
             num_rows,
+            num_rows_rendered: num_rows,
             rows_from,
             cols_offset: 0,
             filter: None,
@@ -321,6 +323,16 @@ impl RowsView {
         self.num_rows = num_rows;
         self.do_get_rows()?;
         Ok(())
+    }
+
+    pub fn num_rows_rendered(&self) -> u64 {
+        self.num_rows_rendered
+    }
+
+    pub fn set_num_rows_rendered(&mut self, num_rows_rendered: u64) {
+        self.num_rows_rendered = num_rows_rendered;
+        // current selected might be out of range, reset it
+        self.selection.row.set_bound(num_rows_rendered);
     }
 
     pub fn set_filter(&mut self, finder: &find::Finder) -> Result<()> {
@@ -427,7 +439,7 @@ impl RowsView {
         match control {
             Control::ScrollDown => {
                 if let Some(i) = self.selection.row.index() {
-                    if i == self.num_rows - 1 {
+                    if i >= self.num_rows_rendered - 1 {
                         self.increase_rows_from(1)?;
                     } else {
                         self.selection.row.select_next();
@@ -437,7 +449,7 @@ impl RowsView {
                 }
             }
             Control::ScrollPageDown => {
-                self.increase_rows_from(self.num_rows)?;
+                self.increase_rows_from(self.num_rows_rendered)?;
                 self.selection.row.select_first()
             }
             Control::ScrollUp => {
@@ -452,7 +464,7 @@ impl RowsView {
                 }
             }
             Control::ScrollPageUp => {
-                self.decrease_rows_from(self.num_rows)?;
+                self.decrease_rows_from(self.num_rows_rendered)?;
                 self.selection.row.select_first()
             }
             Control::ScrollTop => {
@@ -461,7 +473,10 @@ impl RowsView {
             }
             Control::ScrollBottom => {
                 if let Some(total) = self.get_total() {
-                    let rows_from = total.saturating_sub(self.num_rows as usize) as u64;
+                    // Note: Using num_rows_rendered is not exactly correct, but it's simple and
+                    // a bit better than num_rows. To be exact, this should use row heights to
+                    // determine exactly how many rows to show from the bottom.
+                    let rows_from = total.saturating_sub(self.num_rows_rendered as usize) as u64;
                     self.set_rows_from(rows_from)?;
                 }
                 self.selection.row.select_last()
@@ -507,7 +522,7 @@ impl RowsView {
     fn bottom_rows_from(&self) -> Option<u64> {
         // fix type conversion craziness
         if let Some(n) = self.get_total() {
-            return Some(n.saturating_sub(self.num_rows as usize) as u64);
+            return Some(n.saturating_sub(self.num_rows_rendered as usize) as u64);
         }
         None
     }
@@ -535,7 +550,7 @@ impl RowsView {
         self.rows = rows;
         self.elapsed = Some(elapsed);
         // current selected might be out of range, reset it
-        self.selection.row.set_bound(self.rows.len() as u64);
+        // self.selection.row.set_bound(self.rows.len() as u64);
         Ok(())
     }
 }

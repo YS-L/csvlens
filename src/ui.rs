@@ -13,7 +13,6 @@ use tui::widgets::Widget;
 use tui::widgets::{Block, Borders, StatefulWidget};
 
 use std::cmp::{max, min};
-use std::num;
 
 const NUM_SPACES_BETWEEN_COLUMNS: u16 = 4;
 
@@ -207,7 +206,8 @@ impl<'a> CsvTable<'a> {
         row: &'a [String],
         row_index: Option<usize>,
         view_layout: &ViewLayout,
-    ) {
+        remaining_height: Option<u16>,
+    ) -> u16 {
         let mut x_offset_header = x;
         let mut remaining_width = area.width.saturating_sub(x);
         let cols_offset = state.cols_offset as usize;
@@ -215,6 +215,13 @@ impl<'a> CsvTable<'a> {
         let mut has_more_cols_to_show = false;
         let mut col_ending_pos_x = 0;
         let mut num_cols_rendered: u64 = 0;
+        let row_height = match row_type {
+            RowType::Header => 1,
+            RowType::Record(i) => match remaining_height {
+                Some(h) => min(h, view_layout.row_heights[i]),
+                None => view_layout.row_heights[i],
+            },
+        };
         for (col_index, (hname, &hlen)) in row.iter().zip(column_widths).enumerate() {
             if col_index < cols_offset {
                 continue;
@@ -250,10 +257,6 @@ impl<'a> CsvTable<'a> {
             let filler_style = FillerStyle {
                 style: filler_style,
                 short_padding,
-            };
-            let row_height = match row_type {
-                RowType::Header => 1,
-                RowType::Record(i) => view_layout.row_heights[i],
             };
             match &state.finder_state {
                 // TODO: seems like doing a bit too much of heavy lifting of
@@ -313,6 +316,7 @@ impl<'a> CsvTable<'a> {
         state.set_num_cols_rendered(num_cols_rendered);
         state.set_more_cols_to_show(has_more_cols_to_show);
         state.col_ending_pos_x = col_ending_pos_x;
+        row_height
     }
 
     fn is_position_selected(
@@ -403,7 +407,8 @@ impl<'a> CsvTable<'a> {
                 if offset == height - 1 && !spans_wrapper.finished() {
                     if let Some(last_span) = spans.0.pop() {
                         let truncate_length = last_span.width().saturating_sub(SUFFIX_LEN as usize);
-                        let truncated_content: String = last_span.content.chars().take(truncate_length).collect();
+                        let truncated_content: String =
+                            last_span.content.chars().take(truncate_length).collect();
                         let truncated_span = Span::styled(truncated_content, last_span.style);
                         spans.0.push(truncated_span);
                         spans.0.push(Span::styled(SUFFIX, last_span.style));
@@ -549,6 +554,7 @@ impl<'a> StatefulWidget for CsvTable<'a> {
         state.column_widths = Some(column_widths.clone());
 
         let layout = self.get_view_layout(area, state);
+        state.view_layout = Some(layout.clone());
 
         let (y_header, y_first_record) = self.render_header_borders(buf, area);
 
@@ -576,11 +582,13 @@ impl<'a> StatefulWidget for CsvTable<'a> {
             &self.header,
             None,
             &layout,
+            None,
         );
 
+        let mut remaining_height = rows_area.height;
         let mut y_offset = y_first_record;
         for (i, row) in self.rows.iter().enumerate() {
-            self.render_row(
+            let rendered_height = self.render_row(
                 buf,
                 state,
                 &column_widths,
@@ -591,8 +599,10 @@ impl<'a> StatefulWidget for CsvTable<'a> {
                 &row.fields,
                 Some(row.record_num - 1),
                 &layout,
+                Some(remaining_height),
             );
-            y_offset += layout.row_heights[i];
+            remaining_height = remaining_height.saturating_sub(rendered_height);
+            y_offset += rendered_height;
             if y_offset >= rows_area.bottom() {
                 break;
             }
@@ -624,9 +634,29 @@ struct FillerStyle {
     short_padding: bool,
 }
 
-struct ViewLayout {
+#[derive(Clone)]
+pub struct ViewLayout {
     column_widths: Vec<u16>,
-    row_heights: Vec<u16>,
+    pub row_heights: Vec<u16>,
+}
+
+impl ViewLayout {
+    pub fn num_rows_renderable(&self, frame_height: u16) -> usize {
+        let mut out = 0;
+        let mut remaining = frame_height;
+        for h in &self.row_heights {
+            if *h > remaining {
+                if remaining > 0 {
+                    // Include partially rendered row
+                    out += 1;
+                }
+                break;
+            }
+            out += 1;
+            remaining -= h;
+        }
+        out
+    }
 }
 
 pub enum BufferState {
@@ -807,6 +837,7 @@ pub struct CsvTableState {
     pub column_widths: Option<Vec<u16>>,
     pub echo_column: Option<String>,
     pub ignore_case: bool,
+    pub view_layout: Option<ViewLayout>,
     pub debug: String,
 }
 
@@ -836,6 +867,7 @@ impl CsvTableState {
             column_widths: None,
             echo_column: echo_column.clone(),
             ignore_case,
+            view_layout: None,
             debug: "".into(),
         }
     }
