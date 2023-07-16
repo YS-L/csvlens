@@ -400,6 +400,15 @@ impl<'a> CsvTable<'a> {
         for offset in 0..height {
             let spans = spans_wrapper.next();
             if let Some(mut spans) = spans {
+                if offset == height - 1 && !spans_wrapper.finished() {
+                    if let Some(last_span) = spans.0.pop() {
+                        let truncate_length = last_span.width().saturating_sub(SUFFIX_LEN as usize);
+                        let truncated_content: String = last_span.content.chars().take(truncate_length).collect();
+                        let truncated_span = Span::styled(truncated_content, last_span.style);
+                        spans.0.push(truncated_span);
+                        spans.0.push(Span::styled(SUFFIX, last_span.style));
+                    }
+                }
                 let padding_width = min(
                     (effective_width as usize).saturating_sub(spans.width()) + buffer_space,
                     width as usize,
@@ -412,7 +421,7 @@ impl<'a> CsvTable<'a> {
                 buf.set_spans(x, y + offset, &spans, width);
             } else {
                 let span = Span::styled(
-                    " ".repeat(effective_width as usize + NUM_SPACES_BETWEEN_COLUMNS as usize),
+                    " ".repeat(effective_width as usize + buffer_space),
                     filler_style.style,
                 );
                 buf.set_spans(x, y + offset, &Spans::from(vec![span]), width);

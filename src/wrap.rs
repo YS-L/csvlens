@@ -71,6 +71,10 @@ impl<'a> SpansWrapper<'a> {
         }
         Some(Spans::from(out_spans))
     }
+
+    pub fn finished(&self) -> bool {
+        self.pending.is_none() && self.index >= self.spans.len()
+    }
 }
 
 #[cfg(test)]
