@@ -92,7 +92,7 @@ pub struct App {
     finder: Option<find::Finder>,
     first_found_scrolled: bool,
     frame_width: Option<u16>,
-    user_error: Option<String>,
+    transient_message: Option<String>,
     show_stats: bool,
     echo_column: Option<String>,
     ignore_case: bool,
@@ -145,7 +145,7 @@ impl App {
         let first_found_scrolled = false;
         let frame_width = None;
 
-        let user_error: Option<String> = None;
+        let transient_message: Option<String> = None;
 
         let app = App {
             input_handler,
@@ -156,7 +156,7 @@ impl App {
             finder,
             first_found_scrolled,
             frame_width,
-            user_error,
+            transient_message,
             show_stats,
             echo_column,
             ignore_case,
@@ -186,9 +186,9 @@ impl App {
     }
 
     fn step(&mut self, control: &Control) -> Result<()> {
-        // clear error message without changing other states on any action
+        // clear message without changing other states on any action
         if !matches!(control, Control::Nothing) {
-            self.user_error = None;
+            self.transient_message = None;
         }
 
         self.rows_view.handle_control(control)?;
@@ -295,7 +295,7 @@ impl App {
                 } else {
                     self.finder = None;
                     // TODO: how to show multi-line error
-                    self.user_error = Some(format!("Invalid regex: {s}"));
+                    self.transient_message = Some(format!("Invalid regex: {s}"));
                 }
                 self.csv_table_state.reset_buffer();
             }
@@ -305,7 +305,7 @@ impl App {
                     self.rows_view.set_columns_filter(target).unwrap();
                 } else {
                     self.rows_view.reset_columns_filter().unwrap();
-                    self.user_error = Some(format!("Invalid regex: {s}"));
+                    self.transient_message = Some(format!("Invalid regex: {s}"));
                 }
                 self.csv_table_state.reset_buffer();
                 self.csv_table_state.set_cols_offset(0);
@@ -325,6 +325,23 @@ impl App {
             }
             Control::ToggleSelectionType => {
                 self.rows_view.selection.toggle_selection_type();
+            }
+            Control::ToggleLineWrap => {
+                self.csv_table_state.reset_buffer();
+                if self.csv_table_state.enable_line_wrap {
+                    self.csv_table_state.enable_line_wrap = false;
+                    self.transient_message
+                        .replace("Line wrap disabled".to_string());
+                } else {
+                    self.csv_table_state.enable_line_wrap = true;
+                    self.transient_message
+                        .replace("Line wrap enabled".to_string());
+                }
+            }
+            Control::UnknownOption(s) => {
+                self.csv_table_state.reset_buffer();
+                self.transient_message
+                    .replace(format!("Unknown option: {s}"));
             }
             _ => {}
         }
@@ -394,7 +411,7 @@ impl App {
         self.csv_table_state.filter_columns_state =
             FilterColumnsState::from_rows_view(&self.rows_view);
 
-        self.csv_table_state.user_error = self.user_error.clone();
+        self.csv_table_state.transient_message = self.transient_message.clone();
 
         // self.csv_table_state.debug = format!("{:?}", self.rows_view.num_rows());
 
@@ -432,13 +449,13 @@ impl App {
             self.rows_view.set_num_rows_rendered(
                 view_layout.num_rows_renderable(num_rows_adjusted as u16) as u64,
             );
-            self.csv_table_state.debug = format!(
-                "frame height: {:?} num_rows: {:?} num_rows_rendered: {:?} row bound: {:?}",
-                size.height.saturating_sub(self.num_rows_not_visible),
-                self.rows_view.num_rows(),
-                self.rows_view.num_rows_rendered(),
-                self.rows_view.selection.row.bound,
-            );
+            // self.csv_table_state.debug = format!(
+            //     "frame height: {:?} num_rows: {:?} num_rows_rendered: {:?} row bound: {:?}",
+            //     size.height.saturating_sub(self.num_rows_not_visible),
+            //     self.rows_view.num_rows(),
+            //     self.rows_view.num_rows_rendered(),
+            //     self.rows_view.selection.row.bound,
+            // );
         }
         self.rows_view.set_num_rows(num_rows_adjusted).unwrap();
         self.frame_width = Some(size.width);

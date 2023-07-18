@@ -59,13 +59,18 @@ impl<'a> CsvTable<'a> {
         column_widths
     }
 
-    fn get_row_heights(&self, rows: &[Row], column_widths: &[u16], cols_offset: u64) -> Vec<u16> {
+    fn get_row_heights(
+        &self,
+        rows: &[Row],
+        column_widths: &[u16],
+        enable_line_wrap: bool,
+    ) -> Vec<u16> {
+        if !enable_line_wrap {
+            return rows.iter().map(|_| 1).collect();
+        }
         let mut row_heights = Vec::new();
         for (i, row) in rows.iter().enumerate() {
             for (j, content) in row.fields.iter().enumerate() {
-                // if j < cols_offset as usize{
-                //     continue;
-                // }
                 let mut num_lines = 0;
                 for parts in content.split('\n') {
                     num_lines += max(
@@ -438,8 +443,8 @@ impl<'a> CsvTable<'a> {
         // Content of status line (separator already plotted elsewhere)
         let style = Style::default().fg(Color::Rgb(128, 128, 128));
         let mut content: String;
-        if let Some(error) = &state.user_error {
-            content = error.to_owned();
+        if let Some(msg ) = &state.transient_message {
+            content = msg.to_owned();
         } else if let BufferState::Enabled(buffer_mode, buf) = &state.buffer_content {
             content = buf.to_owned();
             let format_buffer = |prefix: &str| format!("{prefix}: {content}█");
@@ -456,6 +461,7 @@ impl<'a> CsvTable<'a> {
                 InputMode::FilterColumns => {
                     content = format_buffer("Columns regex");
                 }
+                InputMode::Option => content = format_buffer("Option"),
                 InputMode::Default => {}
             }
         } else {
@@ -531,7 +537,7 @@ impl<'a> CsvTable<'a> {
 
     fn get_view_layout(&self, area: Rect, state: &CsvTableState) -> ViewLayout {
         let column_widths = self.get_column_widths(area.width);
-        let row_heights = self.get_row_heights(self.rows, &column_widths, state.cols_offset);
+        let row_heights = self.get_row_heights(self.rows, &column_widths, state.enable_line_wrap);
         ViewLayout {
             column_widths,
             row_heights,
@@ -833,11 +839,12 @@ pub struct CsvTableState {
     // TODO: should probably be with BordersState
     col_ending_pos_x: u16,
     pub selection: Option<view::Selection>,
-    pub user_error: Option<String>,
+    pub transient_message: Option<String>,
     pub column_widths: Option<Vec<u16>>,
     pub echo_column: Option<String>,
     pub ignore_case: bool,
     pub view_layout: Option<ViewLayout>,
+    pub enable_line_wrap: bool,
     pub debug: String,
 }
 
@@ -863,11 +870,12 @@ impl CsvTableState {
             borders_state: None,
             col_ending_pos_x: 0,
             selection: None,
-            user_error: None,
+            transient_message: None,
             column_widths: None,
             echo_column: echo_column.clone(),
             ignore_case,
             view_layout: None,
+            enable_line_wrap: true,
             debug: "".into(),
         }
     }

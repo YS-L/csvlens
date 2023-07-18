@@ -24,6 +24,8 @@ pub enum Control {
     BufferReset,
     Select,
     ToggleSelectionType,
+    ToggleLineWrap,
+    UnknownOption(String),
     Nothing,
 }
 
@@ -45,6 +47,7 @@ pub enum InputMode {
     Find,
     Filter,
     FilterColumns,
+    Option,
 }
 
 pub struct BufferHistory {
@@ -128,6 +131,10 @@ impl InputHandler {
                     self.init_buffer(InputMode::FilterColumns);
                     Control::empty_buffer()
                 }
+                KeyCode::Char('-') => {
+                    self.init_buffer(InputMode::Option);
+                    Control::empty_buffer()
+                }
                 KeyCode::Enter => Control::Select,
                 KeyCode::Tab => Control::ToggleSelectionType,
                 _ => Control::Nothing,
@@ -151,6 +158,9 @@ impl InputHandler {
         // SHIFT needed to capture capitalised characters
         if key_event.modifiers != KeyModifiers::NONE && key_event.modifiers != KeyModifiers::SHIFT {
             return Control::Nothing;
+        }
+        if self.mode == InputMode::Option {
+            return self.handler_buffering_option_mode(key_event);
         }
         match key_event.code {
             KeyCode::Esc => {
@@ -231,6 +241,26 @@ impl InputHandler {
                 Control::BufferContent(new_buffer)
             }
             _ => Control::Nothing,
+        }
+    }
+
+    fn handler_buffering_option_mode(&mut self, key_event: KeyEvent) -> Control {
+        match key_event.code {
+            KeyCode::Esc | KeyCode::Backspace | KeyCode::Enter => {
+                self.reset_buffer();
+                Control::BufferReset
+            }
+            KeyCode::Char('S') => {
+                self.reset_buffer();
+                Control::ToggleLineWrap
+            }
+            KeyCode::Char(x) => {
+                self.reset_buffer();
+                Control::UnknownOption(x.to_string())
+            }
+            _ => {
+                Control::Nothing
+            }
         }
     }
 
