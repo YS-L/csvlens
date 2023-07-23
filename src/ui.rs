@@ -572,8 +572,6 @@ impl<'a> StatefulWidget for CsvTable<'a> {
         }
 
         let status_height = 2;
-        let column_widths = self.get_column_widths(area.width);
-        state.column_widths = Some(column_widths.clone());
 
         let layout = self.get_view_layout(area, state);
         state.view_layout = Some(layout.clone());
@@ -596,7 +594,7 @@ impl<'a> StatefulWidget for CsvTable<'a> {
         self.render_row(
             buf,
             state,
-            &column_widths,
+            &layout.column_widths,
             rows_area,
             row_num_section_width,
             y_header,
@@ -613,7 +611,7 @@ impl<'a> StatefulWidget for CsvTable<'a> {
             let rendered_height = self.render_row(
                 buf,
                 state,
-                &column_widths,
+                &layout.column_widths,
                 rows_area,
                 row_num_section_width,
                 y_offset,
@@ -658,7 +656,7 @@ struct FillerStyle {
 
 #[derive(Clone)]
 pub struct ViewLayout {
-    column_widths: Vec<u16>,
+    pub column_widths: Vec<u16>,
     pub row_heights: Vec<u16>,
 }
 
@@ -856,7 +854,6 @@ pub struct CsvTableState {
     col_ending_pos_x: u16,
     pub selection: Option<view::Selection>,
     pub transient_message: Option<String>,
-    pub column_widths: Option<Vec<u16>>,
     pub echo_column: Option<String>,
     pub ignore_case: bool,
     pub view_layout: Option<ViewLayout>,
@@ -887,7 +884,6 @@ impl CsvTableState {
             col_ending_pos_x: 0,
             selection: None,
             transient_message: None,
-            column_widths: None,
             echo_column: echo_column.clone(),
             ignore_case,
             view_layout: None,

@@ -325,10 +325,6 @@ impl RowsView {
         Ok(())
     }
 
-    pub fn num_rows_rendered(&self) -> u64 {
-        self.num_rows_rendered
-    }
-
     pub fn set_num_rows_rendered(&mut self, num_rows_rendered: u64) {
         self.num_rows_rendered = num_rows_rendered;
         // current selected might be out of range, reset it

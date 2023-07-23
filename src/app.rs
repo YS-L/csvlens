@@ -60,13 +60,13 @@ fn scroll_to_found_record(
 }
 
 fn get_page_left_cols_offset(frame_width: u16, csv_table_state: &CsvTableState) -> Option<u64> {
-    let columns_widths = csv_table_state.column_widths.as_ref();
+    let view_layout = csv_table_state.view_layout.as_ref();
     let cols_offset = csv_table_state.cols_offset;
     let mut total: u16 = 0;
     let mut new_cols_offset = None;
-    if let Some(columns_widths) = columns_widths {
+    if let Some(layout) = view_layout {
         for c in (0..cols_offset as usize).rev() {
-            let maybe_width = columns_widths.get(c);
+            let maybe_width = layout.column_widths.get(c);
             if let Some(w) = maybe_width {
                 if total + w > frame_width {
                     break;
