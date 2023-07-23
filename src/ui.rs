@@ -78,7 +78,7 @@ impl<'a> CsvTable<'a> {
                         match column_widths.get(j) {
                             Some(w) => (parts.len() as f32 / *w as f32).ceil() as u16,
                             None => 1,
-                        }
+                        },
                     );
                 }
                 if let Some(height) = row_heights.get_mut(i) {
@@ -409,9 +409,11 @@ impl<'a> CsvTable<'a> {
         } as usize;
 
         let mut spans_wrapper = wrap::SpansWrapper::new(spans, effective_width as usize);
+
         for offset in 0..height {
-            let spans = spans_wrapper.next();
-            if let Some(mut spans) = spans {
+            if let Some(mut spans) = spans_wrapper.next() {
+                // There is some content to render. Truncate with ... if there is no more vertical
+                // space available.
                 if offset == height - 1 && !spans_wrapper.finished() {
                     if let Some(last_span) = spans.0.pop() {
                         let truncate_length = last_span.width().saturating_sub(SUFFIX_LEN as usize);
@@ -433,10 +435,21 @@ impl<'a> CsvTable<'a> {
                 }
                 buf.set_spans(x, y + offset, &spans, width);
             } else {
-                let span = Span::styled(
-                    " ".repeat(effective_width as usize + buffer_space),
-                    filler_style.style,
-                );
+                // There are extra vertical spaces that are just empty lines. Fill them with the
+                // correct style.
+                let mut content =
+                    " ".repeat(min(effective_width as usize + buffer_space, width as usize));
+
+                // It's possible that no spans are yielded due to insufficient remaining width.
+                // Render ... in this case.
+                if !spans_wrapper.finished() {
+                    let truncated_content: String = content
+                        .chars()
+                        .take(content.len().saturating_sub(1))
+                        .collect();
+                    content = format!("{SUFFIX}{}", truncated_content.as_str());
+                }
+                let span = Span::styled(content, filler_style.style);
                 buf.set_spans(x, y + offset, &Spans::from(vec![span]), width);
             }
         }
@@ -446,7 +459,7 @@ impl<'a> CsvTable<'a> {
         // Content of status line (separator already plotted elsewhere)
         let style = Style::default().fg(Color::Rgb(128, 128, 128));
         let mut content: String;
-        if let Some(msg ) = &state.transient_message {
+        if let Some(msg) = &state.transient_message {
             content = msg.to_owned();
         } else if let BufferState::Enabled(buffer_mode, buf) = &state.buffer_content {
             content = buf.to_owned();

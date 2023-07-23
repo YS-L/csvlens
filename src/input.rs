@@ -258,9 +258,7 @@ impl InputHandler {
                 self.reset_buffer();
                 Control::UnknownOption(x.to_string())
             }
-            _ => {
-                Control::Nothing
-            }
+            _ => Control::Nothing,
         }
     }
 
