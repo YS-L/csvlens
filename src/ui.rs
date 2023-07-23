@@ -75,7 +75,10 @@ impl<'a> CsvTable<'a> {
                 for parts in content.split('\n') {
                     num_lines += max(
                         1,
-                        (parts.len() as f32 / *column_widths.get(j).unwrap() as f32).ceil() as u16,
+                        match column_widths.get(j) {
+                            Some(w) => (parts.len() as f32 / *w as f32).ceil() as u16,
+                            None => 1,
+                        }
                     );
                 }
                 if let Some(height) = row_heights.get_mut(i) {
