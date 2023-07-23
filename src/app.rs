@@ -803,4 +803,95 @@ mod tests {
         let lines = to_lines(&actual_buffer);
         assert_eq!(lines, expected);
     }
+
+    #[test]
+    fn test_multi_lines() {
+        let mut app = App::new(
+            "tests/data/multi_lines.csv",
+            Delimiter::Default,
+            None,
+            false,
+            None,
+            false,
+        )
+        .unwrap();
+        thread::sleep(time::Duration::from_millis(100));
+
+        let backend = TestBackend::new(50, 30);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        step_and_draw(&mut app, &mut terminal, Control::Nothing);
+        let expected = vec![
+            "──────────────────────────────────────────────────",
+            "      a    b                                      ",
+            "───┬──────────────────────────────────────────────",
+            "1  │  1    this is a very long text that sure…    ",
+            "2  │  2    thi…                                   ",
+            "3  │  3    normal text now                        ",
+            "   │                                              ",
+            "   │                                              ",
+            "   │                                              ",
+            "   │                                              ",
+            "   │                                              ",
+            "   │                                              ",
+            "   │                                              ",
+            "   │                                              ",
+            "   │                                              ",
+            "   │                                              ",
+            "   │                                              ",
+            "   │                                              ",
+            "   │                                              ",
+            "   │                                              ",
+            "   │                                              ",
+            "   │                                              ",
+            "   │                                              ",
+            "   │                                              ",
+            "   │                                              ",
+            "   │                                              ",
+            "   │                                              ",
+            "   │                                              ",
+            "───┴──────────────────────────────────────────────",
+            "stdin [Row 1/3, Col 1/3]                          ",
+        ];
+        let actual_buffer = terminal.backend().buffer().clone();
+        let lines = to_lines(&actual_buffer);
+        assert_eq!(lines, expected);
+
+        step_and_draw(&mut app, &mut terminal, Control::ToggleLineWrap);
+        let expected = vec![
+            "──────────────────────────────────────────────────",
+            "      a    b                                      ",
+            "───┬──────────────────────────────────────────────",
+            "1  │  1    this is a very long text that surel    ",
+            "   │       y will not fit in your small screen    ",
+            "2  │  2    this                                   ",
+            "   │       is                                     ",
+            "   │       an                                     ",
+            "   │       even                                   ",
+            "   │       longer                                 ",
+            "   │       text                                   ",
+            "   │       that                                   ",
+            "   │       surely                                 ",
+            "   │       will                                   ",
+            "   │       not                                    ",
+            "   │       fit                                    ",
+            "   │       in                                     ",
+            "   │       your                                   ",
+            "   │       small                                  ",
+            "   │       screen                                 ",
+            "3  │  3    normal text now                        ",
+            "   │                                              ",
+            "   │                                              ",
+            "   │                                              ",
+            "   │                                              ",
+            "   │                                              ",
+            "   │                                              ",
+            "   │                                              ",
+            "───┴──────────────────────────────────────────────",
+            "Line wrap enabled                                 ",
+        ];
+        let actual_buffer = terminal.backend().buffer().clone();
+        let lines = to_lines(&actual_buffer);
+        assert_eq!(lines, expected);
+    }
 }

@@ -891,7 +891,7 @@ impl CsvTableState {
             echo_column: echo_column.clone(),
             ignore_case,
             view_layout: None,
-            enable_line_wrap: true,
+            enable_line_wrap: false,
             debug: "".into(),
         }
     }
