@@ -1,3 +1,7 @@
+# v0.3.0
+
+* Support line wrapping for displaying long or multiline content
+
 # v0.2.0
 
 * Add `-d auto` option to auto-detect delimiter
