@@ -37,6 +37,7 @@ Key | Action
 `*<regex>` | Filter columns using regex (show only matches)
 `TAB` | Toggle between row, column or cell selection modes
 `Enter` (in Cell mode) | Print the selected cell to stdout and exit
+`-S` | Toggle line wrapping
 `q` | Exit
 
 ### Optional parameters
