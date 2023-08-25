@@ -49,9 +49,10 @@ impl<'a> SpansWrapper<'a> {
                     remaining_width = remaining_width.saturating_sub(span.content.len());
                     out_spans.push(span);
                 } else {
-                    let (current, pending) = span.content.split_at(remaining_width);
-                    out_spans.push(Span::styled(current.to_owned(), span.style));
-                    self.pending = Some(Span::styled(pending.to_owned(), span.style));
+                    let current: String = span.content.chars().take(remaining_width).collect();
+                    let pending: String = span.content.chars().skip(remaining_width).collect();
+                    out_spans.push(Span::styled(current, span.style));
+                    self.pending = Some(Span::styled(pending, span.style));
                     remaining_width = 0;
                 }
             } else {
@@ -168,6 +169,17 @@ mod tests {
             ]))
         );
         assert_eq!(wrapper.next(), Some(Spans::from(vec![Span::raw("d")])));
+        assert_eq!(wrapper.next(), None);
+    }
+
+    #[test]
+    fn test_unicode() {
+        let s = Span::raw("héllo");
+        let spans = vec![s.clone()];
+        let mut wrapper = SpansWrapper::new(&spans, 2);
+        assert_eq!(wrapper.next(), Some(Spans::from(vec![Span::raw("hé")])));
+        assert_eq!(wrapper.next(), Some(Spans::from(vec![Span::raw("ll")])));
+        assert_eq!(wrapper.next(), Some(Spans::from(vec![Span::raw("o")])));
         assert_eq!(wrapper.next(), None);
     }
 }
