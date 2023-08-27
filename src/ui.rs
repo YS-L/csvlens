@@ -73,10 +73,14 @@ impl<'a> CsvTable<'a> {
             for (j, content) in row.fields.iter().enumerate() {
                 let mut num_lines = 0;
                 for parts in content.split('\n') {
+                    let parts_length = parts.chars().count();
                     num_lines += max(
                         1,
                         match column_widths.get(j) {
-                            Some(w) => (parts.len() as f32 / *w as f32).ceil() as u16,
+                            Some(w) => {
+                                let usable_width = (*w).saturating_sub(NUM_SPACES_BETWEEN_COLUMNS);
+                                (parts_length as f32 / usable_width as f32).ceil() as u16
+                            }
                             None => 1,
                         },
                     );
