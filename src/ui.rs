@@ -15,6 +15,7 @@ use tui::widgets::{Block, Borders, StatefulWidget};
 use std::cmp::{max, min};
 
 const NUM_SPACES_BETWEEN_COLUMNS: u16 = 4;
+const MAX_COLUMN_WIDTH_FRACTION: f32 = 0.3;
 
 #[derive(Debug)]
 pub struct CsvTable<'a> {
@@ -54,7 +55,7 @@ impl<'a> CsvTable<'a> {
         }
         for w in &mut column_widths {
             *w += NUM_SPACES_BETWEEN_COLUMNS;
-            *w = min(*w, (area_width as f32 * 0.8) as u16);
+            *w = min(*w, (area_width as f32 * MAX_COLUMN_WIDTH_FRACTION) as u16);
         }
         column_widths
     }
