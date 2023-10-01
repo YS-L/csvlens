@@ -419,7 +419,7 @@ impl<'a> CsvTable<'a> {
             if let Some(mut spans) = spans_wrapper.next() {
                 // There is some content to render. Truncate with ... if there is no more vertical
                 // space available.
-                if offset == height - 1 && !spans_wrapper.finished(){
+                if offset == height - 1 && !spans_wrapper.finished() {
                     if let Some(last_span) = spans.0.pop() {
                         let truncate_length = last_span.width().saturating_sub(SUFFIX_LEN as usize);
                         let truncated_content: String =
