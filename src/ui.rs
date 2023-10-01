@@ -403,6 +403,7 @@ impl<'a> CsvTable<'a> {
     ) {
         const SUFFIX: &str = "…";
         const SUFFIX_LEN: u16 = 1;
+        let a = 1;
 
         // Reserve some space before the next column (same number used in get_column_widths)
         let effective_width = width.saturating_sub(NUM_SPACES_BETWEEN_COLUMNS);
