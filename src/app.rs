@@ -894,4 +894,48 @@ mod tests {
         let lines = to_lines(&actual_buffer);
         assert_eq!(lines, expected);
     }
+
+    #[test]
+    fn test_column_widths_boundary_condition() {
+        let mut app = App::new(
+            "tests/data/cities.csv",
+            Delimiter::Default,
+            None,
+            false,
+            None,
+            false,
+        )
+        .unwrap();
+        thread::sleep(time::Duration::from_millis(100));
+
+        let backend = TestBackend::new(120, 10);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        step_and_draw(
+            &mut app,
+            &mut terminal,
+            Control::Filter("Salt Lake City".into()),
+        );
+        step_and_draw(
+            &mut app,
+            &mut terminal,
+            Control::FilterColumns("City".into()),
+        );
+        thread::sleep(time::Duration::from_millis(100));
+        step_and_draw(&mut app, &mut terminal, Control::Nothing);
+        let expected = vec![
+            "────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────",
+            "       City                                                                                                             ",
+            "────┬────────────────────┬──────────────────────────────────────────────────────────────────────────────────────────────",
+            "97  │  Salt Lake City    │                                                                                              ",
+            "    │                    │                                                                                              ",
+            "    │                    │                                                                                              ",
+            "    │                    │                                                                                              ",
+            "    │                    │                                                                                              ",
+            "────┴────────────────────┴──────────────────────────────────────────────────────────────────────────────────────────────",
+            "stdin [Row 97/128, Col 1/1] [Filter \"Salt Lake City\": 1/1] [Filter \"City\": 1/10 cols]                                   "];
+        let actual_buffer = terminal.backend().buffer().clone();
+        let lines = to_lines(&actual_buffer);
+        assert_eq!(lines, expected);
+    }
 }

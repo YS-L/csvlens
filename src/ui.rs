@@ -376,17 +376,13 @@ impl<'a> CsvTable<'a> {
         let non_matches = active.target.split(hname);
         let mut spans = vec![];
         for part in non_matches {
-            let span = Span::styled(part, style);
-            let cur_match = if let Some(m) = matches.next() {
-                m.as_str()
-            } else {
-                ""
-            };
-            let p_span = Span::styled(cur_match, highlight_style);
-            spans.push(span);
-            spans.push(p_span);
+            if !part.is_empty() {
+                spans.push(Span::styled(part, style));
+            }
+            if let Some(m) = matches.next() {
+                spans.push(Span::styled(m.as_str(), highlight_style));
+            }
         }
-        spans.pop();
         spans
     }
 
