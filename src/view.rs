@@ -435,7 +435,7 @@ impl RowsView {
         match control {
             Control::ScrollDown => {
                 if let Some(i) = self.selection.row.index() {
-                    if i >= self.num_rows_rendered - 1 {
+                    if i >= self.num_rows_rendered.saturating_sub(1) {
                         self.increase_rows_from(1)?;
                     } else {
                         self.selection.row.select_next();
