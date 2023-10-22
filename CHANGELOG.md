@@ -1,9 +1,13 @@
+# Unreleased
+
+* Fix incorrectly truncated content due to highlighting
+* Fix potential overflow panic
+
 # v0.3.1
 
 * Fix panic due to unicode handling
 * Fix row height calculation to account for column widths properly
 * Reduce maximum column width fraction to make more columns visible
-
 
 # v0.3.0
 
