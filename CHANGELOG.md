@@ -1,4 +1,4 @@
-# Unreleased
+# v0.3.2
 
 * Fix incorrectly truncated content due to highlighting
 * Fix potential overflow panic
