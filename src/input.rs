@@ -25,6 +25,7 @@ pub enum Control {
     Select,
     ToggleSelectionType,
     ToggleLineWrap,
+    Help,
     UnknownOption(String),
     Nothing,
 }
@@ -112,6 +113,7 @@ impl InputHandler {
                 KeyCode::Char('G') | KeyCode::End => Control::ScrollBottom,
                 KeyCode::Char('n') => Control::ScrollToNextFound,
                 KeyCode::Char('N') => Control::ScrollToPrevFound,
+                KeyCode::Char('H') => Control::Help,
                 KeyCode::PageDown => Control::ScrollPageDown,
                 KeyCode::PageUp => Control::ScrollPageUp,
                 KeyCode::Char(x) if "0123456789".contains(x.to_string().as_str()) => {

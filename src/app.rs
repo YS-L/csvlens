@@ -3,6 +3,7 @@ extern crate csv_sniffer;
 use crate::csv;
 use crate::delimiter::{sniff_delimiter, Delimiter};
 use crate::find;
+use crate::help;
 use crate::input::{Control, InputHandler};
 use crate::ui::{CsvTable, CsvTableState, FilterColumnsState, FinderState};
 use crate::view;
@@ -96,6 +97,7 @@ pub struct App {
     show_stats: bool,
     echo_column: Option<String>,
     ignore_case: bool,
+    help_page_state: help::HelpPageState,
 }
 
 impl App {
@@ -146,6 +148,7 @@ impl App {
         let frame_width = None;
 
         let transient_message: Option<String> = None;
+        let help_page_state = help::HelpPageState::new();
 
         let app = App {
             input_handler,
@@ -160,6 +163,7 @@ impl App {
             show_stats,
             echo_column,
             ignore_case,
+            help_page_state,
         };
 
         Ok(app)
@@ -169,7 +173,11 @@ impl App {
         loop {
             let control = self.input_handler.next();
             if matches!(control, Control::Quit) {
-                return Ok(None);
+                if self.help_page_state.is_active() {
+                    self.help_page_state.deactivate();
+                } else {
+                    return Ok(None);
+                }
             }
             if matches!(control, Control::Select) {
                 if let Some(result) = self.rows_view.get_cell_value_from_selection() {
@@ -180,12 +188,23 @@ impl App {
                     }
                 }
             }
+            if matches!(control, Control::Help) {
+                self.help_page_state.activate();
+            }
             self.step(&control)?;
             self.draw(terminal)?;
         }
     }
 
+    fn step_help(&mut self, control: &Control) -> Result<()> {
+        Ok(())
+    }
+
     fn step(&mut self, control: &Control) -> Result<()> {
+        if self.help_page_state.is_active() {
+            return self.step_help(control);
+        }
+
         // clear message without changing other states on any action
         if !matches!(control, Control::Nothing) {
             self.transient_message = None;
@@ -443,19 +462,19 @@ impl App {
     fn render_frame<B: Backend>(&mut self, f: &mut Frame<B>) {
         let size = f.size();
 
+        // Render help; if so exit early.
+        if self.help_page_state.is_active() {
+            f.render_stateful_widget(help::HelpPage::new(), size, &mut self.help_page_state);
+            return;
+        }
+
+        // Render table
         // TODO: check type of num_rows too big?
         let num_rows_adjusted = size.height.saturating_sub(self.num_rows_not_visible) as u64;
         if let Some(view_layout) = &self.csv_table_state.view_layout {
             self.rows_view.set_num_rows_rendered(
                 view_layout.num_rows_renderable(num_rows_adjusted as u16) as u64,
             );
-            // self.csv_table_state.debug = format!(
-            //     "frame height: {:?} num_rows: {:?} num_rows_rendered: {:?} row bound: {:?}",
-            //     size.height.saturating_sub(self.num_rows_not_visible),
-            //     self.rows_view.num_rows(),
-            //     self.rows_view.num_rows_rendered(),
-            //     self.rows_view.selection.row.bound,
-            // );
         }
         self.rows_view.set_num_rows(num_rows_adjusted).unwrap();
         self.frame_width = Some(size.width);

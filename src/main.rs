@@ -2,6 +2,7 @@ mod app;
 mod csv;
 mod delimiter;
 mod find;
+mod help;
 mod input;
 mod ui;
 #[allow(dead_code)]
