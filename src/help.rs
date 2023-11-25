@@ -11,7 +11,7 @@ csvlens is an interactive CSV file viewer in the command line.
 
 You are viewing its help page. Press q to exit.
 
-# Navigation
+# Moving
 
 hjkl (or ← ↓ ↑→ )       : Scroll one row or column in the given direction
 Ctrl + f (or Page Down) : Scroll one window down
@@ -22,7 +22,7 @@ G (or End)              : Go to bottom
 g (or Home)             : Go to top
 <n>G                    : Go to line n
 
-# Find and filter
+# Search
 
 /<regex>                : Find content matching regex and highlight matches
 n (in Find mode)        : Jump to next result
@@ -47,6 +47,7 @@ pub struct HelpPage {}
 pub struct HelpPageState {
     active: bool,
     offset: u16,
+    render_complete: bool,
 }
 
 impl HelpPage {
@@ -60,6 +61,7 @@ impl HelpPageState {
         HelpPageState {
             active: false,
             offset: 0,
+            render_complete: true,
         }
     }
 
@@ -77,6 +79,20 @@ impl HelpPageState {
 
     pub fn is_active(&self) -> bool {
         self.active
+    }
+
+    pub fn scroll_up(&mut self) -> &Self {
+        if self.offset > 0 {
+            self.offset -= 1;
+        }
+        self
+    }
+
+    pub fn scroll_down(&mut self) -> &Self {
+        if !self.render_complete {
+            self.offset += 1;
+        }
+        self
     }
 }
 
@@ -100,10 +116,16 @@ impl StatefulWidget for HelpPage {
             .split('\n')
             .map(|s| Spans::from(line_to_span(s)))
             .collect();
+
+        // Minus 2 to account for borders.
+        let num_lines_to_be_rendered = (text.len() as u16).saturating_sub(state.offset);
+        state.render_complete = area.height.saturating_sub(2) >= num_lines_to_be_rendered;
+
         let paragraph = Paragraph::new(text)
             .block(Block::default().title("Help").borders(Borders::ALL))
-            // .style(Style::default().fg(Color::White).bg(Color::Black))
-            .wrap(Wrap { trim: true });
+            .wrap(Wrap { trim: true })
+            .scroll((state.offset, 0));
+
         paragraph.render(area, buf);
     }
 }

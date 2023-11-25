@@ -197,6 +197,15 @@ impl App {
     }
 
     fn step_help(&mut self, control: &Control) -> Result<()> {
+        match &control {
+            Control::ScrollDown => {
+                self.help_page_state.scroll_down();
+            }
+            Control::ScrollUp => {
+                self.help_page_state.scroll_up();
+            }
+            _ => {}
+        }
         Ok(())
     }
 
