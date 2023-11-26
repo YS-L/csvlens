@@ -11,6 +11,8 @@ pub enum Control {
     ScrollBottom,
     ScrollPageUp,
     ScrollPageDown,
+    ScrollHalfPageUp,
+    ScrollHalfPageDown,
     ScrollPageLeft,
     ScrollPageRight,
     ScrollLeftMost,
@@ -118,6 +120,8 @@ impl InputHandler {
                 KeyCode::Char('H') => Control::Help,
                 KeyCode::PageDown => Control::ScrollPageDown,
                 KeyCode::PageUp => Control::ScrollPageUp,
+                KeyCode::Char('d') => Control::ScrollHalfPageDown,
+                KeyCode::Char('u') => Control::ScrollHalfPageUp,
                 KeyCode::Char(x) if "0123456789".contains(x.to_string().as_str()) => {
                     self.buffer_state = BufferState::Active(x.to_string());
                     self.mode = InputMode::GotoLine;
@@ -146,6 +150,8 @@ impl InputHandler {
             KeyModifiers::CONTROL => match key_event.code {
                 KeyCode::Char('f') => Control::ScrollPageDown,
                 KeyCode::Char('b') => Control::ScrollPageUp,
+                KeyCode::Char('d') => Control::ScrollHalfPageDown,
+                KeyCode::Char('u') => Control::ScrollHalfPageUp,
                 KeyCode::Char('h') => Control::ScrollPageLeft,
                 KeyCode::Char('l') => Control::ScrollPageRight,
                 KeyCode::Left => Control::ScrollLeftMost,

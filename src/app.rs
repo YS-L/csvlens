@@ -1065,4 +1065,62 @@ mod tests {
         let lines = to_lines(&actual_buffer);
         assert_eq!(lines, expected);
     }
+
+    #[test]
+    fn test_scroll_half_page() {
+        let mut app = App::new(
+            "tests/data/cities.csv",
+            Delimiter::Default,
+            None,
+            false,
+            None,
+            false,
+        )
+        .unwrap();
+        thread::sleep(time::Duration::from_millis(100));
+
+        let backend = TestBackend::new(40, 10);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        // TODO: since some states are updated late only during rendering, sometimes some extra
+        // no-ops are required to warm up the states. I don't like it, but this is how it has to be
+        // in tests for now.
+        step_and_draw(&mut app, &mut terminal, Control::Nothing);
+        step_and_draw(&mut app, &mut terminal, Control::Nothing);
+        step_and_draw(&mut app, &mut terminal, Control::ScrollHalfPageDown);
+        step_and_draw(&mut app, &mut terminal, Control::ScrollHalfPageDown);
+        let expected = vec![
+            "────────────────────────────────────────",
+            "      LatD    LatM    LatS    NS    …   ",
+            "───┬────────────────────────────────────",
+            "5  │  43      37      48      N     …   ",
+            "6  │  36      5       59      N     …   ",
+            "7  │  49      52      48      N     …   ",
+            "8  │  39      11      23      N     …   ",
+            "9  │  34      14      24      N     …   ",
+            "───┴────────────────────────────────────",
+            "stdin [Row 5/128, Col 1/10]             ",
+        ];
+        let actual_buffer = terminal.backend().buffer().clone();
+        let lines = to_lines(&actual_buffer);
+        assert_eq!(lines, expected);
+
+        step_and_draw(&mut app, &mut terminal, Control::Nothing);
+        step_and_draw(&mut app, &mut terminal, Control::ScrollHalfPageUp);
+        let expected = vec![
+            "────────────────────────────────────────",
+            "      LatD    LatM    LatS    NS    …   ",
+            "───┬────────────────────────────────────",
+            "3  │  46      35      59      N     …   ",
+            "4  │  42      16      12      N     …   ",
+            "5  │  43      37      48      N     …   ",
+            "6  │  36      5       59      N     …   ",
+            "7  │  49      52      48      N     …   ",
+            "───┴────────────────────────────────────",
+            "stdin [Row 3/128, Col 1/10]             ",
+        ];
+        let actual_buffer = terminal.backend().buffer().clone();
+        let lines = to_lines(&actual_buffer);
+        assert_eq!(lines, expected);
+    }
 }

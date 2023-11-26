@@ -444,6 +444,10 @@ impl RowsView {
                     self.increase_rows_from(1)?;
                 }
             }
+            Control::ScrollHalfPageDown => {
+                self.increase_rows_from(self.num_rows_rendered / 2)?;
+                self.selection.row.select_first()
+            }
             Control::ScrollPageDown => {
                 self.increase_rows_from(self.num_rows_rendered)?;
                 self.selection.row.select_first()
@@ -458,6 +462,10 @@ impl RowsView {
                 } else {
                     self.decrease_rows_from(1)?;
                 }
+            }
+            Control::ScrollHalfPageUp => {
+                self.decrease_rows_from(self.num_rows_rendered / 2)?;
+                self.selection.row.select_first()
             }
             Control::ScrollPageUp => {
                 self.decrease_rows_from(self.num_rows_rendered)?;
