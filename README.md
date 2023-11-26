@@ -25,8 +25,12 @@ Key | Action
 `hjkl` (or `← ↓ ↑→ `) | Scroll one row or column in the given direction
 `Ctrl + f` (or `Page Down`) | Scroll one window down
 `Ctrl + b` (or `Page Up`) | Scroll one window up
-`Ctrl + h` (or `Ctrl + ←`) | Scroll one window left
-`Ctrl + l` (or `Ctrl + →`) | Scroll one window right
+`Ctrl + d` (or `d`) | Scroll half a window down
+`Ctrl + u` (or `u`) | Scroll half a window up
+`Ctrl + h` | Scroll one window left
+`Ctrl + l` | Scroll one window right
+`Ctrl + ←` | Scroll left to first column
+`Ctrl + →` | Scroll right to last column
 `G` (or `End`) | Go to bottom
 `g` (or `Home`) | Go to top
 `<n>G` | Go to line `n`
@@ -38,6 +42,7 @@ Key | Action
 `TAB` | Toggle between row, column or cell selection modes
 `Enter` (in Cell mode) | Print the selected cell to stdout and exit
 `-S` | Toggle line wrapping
+`H` | Display help
 `q` | Exit
 
 ### Optional parameters

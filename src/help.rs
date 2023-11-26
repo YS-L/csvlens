@@ -9,15 +9,19 @@ use tui::{
 const HELP_CONTENT: &str = "
 csvlens is an interactive CSV file viewer in the command line.
 
-You are viewing its help page. Press q to exit.
+These are the key bindings. Press q to exit.
 
 # Moving
 
 hjkl (or ← ↓ ↑→ )       : Scroll one row or column in the given direction
 Ctrl + f (or Page Down) : Scroll one window down
 Ctrl + b (or Page Up)   : Scroll one window up
-Ctrl + h (or Ctrl + ←)  : Scroll one window left
-Ctrl + l (or Ctrl + →)  : Scroll one window right
+Ctrl + d (or d)         : Scroll half a window down
+Ctrl + u (or u)         : Scroll half a window up
+Ctrl + h                : Scroll one window left
+Ctrl + l                : Scroll one window right
+Ctrl + ←                : Scroll left to first column
+Ctrl + →                : Scroll right to last column
 G (or End)              : Go to bottom
 g (or Home)             : Go to top
 <n>G                    : Go to line n
