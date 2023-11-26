@@ -60,16 +60,22 @@ fn scroll_to_found_record(
     }
 }
 
-fn get_page_left_cols_offset(frame_width: u16, csv_table_state: &CsvTableState) -> Option<u64> {
+/// Returns the offset of the first column that can be shown in the current frame, while keeping the
+/// column corresopnding to right_most_cols_offset in view.
+fn get_cols_offset_to_fill_frame_width(
+    frame_width: u16,
+    right_most_cols_offset: u64,
+    csv_table_state: &CsvTableState,
+) -> Option<u64> {
     let view_layout = csv_table_state.view_layout.as_ref();
-    let cols_offset = csv_table_state.cols_offset;
     let mut total: u16 = 0;
     let mut new_cols_offset = None;
+    let unusable_width = csv_table_state.line_number_and_spaces_width();
     if let Some(layout) = view_layout {
-        for c in (0..cols_offset as usize).rev() {
+        for c in (0..right_most_cols_offset.saturating_add(1) as usize).rev() {
             let maybe_width = layout.column_widths.get(c);
             if let Some(w) = maybe_width {
-                if total + w > frame_width {
+                if total + w > frame_width.saturating_sub(unusable_width) {
                     break;
                 }
                 new_cols_offset = Some(c as u64);
@@ -253,9 +259,11 @@ impl App {
             }
             Control::ScrollPageLeft => {
                 let new_cols_offset = match self.frame_width {
-                    Some(frame_width) => {
-                        get_page_left_cols_offset(frame_width, &self.csv_table_state)
-                    }
+                    Some(frame_width) => get_cols_offset_to_fill_frame_width(
+                        frame_width,
+                        self.csv_table_state.cols_offset.saturating_sub(1),
+                        &self.csv_table_state,
+                    ),
                     _ => Some(0),
                 };
                 if let Some(new_cols_offset) = new_cols_offset {
@@ -274,6 +282,24 @@ impl App {
                         self.rows_view.headers().len().saturating_sub(1) as u64,
                     );
                     if new_cols_offset != self.csv_table_state.cols_offset {
+                        self.rows_view.set_cols_offset(new_cols_offset);
+                    }
+                }
+            }
+            Control::ScrollLeftMost => {
+                self.rows_view.set_cols_offset(0);
+            }
+            Control::ScrollRightMost => {
+                if self.csv_table_state.has_more_cols_to_show() {
+                    let new_cols_offset = match self.frame_width {
+                        Some(frame_width) => get_cols_offset_to_fill_frame_width(
+                            frame_width,
+                            self.rows_view.headers().len().saturating_sub(1) as u64,
+                            &self.csv_table_state,
+                        ),
+                        _ => Some(0),
+                    };
+                    if let Some(new_cols_offset) = new_cols_offset {
                         self.rows_view.set_cols_offset(new_cols_offset);
                     }
                 }
@@ -962,6 +988,79 @@ mod tests {
             "    │                    │                                                                                              ",
             "────┴────────────────────┴──────────────────────────────────────────────────────────────────────────────────────────────",
             "stdin [Row 97/128, Col 1/1] [Filter \"Salt Lake City\": 1/1] [Filter \"City\": 1/10 cols]                                   "];
+        let actual_buffer = terminal.backend().buffer().clone();
+        let lines = to_lines(&actual_buffer);
+        assert_eq!(lines, expected);
+    }
+
+    #[test]
+    fn test_scroll_right_most() {
+        let mut app = App::new(
+            "tests/data/cities.csv",
+            Delimiter::Default,
+            None,
+            false,
+            None,
+            false,
+        )
+        .unwrap();
+        thread::sleep(time::Duration::from_millis(100));
+
+        let backend = TestBackend::new(40, 10);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        // TODO: why is this first nothing step needed?
+        step_and_draw(&mut app, &mut terminal, Control::Nothing);
+        step_and_draw(&mut app, &mut terminal, Control::ScrollRightMost);
+        let expected = vec![
+            "────────────────────────────────────────",
+            "      EW    City        State           ",
+            "───┬─────────────────────────────┬──────",
+            "1  │  W     Youngst…    OH       │      ",
+            "2  │        Yankton     SD       │      ",
+            "3  │  W     Yakima      WA       │      ",
+            "4  │  W     Worcest…    MA       │      ",
+            "5  │  W     Wiscons…    WI       │      ",
+            "───┴─────────────────────────────┴──────",
+            "stdin [Row 1/128, Col 8/10]             ",
+        ];
+        let actual_buffer = terminal.backend().buffer().clone();
+        let lines = to_lines(&actual_buffer);
+        assert_eq!(lines, expected);
+    }
+
+    #[test]
+    fn test_scroll_left_most() {
+        let mut app = App::new(
+            "tests/data/cities.csv",
+            Delimiter::Default,
+            None,
+            false,
+            None,
+            false,
+        )
+        .unwrap();
+        thread::sleep(time::Duration::from_millis(100));
+
+        let backend = TestBackend::new(40, 10);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        // TODO: why is this first nothing step needed?
+        step_and_draw(&mut app, &mut terminal, Control::Nothing);
+        step_and_draw(&mut app, &mut terminal, Control::ScrollRightMost);
+        step_and_draw(&mut app, &mut terminal, Control::ScrollLeftMost);
+        let expected = vec![
+            "────────────────────────────────────────",
+            "      LatD    LatM    LatS    NS    …   ",
+            "───┬────────────────────────────────────",
+            "1  │  41      5       59      N     …   ",
+            "2  │  42      52      48      N     …   ",
+            "3  │  46      35      59      N     …   ",
+            "4  │  42      16      12      N     …   ",
+            "5  │  43      37      48      N     …   ",
+            "───┴────────────────────────────────────",
+            "stdin [Row 1/128, Col 1/10]             ",
+        ];
         let actual_buffer = terminal.backend().buffer().clone();
         let lines = to_lines(&actual_buffer);
         assert_eq!(lines, expected);

@@ -14,6 +14,7 @@ use tui::widgets::{Block, Borders, StatefulWidget};
 
 use std::cmp::{max, min};
 
+const NUM_SPACES_AFTER_LINE_NUMBER: u16 = 2;
 const NUM_SPACES_BETWEEN_COLUMNS: u16 = 4;
 const MAX_COLUMN_WIDTH_FRACTION: f32 = 0.3;
 
@@ -130,7 +131,7 @@ impl<'a> CsvTable<'a> {
                 break;
             }
         }
-        section_width = section_width + 2 + 1; // one char reserved for line; add one for symmetry
+        section_width = section_width + NUM_SPACES_AFTER_LINE_NUMBER + 1; // one char reserved for line; add one for symmetry
 
         state.borders_state = Some(BordersState {
             x_row_separator: section_width,
@@ -138,7 +139,7 @@ impl<'a> CsvTable<'a> {
         });
 
         // Add more space before starting first column
-        section_width += 2;
+        section_width += NUM_SPACES_AFTER_LINE_NUMBER;
 
         section_width
     }
@@ -927,5 +928,13 @@ impl CsvTableState {
 
     pub fn reset_buffer(&mut self) {
         self.buffer_content = BufferState::Disabled;
+    }
+
+    pub fn line_number_and_spaces_width(&self) -> u16 {
+        self.borders_state
+            .as_ref()
+            .map(|bs| bs.x_row_separator)
+            .unwrap_or(0)
+            + NUM_SPACES_AFTER_LINE_NUMBER
     }
 }

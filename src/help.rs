@@ -39,8 +39,7 @@ Enter (in Cell mode)    : Print the selected cell to stdout and exit
 
 -S                      : Toggle line wrapping
 H                       : Display this help
-q                       : Exit
-";
+q                       : Exit";
 
 pub struct HelpPage {}
 
