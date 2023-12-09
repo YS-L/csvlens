@@ -2,6 +2,7 @@ use crate::csv::Row;
 use crate::find;
 use crate::input::InputMode;
 use crate::view;
+use crate::view::Header;
 use crate::wrap;
 use regex::Regex;
 use tui::buffer::Buffer;
@@ -13,36 +14,73 @@ use tui::widgets::Widget;
 use tui::widgets::{Block, Borders, StatefulWidget};
 
 use std::cmp::{max, min};
+use std::collections::HashMap;
 
 const NUM_SPACES_AFTER_LINE_NUMBER: u16 = 2;
 const NUM_SPACES_BETWEEN_COLUMNS: u16 = 4;
 const MAX_COLUMN_WIDTH_FRACTION: f32 = 0.3;
 
 #[derive(Debug)]
+pub struct ColumnWidthOverrides {
+    overrides: HashMap<usize, u16>,
+}
+
+impl ColumnWidthOverrides {
+    pub fn new() -> Self {
+        Self {
+            overrides: HashMap::new(),
+        }
+    }
+
+    /// Sets the width override for the given origin column index
+    pub fn set(&mut self, col_index: usize, width: u16) {
+        self.overrides.insert(col_index, width);
+    }
+
+    /// Returns the width override for the given origin column index, if any
+    pub fn get(&self, col_index: usize) -> Option<&u16> {
+        self.overrides.get(&col_index)
+    }
+
+    /// Returns the list of origin column indices that have width overrides
+    pub fn overriden_indices(&self) -> Vec<usize> {
+        self.overrides.keys().cloned().collect()
+    }
+}
+
+#[derive(Debug)]
 pub struct CsvTable<'a> {
-    header: Vec<String>,
+    header: &'a [Header],
     rows: &'a [Row],
 }
 
 impl<'a> CsvTable<'a> {
-    pub fn new(header: &[String], rows: &'a [Row]) -> Self {
-        let _header = header.to_vec();
-        Self {
-            header: _header,
-            rows,
-        }
+    pub fn new(header: &'a [Header], rows: &'a [Row]) -> Self {
+        Self { header, rows }
     }
 }
 
 impl<'a> CsvTable<'a> {
-    fn get_column_widths(&self, area_width: u16) -> Vec<u16> {
+    fn get_column_widths(&self, area_width: u16, overrides: &ColumnWidthOverrides) -> Vec<u16> {
         let mut column_widths = Vec::new();
-        for s in &self.header {
-            column_widths.push(s.len() as u16);
+
+        for h in self.header {
+            if let Some(w) = overrides.get(h.origin_index) {
+                column_widths.push(*w);
+                continue;
+            } else {
+                column_widths.push(h.name.len() as u16);
+            }
         }
+
+        let overriden_indices = overrides.overriden_indices();
+
         for row in self.rows.iter() {
             for (i, value) in row.fields.iter().enumerate() {
                 if i >= column_widths.len() {
+                    continue;
+                }
+                if overriden_indices.contains(&self.header.get(i).unwrap().origin_index) {
                     continue;
                 }
                 let v = column_widths.get_mut(i).unwrap();
@@ -54,9 +92,14 @@ impl<'a> CsvTable<'a> {
                 });
             }
         }
-        for w in &mut column_widths {
-            *w += NUM_SPACES_BETWEEN_COLUMNS;
-            *w = min(*w, (area_width as f32 * MAX_COLUMN_WIDTH_FRACTION) as u16);
+
+        for (i, w) in column_widths.iter_mut().enumerate() {
+            if overriden_indices.contains(&self.header.get(i).unwrap().origin_index) {
+                *w = max(*w, NUM_SPACES_BETWEEN_COLUMNS);
+            } else {
+                *w += NUM_SPACES_BETWEEN_COLUMNS;
+                *w = min(*w, (area_width as f32 * MAX_COLUMN_WIDTH_FRACTION) as u16);
+            }
         }
         column_widths
     }
@@ -554,7 +597,7 @@ impl<'a> CsvTable<'a> {
     }
 
     fn get_view_layout(&self, area: Rect, state: &CsvTableState) -> ViewLayout {
-        let column_widths = self.get_column_widths(area.width);
+        let column_widths = self.get_column_widths(area.width, &state.column_width_overrides);
         let row_heights = self.get_row_heights(self.rows, &column_widths, state.enable_line_wrap);
         ViewLayout {
             column_widths,
@@ -601,7 +644,11 @@ impl<'a> StatefulWidget for CsvTable<'a> {
             row_num_section_width,
             y_header,
             RowType::Header,
-            &self.header,
+            &self
+                .header
+                .iter()
+                .map(|h| h.name.clone())
+                .collect::<Vec<String>>(),
             None,
             &layout,
             None,
@@ -860,6 +907,7 @@ pub struct CsvTableState {
     pub ignore_case: bool,
     pub view_layout: Option<ViewLayout>,
     pub enable_line_wrap: bool,
+    pub column_width_overrides: ColumnWidthOverrides,
     pub debug: String,
 }
 
@@ -890,6 +938,7 @@ impl CsvTableState {
             ignore_case,
             view_layout: None,
             enable_line_wrap: false,
+            column_width_overrides: ColumnWidthOverrides::new(),
             debug: "".into(),
         }
     }

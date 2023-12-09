@@ -235,9 +235,16 @@ impl Selection {
     }
 }
 
+#[derive(Debug)]
+pub struct Header {
+    pub name: String,
+    pub origin_index: usize,
+}
+
 pub struct RowsView {
     reader: CsvLensReader,
     rows: Vec<Row>,
+    headers: Vec<Header>,
     num_rows: u64,
     num_rows_rendered: u64,
     rows_from: u64,
@@ -252,9 +259,11 @@ impl RowsView {
     pub fn new(mut reader: CsvLensReader, num_rows: u64) -> Result<RowsView> {
         let rows_from = 0;
         let rows = reader.get_rows(rows_from, num_rows)?;
+        let headers = Self::get_default_headers_from_reader(&reader);
         let view = Self {
             reader,
             rows,
+            headers,
             num_rows,
             num_rows_rendered: num_rows,
             rows_from,
@@ -267,12 +276,8 @@ impl RowsView {
         Ok(view)
     }
 
-    pub fn headers(&self) -> &Vec<String> {
-        if let Some(columns_filter) = &self.columns_filter {
-            columns_filter.filtered_headers()
-        } else {
-            &self.reader.headers
-        }
+    pub fn headers(&self) -> &Vec<Header> {
+        &self.headers
     }
 
     pub fn rows(&self) -> &Vec<Row> {
@@ -281,7 +286,9 @@ impl RowsView {
 
     pub fn get_cell_value(&self, column_name: &str) -> Option<String> {
         if let (Some(column_index), Some(row_index)) = (
-            self.headers().iter().position(|col| col == column_name),
+            self.headers()
+                .iter()
+                .position(|header| header.name == column_name),
             self.selection.row.index(),
         ) {
             return self
@@ -367,13 +374,40 @@ impl RowsView {
     }
 
     pub fn set_columns_filter(&mut self, target: Regex) -> Result<()> {
-        self.columns_filter = Some(ColumnsFilter::new(target, &self.reader.headers));
+        let _columns_filter = ColumnsFilter::new(target, &self.reader.headers);
+        self.headers = _columns_filter
+            .indices()
+            .iter()
+            .zip(_columns_filter.filtered_headers())
+            .map(|(i, h)| Header {
+                name: h.clone(),
+                origin_index: *i,
+            })
+            .collect();
+        self.columns_filter = Some(_columns_filter);
         self.do_get_rows()
     }
 
     pub fn reset_columns_filter(&mut self) -> Result<()> {
         self.columns_filter = None;
+        self.headers = Self::get_default_headers_from_reader(&self.reader);
         self.do_get_rows()
+    }
+
+    pub fn get_column_origin_index(&self, column_index: usize) -> usize {
+        self.headers[column_index].origin_index
+    }
+
+    fn get_default_headers_from_reader(reader: &CsvLensReader) -> Vec<Header> {
+        reader
+            .headers
+            .iter()
+            .enumerate()
+            .map(|(i, h)| Header {
+                name: h.clone(),
+                origin_index: i,
+            })
+            .collect::<Vec<_>>()
     }
 
     pub fn rows_from(&self) -> u64 {

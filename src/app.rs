@@ -137,7 +137,7 @@ impl App {
 
         if let Some(column_name) = &echo_column {
             ensure!(
-                rows_view.headers().contains(column_name),
+                rows_view.headers().iter().any(|h| h.name == *column_name),
                 format!("Column name not found: {column_name}"),
             );
         }
@@ -392,6 +392,12 @@ impl App {
                         .replace("Line wrap enabled".to_string());
                 }
             }
+            Control::IncreaseWidth => {
+                self.adjust_column_width(4);
+            }
+            Control::DecreaseWidth => {
+                self.adjust_column_width(-4);
+            }
             Control::UnknownOption(s) => {
                 self.csv_table_state.reset_buffer();
                 self.transient_message
@@ -467,7 +473,7 @@ impl App {
 
         self.csv_table_state.transient_message = self.transient_message.clone();
 
-        // self.csv_table_state.debug = format!("{:?}", self.rows_view.num_rows());
+        // self.csv_table_state.debug = format!("{:?}", self.csv_table_state.column_width_overrides);
 
         Ok(())
     }
@@ -492,6 +498,27 @@ impl App {
     fn decrease_cols_offset(&mut self) {
         let new_cols_offset = self.rows_view.cols_offset().saturating_sub(1);
         self.rows_view.set_cols_offset(new_cols_offset);
+    }
+
+    fn adjust_column_width(&mut self, delta: i16) {
+        // local index as in local to the view port
+        if let Some(local_column_index) = self.rows_view.selection.column.index() {
+            let column_index = local_column_index.saturating_add(self.csv_table_state.cols_offset);
+
+            if let Some(view_layout) = &mut self.csv_table_state.view_layout {
+                let current_width = view_layout.column_widths[column_index as usize];
+                let new_width = (current_width as i16).saturating_add(delta);
+
+                if new_width > 0 {
+                    let origin_index = self
+                        .rows_view
+                        .get_column_origin_index(column_index as usize);
+                    self.csv_table_state
+                        .column_width_overrides
+                        .set(origin_index, new_width as u16);
+                }
+            }
+        }
     }
 
     fn render_frame<B: Backend>(&mut self, f: &mut Frame<B>) {

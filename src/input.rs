@@ -20,6 +20,8 @@ pub enum Control {
     ScrollTo(usize),
     ScrollToNextFound,
     ScrollToPrevFound,
+    IncreaseWidth,
+    DecreaseWidth,
     Find(String),
     Filter(String),
     FilterColumns(String),
@@ -29,6 +31,7 @@ pub enum Control {
     Select,
     ToggleSelectionType,
     ToggleLineWrap,
+    Reset,
     Help,
     UnknownOption(String),
     Nothing,
@@ -145,6 +148,9 @@ impl InputHandler {
                 }
                 KeyCode::Enter => Control::Select,
                 KeyCode::Tab => Control::ToggleSelectionType,
+                KeyCode::Char('>') => Control::IncreaseWidth,
+                KeyCode::Char('<') => Control::DecreaseWidth,
+                KeyCode::Char('r') => Control::Reset,
                 _ => Control::Nothing,
             },
             KeyModifiers::CONTROL => match key_event.code {
