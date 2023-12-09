@@ -46,6 +46,10 @@ impl ColumnWidthOverrides {
     pub fn overriden_indices(&self) -> Vec<usize> {
         self.overrides.keys().cloned().collect()
     }
+
+    pub fn reset(&mut self) {
+        self.overrides.clear();
+    }
 }
 
 #[derive(Debug)]

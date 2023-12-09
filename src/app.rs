@@ -370,11 +370,7 @@ impl App {
             }
             Control::BufferReset => {
                 self.csv_table_state.reset_buffer();
-                if self.finder.is_some() {
-                    self.finder = None;
-                    self.csv_table_state.finder_state = FinderState::FinderInactive;
-                    self.rows_view.reset_filter().unwrap();
-                }
+                self.reset_filter();
                 self.rows_view.reset_columns_filter().unwrap();
             }
             Control::ToggleSelectionType => {
@@ -397,6 +393,11 @@ impl App {
             }
             Control::DecreaseWidth => {
                 self.adjust_column_width(-4);
+            }
+            Control::Reset => {
+                self.csv_table_state.column_width_overrides.reset();
+                self.reset_filter();
+                self.rows_view.reset_columns_filter().unwrap();
             }
             Control::UnknownOption(s) => {
                 self.csv_table_state.reset_buffer();
@@ -518,6 +519,14 @@ impl App {
                         .set(origin_index, new_width as u16);
                 }
             }
+        }
+    }
+
+    fn reset_filter(&mut self) {
+        if self.finder.is_some() {
+            self.finder = None;
+            self.csv_table_state.finder_state = FinderState::FinderInactive;
+            self.rows_view.reset_filter().unwrap();
         }
     }
 
