@@ -181,6 +181,7 @@ impl App {
             if matches!(control, Control::Quit) {
                 if self.help_page_state.is_active() {
                     self.help_page_state.deactivate();
+                    self.input_handler.exit_help_mode();
                 } else {
                     return Ok(None);
                 }
@@ -196,6 +197,7 @@ impl App {
             }
             if matches!(control, Control::Help) {
                 self.help_page_state.activate();
+                self.input_handler.enter_help_mode();
             }
             self.step(&control)?;
             self.draw(terminal)?;

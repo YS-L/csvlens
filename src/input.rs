@@ -56,6 +56,7 @@ pub enum InputMode {
     Filter,
     FilterColumns,
     Option,
+    Help,
 }
 
 pub struct BufferHistory {
@@ -97,7 +98,9 @@ impl InputHandler {
 
     pub fn next(&mut self) -> Control {
         if let CsvlensEvent::Input(key) = self.events.next().unwrap() {
-            if self.is_input_buffering() {
+            if self.is_help_mode() {
+                return self.handler_help(key);
+            } else if self.is_input_buffering() {
                 return self.handler_buffering(key);
             } else {
                 return self.handler_default(key);
@@ -280,6 +283,15 @@ impl InputHandler {
         }
     }
 
+    fn handler_help(&mut self, key_event: KeyEvent) -> Control {
+        match key_event.code {
+            KeyCode::Char('q') | KeyCode::Esc => Control::Quit,
+            KeyCode::Char('j') | KeyCode::Down => Control::ScrollDown,
+            KeyCode::Char('k') | KeyCode::Up => Control::ScrollUp,
+            _ => Control::Nothing,
+        }
+    }
+
     fn is_input_buffering(&self) -> bool {
         matches!(self.buffer_state, BufferState::Active(_))
     }
@@ -296,5 +308,17 @@ impl InputHandler {
 
     pub fn mode(&self) -> InputMode {
         self.mode
+    }
+
+    pub fn enter_help_mode(&mut self) {
+        self.mode = InputMode::Help;
+    }
+
+    pub fn exit_help_mode(&mut self) {
+        self.mode = InputMode::Default;
+    }
+
+    fn is_help_mode(&mut self) -> bool {
+        self.mode == InputMode::Help
     }
 }

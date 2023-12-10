@@ -527,7 +527,7 @@ impl<'a> CsvTable<'a> {
                     content = format_buffer("Columns regex");
                 }
                 InputMode::Option => content = format_buffer("Option"),
-                InputMode::Default => {}
+                _ => {}
             }
         } else {
             // Filename
