@@ -1,3 +1,13 @@
+# v0.4.0
+
+This release adds support for the following:
+
+* Show help page with key bindings (`H`)
+* Scroll to left most and right most columns (`Ctrl + ←`  or `Ctrl + →`)
+* Scroll forward and backward half a window (`Ctrl + d` or `Ctrl + u`)
+* Resize columns (`<` or `>`)
+* Reset to default view (`r`)
+
 # v0.3.2
 
 * Fix incorrectly truncated content due to highlighting
