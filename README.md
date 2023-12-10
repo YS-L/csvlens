@@ -40,8 +40,11 @@ Key | Action
 `&<regex>` | Filter rows using regex (show only matches)
 `*<regex>` | Filter columns using regex (show only matches)
 `TAB` | Toggle between row, column or cell selection modes
+`>` | Increase selected column's width
+`<` | Decrease selected column's width
 `Enter` (in Cell mode) | Print the selected cell to stdout and exit
 `-S` | Toggle line wrapping
+`r` | Reset to default view (clear all filters and custom column widths)
 `H` | Display help
 `q` | Exit
 

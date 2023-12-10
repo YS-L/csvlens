@@ -37,11 +37,14 @@ N (in Find mode)        : Jump to previous result
 # Selection modes
 
 TAB                     : Toggle between row, column or cell selection modes
+>                       : Increase selected column's width
+<                       : Decrease selected column's width
 Enter (in Cell mode)    : Print the selected cell to stdout and exit
 
 # Other options
 
 -S                      : Toggle line wrapping
+r                       : Reset to default view (clear all filters and custom column widths)
 H                       : Display this help
 q                       : Exit";
 
