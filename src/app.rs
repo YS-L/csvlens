@@ -1159,4 +1159,86 @@ mod tests {
         let lines = to_lines(&actual_buffer);
         assert_eq!(lines, expected);
     }
+
+    #[test]
+    fn test_resize_column() {
+        let mut app = App::new(
+            "tests/data/cities.csv",
+            Delimiter::Default,
+            None,
+            false,
+            None,
+            false,
+        )
+        .unwrap();
+        thread::sleep(time::Duration::from_millis(100));
+
+        let backend = TestBackend::new(80, 10);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        // Check column widths are adjusted correctly
+        step_and_draw(&mut app, &mut terminal, Control::ToggleSelectionType);
+        step_and_draw(&mut app, &mut terminal, Control::ScrollRight);
+        step_and_draw(&mut app, &mut terminal, Control::ScrollRight);
+        step_and_draw(&mut app, &mut terminal, Control::IncreaseWidth);
+        step_and_draw(&mut app, &mut terminal, Control::IncreaseWidth);
+        step_and_draw(&mut app, &mut terminal, Control::ScrollLeft);
+        step_and_draw(&mut app, &mut terminal, Control::DecreaseWidth);
+        let actual_buffer = terminal.backend().buffer().clone();
+        let lines = to_lines(&actual_buffer);
+        let expected = vec![
+            "────────────────────────────────────────────────────────────────────────────────",
+            "      LatD    …   LatS            NS    LonD    LonM    LonS    EW    City      ",
+            "───┬────────────────────────────────────────────────────────────────────────────",
+            "1  │  41      …   59              N     80      39      0       W     Young…    ",
+            "2  │  42      …   48              N     97      23      23            Yankt…    ",
+            "3  │  46      …   59              N     120     30      36      W     Yakima    ",
+            "4  │  42      …   12              N     71      48      0       W     Worce…    ",
+            "5  │  43      …   48              N     89      46      11      W     Wisco…    ",
+            "───┴────────────────────────────────────────────────────────────────────────────",
+            "stdin [Row 1/128, Col 1/10]                                                     ",
+        ];
+        assert_eq!(lines, expected);
+
+        // Check overridden column widths still have  when columns are filtered
+        step_and_draw(
+            &mut app,
+            &mut terminal,
+            Control::FilterColumns("Lat".into()),
+        );
+        thread::sleep(time::Duration::from_millis(100));
+        let actual_buffer = terminal.backend().buffer().clone();
+        let lines = to_lines(&actual_buffer);
+        let expected = vec![
+            "────────────────────────────────────────────────────────────────────────────────",
+            "      LatD    …   LatS                                                          ",
+            "───┬──────────────────────────────┬─────────────────────────────────────────────",
+            "1  │  41      …   59              │                                             ",
+            "2  │  42      …   48              │                                             ",
+            "3  │  46      …   59              │                                             ",
+            "4  │  42      …   12              │                                             ",
+            "5  │  43      …   48              │                                             ",
+            "───┴──────────────────────────────┴─────────────────────────────────────────────",
+            "stdin [Row 1/128, Col 1/3] [Filter \"Lat\": 3/10 cols]                            ",
+        ];
+        assert_eq!(lines, expected);
+
+        // Check reset
+        step_and_draw(&mut app, &mut terminal, Control::Reset);
+        let actual_buffer = terminal.backend().buffer().clone();
+        let lines = to_lines(&actual_buffer);
+        let expected = vec![
+            "────────────────────────────────────────────────────────────────────────────────",
+            "      LatD    LatM    LatS    NS    LonD    LonM    LonS    EW    City          ",
+            "───┬────────────────────────────────────────────────────────────────────────────",
+            "1  │  41      5       59      N     80      39      0       W     Youngstown    ",
+            "2  │  42      52      48      N     97      23      23            Yankton       ",
+            "3  │  46      35      59      N     120     30      36      W     Yakima        ",
+            "4  │  42      16      12      N     71      48      0       W     Worcester     ",
+            "5  │  43      37      48      N     89      46      11      W     Wisconsin…    ",
+            "───┴────────────────────────────────────────────────────────────────────────────",
+            "stdin [Row 1/128, Col 1/10]                                                     ",
+        ];
+        assert_eq!(lines, expected);
+    }
 }
