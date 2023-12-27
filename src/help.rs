@@ -1,8 +1,8 @@
-use tui::{
+use ratatui::{
     buffer::Buffer,
     layout::Rect,
     style::{Color, Modifier, Style},
-    text::{Span, Spans},
+    text::{Line, Span},
     widgets::{Block, Borders, Paragraph, StatefulWidget, Widget, Wrap},
 };
 
@@ -118,9 +118,9 @@ impl StatefulWidget for HelpPage {
             }
         }
 
-        let text: Vec<Spans> = HELP_CONTENT
+        let text: Vec<Line> = HELP_CONTENT
             .split('\n')
-            .map(|s| Spans::from(line_to_span(s)))
+            .map(|s| Line::from(line_to_span(s)))
             .collect();
 
         // Minus 2 to account for borders.

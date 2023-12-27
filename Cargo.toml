@@ -15,8 +15,8 @@ edition = "2021"
 
 [dependencies]
 csv = "1.2"
-tui = "0.19"
-crossterm = { version = "0.26.1", features = ["use-dev-tty"] }
+ratatui = "0.25.0"
+crossterm = { version = "0.27.0", features = ["use-dev-tty"] }
 anyhow = "1.0"
 clap = { version = "4.2", features = ["derive"] }
 tempfile = "3.5"
@@ -24,7 +24,7 @@ regex = "1.8"
 csv-sniffer = "0.3.1"
 
 [target.'cfg(windows)'.dependencies]
-crossterm = "0.25"
+crossterm = "0.27.0"
 
 # The profile that 'cargo dist' will build with
 [profile.dist]

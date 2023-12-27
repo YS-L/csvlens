@@ -9,8 +9,8 @@ use crate::ui::{CsvTable, CsvTableState, FilterColumnsState, FinderState};
 use crate::view;
 
 use anyhow::ensure;
-use tui::backend::Backend;
-use tui::{Frame, Terminal};
+use ratatui::backend::Backend;
+use ratatui::{Frame, Terminal};
 
 use anyhow::{Context, Result};
 use regex::Regex;
@@ -532,7 +532,7 @@ impl App {
         }
     }
 
-    fn render_frame<B: Backend>(&mut self, f: &mut Frame<B>) {
+    fn render_frame(&mut self, f: &mut Frame) {
         let size = f.size();
 
         // Render help; if so exit early.
@@ -573,16 +573,16 @@ mod tests {
     use std::thread;
 
     use super::*;
-    use tui::backend::TestBackend;
-    use tui::buffer::Buffer;
+    use ratatui::backend::TestBackend;
+    use ratatui::buffer::Buffer;
 
     fn to_lines(buf: &Buffer) -> Vec<String> {
         let mut symbols: String = "".to_owned();
         let area = buf.area();
         for y in 0..area.bottom() {
             for x in 0..area.right() {
-                let symbol = buf.get(x, y).symbol.clone();
-                symbols.push_str(&symbol);
+                let symbol = buf.get(x, y).symbol();
+                symbols.push_str(symbol);
             }
             if y != area.bottom() - 1 {
                 symbols.push('\n');

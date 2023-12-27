@@ -1,9 +1,6 @@
 use std::time::{Duration, Instant};
 
-use crossterm::{
-    event::{poll, read, Event, KeyCode, KeyEvent},
-    ErrorKind,
-};
+use crossterm::event::{poll, read, Event, KeyCode, KeyEvent};
 
 pub enum CsvlensEvent<I> {
     Input(I),
@@ -42,7 +39,7 @@ impl CsvlensEvents {
         }
     }
 
-    pub fn next(&self) -> Result<CsvlensEvent<KeyEvent>, ErrorKind> {
+    pub fn next(&self) -> std::io::Result<CsvlensEvent<KeyEvent>> {
         let now = Instant::now();
         match poll(self.tick_rate) {
             Ok(true) => {
