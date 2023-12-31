@@ -4,14 +4,14 @@ use crate::input::InputMode;
 use crate::view;
 use crate::view::Header;
 use crate::wrap;
+use ratatui::buffer::Buffer;
+use ratatui::layout::Rect;
+use ratatui::style::{Color, Modifier, Style};
+use ratatui::symbols::line;
+use ratatui::text::{Line, Span};
+use ratatui::widgets::Widget;
+use ratatui::widgets::{Block, Borders, StatefulWidget};
 use regex::Regex;
-use tui::buffer::Buffer;
-use tui::layout::Rect;
-use tui::style::{Color, Modifier, Style};
-use tui::symbols::line;
-use tui::text::{Span, Spans};
-use tui::widgets::Widget;
-use tui::widgets::{Block, Borders, StatefulWidget};
 
 use std::cmp::{max, min};
 use std::collections::HashMap;
@@ -457,32 +457,31 @@ impl<'a> CsvTable<'a> {
             NUM_SPACES_BETWEEN_COLUMNS
         } as usize;
 
-        let mut spans_wrapper = wrap::SpansWrapper::new(spans, effective_width as usize);
+        let mut line_wrapper = wrap::LineWrapper::new(spans, effective_width as usize);
 
         for offset in 0..height {
-            if let Some(mut spans) = spans_wrapper.next() {
+            if let Some(mut line) = line_wrapper.next() {
                 // There is some content to render. Truncate with ... if there is no more vertical
                 // space available.
-                if offset == height - 1 && !spans_wrapper.finished() {
-                    if let Some(last_span) = spans.0.pop() {
+                if offset == height - 1 && !line_wrapper.finished() {
+                    if let Some(last_span) = line.spans.pop() {
                         let truncate_length = last_span.width().saturating_sub(SUFFIX_LEN as usize);
                         let truncated_content: String =
                             last_span.content.chars().take(truncate_length).collect();
                         let truncated_span = Span::styled(truncated_content, last_span.style);
-                        spans.0.push(truncated_span);
-                        spans.0.push(Span::styled(SUFFIX, last_span.style));
+                        line.spans.push(truncated_span);
+                        line.spans.push(Span::styled(SUFFIX, last_span.style));
                     }
                 }
                 let padding_width = min(
-                    (effective_width as usize).saturating_sub(spans.width()) + buffer_space,
+                    (effective_width as usize).saturating_sub(line.width()) + buffer_space,
                     width as usize,
                 );
                 if padding_width > 0 {
-                    spans
-                        .0
+                    line.spans
                         .push(Span::styled(" ".repeat(padding_width), filler_style.style));
                 }
-                buf.set_spans(x, y + offset, &spans, width);
+                buf.set_line(x, y + offset, &line, width);
             } else {
                 // There are extra vertical spaces that are just empty lines. Fill them with the
                 // correct style.
@@ -491,7 +490,7 @@ impl<'a> CsvTable<'a> {
 
                 // It's possible that no spans are yielded due to insufficient remaining width.
                 // Render ... in this case.
-                if !spans_wrapper.finished() {
+                if !line_wrapper.finished() {
                     let truncated_content: String = content
                         .chars()
                         .take(content.len().saturating_sub(1))
@@ -499,7 +498,7 @@ impl<'a> CsvTable<'a> {
                     content = format!("{SUFFIX}{}", truncated_content.as_str());
                 }
                 let span = Span::styled(content, filler_style.style);
-                buf.set_spans(x, y + offset, &Spans::from(vec![span]), width);
+                buf.set_line(x, y + offset, &Line::from(vec![span]), width);
             }
         }
     }

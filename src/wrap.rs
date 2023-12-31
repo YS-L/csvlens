@@ -1,15 +1,15 @@
-use tui::text::{Span, Spans};
+use ratatui::text::{Line, Span};
 
-pub struct SpansWrapper<'a> {
+pub struct LineWrapper<'a> {
     spans: &'a [Span<'a>],
     max_width: usize,
     index: usize,
     pending: Option<Span<'a>>,
 }
 
-impl<'a> SpansWrapper<'a> {
+impl<'a> LineWrapper<'a> {
     pub fn new(spans: &'a [Span<'a>], max_width: usize) -> Self {
-        SpansWrapper {
+        LineWrapper {
             spans,
             max_width,
             index: 0,
@@ -17,7 +17,7 @@ impl<'a> SpansWrapper<'a> {
         }
     }
 
-    pub fn next(&mut self) -> Option<Spans<'a>> {
+    pub fn next(&mut self) -> Option<Line<'a>> {
         let mut out_spans = vec![];
         let mut remaining_width = self.max_width;
         loop {
@@ -70,7 +70,7 @@ impl<'a> SpansWrapper<'a> {
         if out_spans.is_empty() {
             return None;
         }
-        Some(Spans::from(out_spans))
+        Some(Line::from(out_spans))
     }
 
     pub fn finished(&self) -> bool {
@@ -82,14 +82,14 @@ impl<'a> SpansWrapper<'a> {
 mod tests {
 
     use super::*;
-    use tui::style::{Color, Style};
+    use ratatui::style::{Color, Style};
 
     #[test]
     fn test_no_wrapping() {
         let s = Span::raw("hello");
         let spans = vec![s.clone()];
-        let mut wrapper = SpansWrapper::new(&spans, 10);
-        assert_eq!(wrapper.next(), Some(Spans::from(vec![s.clone()])));
+        let mut wrapper = LineWrapper::new(&spans, 10);
+        assert_eq!(wrapper.next(), Some(Line::from(vec![s.clone()])));
         assert_eq!(wrapper.next(), None);
     }
 
@@ -97,10 +97,10 @@ mod tests {
     fn test_with_wrapping() {
         let s = Span::raw("hello");
         let spans = vec![s.clone()];
-        let mut wrapper = SpansWrapper::new(&spans, 2);
-        assert_eq!(wrapper.next(), Some(Spans::from(vec![Span::raw("he")])));
-        assert_eq!(wrapper.next(), Some(Spans::from(vec![Span::raw("ll")])));
-        assert_eq!(wrapper.next(), Some(Spans::from(vec![Span::raw("o")])));
+        let mut wrapper = LineWrapper::new(&spans, 2);
+        assert_eq!(wrapper.next(), Some(Line::from(vec![Span::raw("he")])));
+        assert_eq!(wrapper.next(), Some(Line::from(vec![Span::raw("ll")])));
+        assert_eq!(wrapper.next(), Some(Line::from(vec![Span::raw("o")])));
         assert_eq!(wrapper.next(), None);
     }
 
@@ -108,9 +108,9 @@ mod tests {
     fn test_new_lines_before_max_width() {
         let s = Span::raw("hello\nworld");
         let spans = vec![s.clone()];
-        let mut wrapper = SpansWrapper::new(&spans, 10);
-        assert_eq!(wrapper.next(), Some(Spans::from(vec![Span::raw("hello")])));
-        assert_eq!(wrapper.next(), Some(Spans::from(vec![Span::raw("world")])));
+        let mut wrapper = LineWrapper::new(&spans, 10);
+        assert_eq!(wrapper.next(), Some(Line::from(vec![Span::raw("hello")])));
+        assert_eq!(wrapper.next(), Some(Line::from(vec![Span::raw("world")])));
         assert_eq!(wrapper.next(), None);
     }
 
@@ -118,11 +118,11 @@ mod tests {
     fn test_new_lines_after_max_width() {
         let s = Span::raw("hello\nworld");
         let spans = vec![s.clone()];
-        let mut wrapper = SpansWrapper::new(&spans, 3);
-        assert_eq!(wrapper.next(), Some(Spans::from(vec![Span::raw("hel")])));
-        assert_eq!(wrapper.next(), Some(Spans::from(vec![Span::raw("lo")])));
-        assert_eq!(wrapper.next(), Some(Spans::from(vec![Span::raw("wor")])));
-        assert_eq!(wrapper.next(), Some(Spans::from(vec![Span::raw("ld")])));
+        let mut wrapper = LineWrapper::new(&spans, 3);
+        assert_eq!(wrapper.next(), Some(Line::from(vec![Span::raw("hel")])));
+        assert_eq!(wrapper.next(), Some(Line::from(vec![Span::raw("lo")])));
+        assert_eq!(wrapper.next(), Some(Line::from(vec![Span::raw("wor")])));
+        assert_eq!(wrapper.next(), Some(Line::from(vec![Span::raw("ld")])));
         assert_eq!(wrapper.next(), None);
     }
 
@@ -134,16 +134,16 @@ mod tests {
             Span::styled("my", style),
             Span::raw("world"),
         ];
-        let mut wrapper = SpansWrapper::new(&spans, 5);
-        assert_eq!(wrapper.next(), Some(Spans::from(vec![Span::raw("hello")])));
+        let mut wrapper = LineWrapper::new(&spans, 5);
+        assert_eq!(wrapper.next(), Some(Line::from(vec![Span::raw("hello")])));
         assert_eq!(
             wrapper.next(),
-            Some(Spans::from(vec![
+            Some(Line::from(vec![
                 Span::styled("my", style),
                 Span::raw("wor")
             ]))
         );
-        assert_eq!(wrapper.next(), Some(Spans::from(vec![Span::raw("ld")])));
+        assert_eq!(wrapper.next(), Some(Line::from(vec![Span::raw("ld")])));
         assert_eq!(wrapper.next(), None);
     }
 
@@ -155,20 +155,20 @@ mod tests {
             Span::styled("m\ny", style),
             Span::raw("world"),
         ];
-        let mut wrapper = SpansWrapper::new(&spans, 5);
-        assert_eq!(wrapper.next(), Some(Spans::from(vec![Span::raw("hello")])));
+        let mut wrapper = LineWrapper::new(&spans, 5);
+        assert_eq!(wrapper.next(), Some(Line::from(vec![Span::raw("hello")])));
         assert_eq!(
             wrapper.next(),
-            Some(Spans::from(vec![Span::styled("m", style)]))
+            Some(Line::from(vec![Span::styled("m", style)]))
         );
         assert_eq!(
             wrapper.next(),
-            Some(Spans::from(vec![
+            Some(Line::from(vec![
                 Span::styled("y", style),
                 Span::raw("worl")
             ]))
         );
-        assert_eq!(wrapper.next(), Some(Spans::from(vec![Span::raw("d")])));
+        assert_eq!(wrapper.next(), Some(Line::from(vec![Span::raw("d")])));
         assert_eq!(wrapper.next(), None);
     }
 
@@ -176,10 +176,10 @@ mod tests {
     fn test_unicode() {
         let s = Span::raw("héllo");
         let spans = vec![s.clone()];
-        let mut wrapper = SpansWrapper::new(&spans, 2);
-        assert_eq!(wrapper.next(), Some(Spans::from(vec![Span::raw("hé")])));
-        assert_eq!(wrapper.next(), Some(Spans::from(vec![Span::raw("ll")])));
-        assert_eq!(wrapper.next(), Some(Spans::from(vec![Span::raw("o")])));
+        let mut wrapper = LineWrapper::new(&spans, 2);
+        assert_eq!(wrapper.next(), Some(Line::from(vec![Span::raw("hé")])));
+        assert_eq!(wrapper.next(), Some(Line::from(vec![Span::raw("ll")])));
+        assert_eq!(wrapper.next(), Some(Line::from(vec![Span::raw("o")])));
         assert_eq!(wrapper.next(), None);
     }
 }

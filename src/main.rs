@@ -20,13 +20,13 @@ use crossterm::execute;
 use crossterm::terminal::{
     disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
 };
+use ratatui::backend::CrosstermBackend;
+use ratatui::Terminal;
 use std::fs::File;
 use std::io::{self, Read, Seek, SeekFrom, Write};
 use std::panic;
 use std::thread::panicking;
 use tempfile::NamedTempFile;
-use tui::backend::CrosstermBackend;
-use tui::Terminal;
 
 struct SeekableFile {
     filename: Option<String>,
