@@ -366,9 +366,9 @@ impl App {
                 self.csv_table_state.reset_buffer();
                 self.csv_table_state.set_cols_offset(0);
             }
-            Control::BufferContent(buf) => {
+            Control::BufferContent(input) => {
                 self.csv_table_state
-                    .set_buffer(self.input_handler.mode(), buf.as_str());
+                    .set_buffer(self.input_handler.mode(), input.clone());
             }
             Control::BufferReset => {
                 self.csv_table_state.reset_buffer();

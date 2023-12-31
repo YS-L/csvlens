@@ -1,6 +1,8 @@
 use crate::util::events::{CsvlensEvent, CsvlensEvents};
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
 use std::collections::HashMap;
+use tui_input::backend::crossterm::EventHandler;
+use tui_input::Input;
 
 pub enum Control {
     ScrollUp,
@@ -26,7 +28,7 @@ pub enum Control {
     Filter(String),
     FilterColumns(String),
     Quit,
-    BufferContent(String),
+    BufferContent(Input),
     BufferReset,
     Select,
     ToggleSelectionType,
@@ -44,7 +46,7 @@ impl Control {
 }
 
 enum BufferState {
-    Active(String),
+    Active(Input),
     Inactive,
 }
 
@@ -129,9 +131,9 @@ impl InputHandler {
                 KeyCode::Char('d') => Control::ScrollHalfPageDown,
                 KeyCode::Char('u') => Control::ScrollHalfPageUp,
                 KeyCode::Char(x) if "0123456789".contains(x.to_string().as_str()) => {
-                    self.buffer_state = BufferState::Active(x.to_string());
+                    self.buffer_state = BufferState::Active(Input::new(x.to_string()));
                     self.mode = InputMode::GotoLine;
-                    Control::BufferContent(x.to_string())
+                    Control::BufferContent(Input::new(x.to_string()))
                 }
                 KeyCode::Char('/') => {
                     self.init_buffer(InputMode::Find);
@@ -172,9 +174,9 @@ impl InputHandler {
     }
 
     fn handler_buffering(&mut self, key_event: KeyEvent) -> Control {
-        let cur_buffer = match &self.buffer_state {
-            BufferState::Active(buffer) => buffer.as_str(),
-            BufferState::Inactive => "",
+        let input = match &mut self.buffer_state {
+            BufferState::Active(input) => input,
+            BufferState::Inactive => return Control::Nothing,
         };
         // SHIFT needed to capture capitalised characters
         if key_event.modifiers != KeyModifiers::NONE && key_event.modifiers != KeyModifiers::SHIFT {
@@ -188,21 +190,9 @@ impl InputHandler {
                 self.reset_buffer();
                 Control::BufferReset
             }
-            KeyCode::Backspace => {
-                let new_buffer = match &self.buffer_state {
-                    BufferState::Active(buffer) => {
-                        let mut chars = buffer.chars();
-                        chars.next_back();
-                        chars.as_str().to_owned()
-                    }
-                    BufferState::Inactive => "".to_owned(),
-                };
-                self.buffer_state = BufferState::Active(new_buffer.clone());
-                Control::BufferContent(new_buffer)
-            }
             KeyCode::Char('g' | 'G') | KeyCode::Enter if self.mode == InputMode::GotoLine => {
                 let goto_line = match &self.buffer_state {
-                    BufferState::Active(buf) => buf.parse::<usize>().ok(),
+                    BufferState::Active(input) => input.value().parse::<usize>().ok(),
                     BufferState::Inactive => None,
                 };
                 let res = if let Some(n) = goto_line {
@@ -219,49 +209,40 @@ impl InputHandler {
                     _ => self.mode,
                 };
                 if let Some(buf) = self.buffer_history.get(mode) {
-                    self.buffer_state = BufferState::Active(buf.clone());
-                    Control::BufferContent(buf)
+                    self.buffer_state = BufferState::Active(Input::new(buf.clone()));
+                    Control::BufferContent(Input::new(buf))
                 } else {
                     Control::Nothing
                 }
             }
             KeyCode::Enter => {
                 let control;
-                if cur_buffer.is_empty() {
+                if input.value().is_empty() {
                     control = Control::BufferReset;
                 } else if self.mode == InputMode::Find {
-                    control = Control::Find(cur_buffer.to_string());
+                    control = Control::Find(input.value().to_string());
                 } else if self.mode == InputMode::Filter {
-                    control = Control::Filter(cur_buffer.to_string());
+                    control = Control::Filter(input.value().to_string());
                 } else if self.mode == InputMode::FilterColumns {
-                    control = Control::FilterColumns(cur_buffer.to_string());
+                    control = Control::FilterColumns(input.value().to_string());
                 } else {
                     control = Control::BufferReset;
                 }
                 if self.mode == InputMode::Filter {
                     // Share buffer history between Find and Filter, see also KeyCode::Up
-                    self.buffer_history.set(InputMode::Find, cur_buffer);
+                    self.buffer_history.set(InputMode::Find, input.value());
                 } else {
-                    self.buffer_history.set(self.mode, cur_buffer);
+                    self.buffer_history.set(self.mode, input.value());
                 }
                 self.reset_buffer();
                 control
             }
-            KeyCode::Char('/') => {
-                if cur_buffer.is_empty() && self.mode == InputMode::Find {
-                    self.mode = InputMode::Filter;
+            _ => {
+                if input.handle_event(&Event::Key(key_event)).is_some() {
+                    return Control::BufferContent(input.clone());
                 }
-                Control::BufferContent("".to_string())
+                Control::Nothing
             }
-            KeyCode::Char(x) => {
-                let new_buffer = match &self.buffer_state {
-                    BufferState::Active(buffer) => buffer.to_owned() + x.to_string().as_str(),
-                    BufferState::Inactive => x.to_string(),
-                };
-                self.buffer_state = BufferState::Active(new_buffer.clone());
-                Control::BufferContent(new_buffer)
-            }
-            _ => Control::Nothing,
         }
     }
 
@@ -297,7 +278,7 @@ impl InputHandler {
     }
 
     fn init_buffer(&mut self, mode: InputMode) {
-        self.buffer_state = BufferState::Active("".into());
+        self.buffer_state = BufferState::Active(Input::default());
         self.mode = mode;
     }
 

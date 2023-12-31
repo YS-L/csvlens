@@ -12,6 +12,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::Widget;
 use ratatui::widgets::{Block, Borders, StatefulWidget};
 use regex::Regex;
+use tui_input::Input;
 
 use std::cmp::{max, min};
 use std::collections::HashMap;
@@ -503,15 +504,26 @@ impl<'a> CsvTable<'a> {
         }
     }
 
+    fn format_input(&self, input: &Input) -> String {
+        let chars_before: String = input.value().chars().take(input.cursor()).collect();
+        let chars_after: String = input.value().chars().skip(input.cursor()).collect();
+        format!("{chars_before}❙{chars_after}")
+    }
+
     fn render_status(&self, area: Rect, buf: &mut Buffer, state: &mut CsvTableState) {
         // Content of status line (separator already plotted elsewhere)
         let style = Style::default().fg(Color::Rgb(128, 128, 128));
         let mut content: String;
         if let Some(msg) = &state.transient_message {
             content = msg.to_owned();
-        } else if let BufferState::Enabled(buffer_mode, buf) = &state.buffer_content {
-            content = buf.to_owned();
-            let format_buffer = |prefix: &str| format!("{prefix}: {content}█");
+        } else if let BufferState::Enabled(buffer_mode, input) = &state.buffer_content {
+            content = input.value().to_string();
+            let format_buffer = |prefix: &str| {
+                format!(
+                    "{prefix}: {formatted_input}",
+                    formatted_input = self.format_input(input)
+                )
+            };
             match buffer_mode {
                 InputMode::GotoLine => {
                     content = format_buffer("Go to line");
@@ -733,7 +745,7 @@ impl ViewLayout {
 
 pub enum BufferState {
     Disabled,
-    Enabled(InputMode, String),
+    Enabled(InputMode, Input),
 }
 
 pub enum FinderState {
@@ -974,8 +986,8 @@ impl CsvTableState {
         self.total_cols = n;
     }
 
-    pub fn set_buffer(&mut self, mode: InputMode, buf: &str) {
-        self.buffer_content = BufferState::Enabled(mode, buf.to_string());
+    pub fn set_buffer(&mut self, mode: InputMode, input: Input) {
+        self.buffer_content = BufferState::Enabled(mode, input);
     }
 
     pub fn reset_buffer(&mut self) {
