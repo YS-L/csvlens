@@ -1,6 +1,6 @@
 use crate::util::events::{CsvlensEvent, CsvlensEvents};
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
-use std::collections::hash_map::Entry::Vacant;
+use std::collections::hash_map::Entry::{Occupied, Vacant};
 use std::collections::HashMap;
 use tui_input::backend::crossterm::EventHandler;
 use tui_input::Input;
@@ -121,12 +121,13 @@ impl BufferHistoryContainer {
     }
 
     fn set(&mut self, input_mode: InputMode, content: &str) {
-        if let Vacant(e) = self.inner.entry(input_mode) {
-            e.insert(BufferHistory::new_with(content));
-        } else {
-            // TODO: rewrite without unwrap?
-            let history = self.inner.get_mut(&input_mode).unwrap();
-            history.push(content);
+        match self.inner.entry(input_mode) {
+            Occupied(mut e) => {
+                e.get_mut().push(content);
+            }
+            Vacant(e) => {
+                e.insert(BufferHistory::new_with(content));
+            }
         }
     }
 
