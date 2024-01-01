@@ -178,10 +178,6 @@ impl InputHandler {
             BufferState::Active(input) => input,
             BufferState::Inactive => return Control::Nothing,
         };
-        // SHIFT needed to capture capitalised characters
-        if key_event.modifiers != KeyModifiers::NONE && key_event.modifiers != KeyModifiers::SHIFT {
-            return Control::Nothing;
-        }
         if self.mode == InputMode::Option {
             return self.handler_buffering_option_mode(key_event);
         }

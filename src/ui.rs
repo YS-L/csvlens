@@ -507,7 +507,7 @@ impl<'a> CsvTable<'a> {
     fn format_input(&self, input: &Input) -> String {
         let chars_before: String = input.value().chars().take(input.cursor()).collect();
         let chars_after: String = input.value().chars().skip(input.cursor()).collect();
-        format!("{chars_before}❙{chars_after}")
+        format!("{chars_before}█{chars_after}")
     }
 
     fn render_status(&self, area: Rect, buf: &mut Buffer, state: &mut CsvTableState) {
