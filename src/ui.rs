@@ -1,6 +1,6 @@
+use crate::common::InputMode;
 use crate::csv::Row;
 use crate::find;
-use crate::input::InputMode;
 use crate::view;
 use crate::view::Header;
 use crate::wrap;

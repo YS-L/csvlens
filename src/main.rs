@@ -1,8 +1,10 @@
 mod app;
+mod common;
 mod csv;
 mod delimiter;
 mod find;
 mod help;
+mod history;
 mod input;
 mod ui;
 #[allow(dead_code)]
