@@ -1,5 +1,6 @@
 use crate::util::events::{CsvlensEvent, CsvlensEvents};
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
+use std::collections::hash_map::Entry::Vacant;
 use std::collections::HashMap;
 use tui_input::backend::crossterm::EventHandler;
 use tui_input::Input;
@@ -61,23 +62,90 @@ pub enum InputMode {
     Help,
 }
 
-pub struct BufferHistory {
-    inner: HashMap<InputMode, String>,
+struct BufferHistory {
+    buffers: Vec<String>,
+    cursor: usize,
 }
 
 impl BufferHistory {
-    fn new() -> Self {
+    fn new_with(buf: &str) -> Self {
         BufferHistory {
+            buffers: vec![buf.to_string()],
+            cursor: 1,
+        }
+    }
+
+    fn push(&mut self, buf: &str) {
+        if buf.is_empty() {
+            // Don't keep empty entries
+            return;
+        }
+        if let Some(index) = self.buffers.iter().position(|x| x == buf) {
+            // Don't keep duplicate entries
+            self.buffers.remove(index);
+        }
+        self.buffers.push(buf.to_string());
+        self.reset_cursor();
+    }
+
+    fn prev(&mut self) -> Option<String> {
+        if self.cursor == 0 {
+            return None;
+        }
+        self.cursor = self.cursor.saturating_sub(1);
+        Some(self.buffers[self.cursor].clone())
+    }
+
+    fn next(&mut self) -> Option<String> {
+        if self.cursor >= self.buffers.len() - 1 {
+            return None;
+        }
+        self.cursor = self.cursor.saturating_add(1);
+        Some(self.buffers[self.cursor].clone())
+    }
+
+    fn reset_cursor(&mut self) {
+        self.cursor = self.buffers.len();
+    }
+}
+
+pub struct BufferHistoryContainer {
+    inner: HashMap<InputMode, BufferHistory>,
+}
+
+impl BufferHistoryContainer {
+    fn new() -> Self {
+        BufferHistoryContainer {
             inner: HashMap::new(),
         }
     }
 
     fn set(&mut self, input_mode: InputMode, content: &str) {
-        self.inner.insert(input_mode, content.to_string());
+        if let Vacant(e) = self.inner.entry(input_mode) {
+            e.insert(BufferHistory::new_with(content));
+        } else {
+            // TODO: rewrite without unwrap?
+            let history = self.inner.get_mut(&input_mode).unwrap();
+            history.push(content);
+        }
     }
 
-    fn get(&mut self, input_mode: InputMode) -> Option<String> {
-        self.inner.get(&input_mode).cloned()
+    fn prev(&mut self, input_mode: InputMode) -> Option<String> {
+        self.inner
+            .get_mut(&input_mode)
+            .and_then(|history| history.prev())
+    }
+
+    fn next(&mut self, input_mode: InputMode) -> Option<String> {
+        self.inner
+            .get_mut(&input_mode)
+            .and_then(|history| history.next())
+    }
+
+    fn reset_cursors(&mut self) {
+        for (_, history) in self.inner.iter_mut() {
+            history.reset_cursor();
+        }
     }
 }
 
@@ -85,7 +153,7 @@ pub struct InputHandler {
     events: CsvlensEvents,
     mode: InputMode,
     buffer_state: BufferState,
-    buffer_history: BufferHistory,
+    buffer_history_container: BufferHistoryContainer,
 }
 
 impl InputHandler {
@@ -94,7 +162,7 @@ impl InputHandler {
             events: CsvlensEvents::new(),
             mode: InputMode::Default,
             buffer_state: BufferState::Inactive,
-            buffer_history: BufferHistory::new(),
+            buffer_history_container: BufferHistoryContainer::new(),
         }
     }
 
@@ -204,11 +272,24 @@ impl InputHandler {
                     InputMode::Filter => InputMode::Find,
                     _ => self.mode,
                 };
-                if let Some(buf) = self.buffer_history.get(mode) {
+                if let Some(buf) = self.buffer_history_container.prev(mode) {
                     self.buffer_state = BufferState::Active(Input::new(buf.clone()));
                     Control::BufferContent(Input::new(buf))
                 } else {
                     Control::Nothing
+                }
+            }
+            KeyCode::Down => {
+                let mode = match self.mode {
+                    InputMode::Filter => InputMode::Find,
+                    _ => self.mode,
+                };
+                if let Some(buf) = self.buffer_history_container.next(mode) {
+                    self.buffer_state = BufferState::Active(Input::new(buf.clone()));
+                    Control::BufferContent(Input::new(buf))
+                } else {
+                    self.buffer_state = BufferState::Active(Input::default());
+                    Control::BufferContent(Input::default())
                 }
             }
             KeyCode::Enter => {
@@ -226,9 +307,10 @@ impl InputHandler {
                 }
                 if self.mode == InputMode::Filter {
                     // Share buffer history between Find and Filter, see also KeyCode::Up
-                    self.buffer_history.set(InputMode::Find, input.value());
+                    self.buffer_history_container
+                        .set(InputMode::Find, input.value());
                 } else {
-                    self.buffer_history.set(self.mode, input.value());
+                    self.buffer_history_container.set(self.mode, input.value());
                 }
                 self.reset_buffer();
                 control
@@ -280,6 +362,7 @@ impl InputHandler {
 
     fn reset_buffer(&mut self) {
         self.buffer_state = BufferState::Inactive;
+        self.buffer_history_container.reset_cursors();
         self.mode = InputMode::Default;
     }
 
