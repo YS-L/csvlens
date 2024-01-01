@@ -1,3 +1,9 @@
+# v0.5.0
+
+* Migrate to Ratatui ([#42](https://github.com/YS-L/csvlens/pull/42) by @joshka)
+* Better readline support using tui-input (move cursor forward / backward, jump to the start, etc)
+* Improve buffer history to retrieve more than just the last input
+
 # v0.4.0
 
 This release adds support for the following:

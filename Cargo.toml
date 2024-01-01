@@ -1,6 +1,6 @@
 [package]
 name = "csvlens"
-version = "0.4.0"
+version = "0.5.0"
 authors = ["Yung Siang Liau <liauys@gmail.com>"]
 license = "MIT"
 description = "Command line csv viewer"
@@ -8,7 +8,7 @@ readme = "README.md"
 homepage = "https://github.com/YS-L/csvlens"
 repository = "https://github.com/YS-L/csvlens"
 exclude = [".github/*", "tests/*"]
-keywords = ["cli"]
+keywords = ["cli", "csv", "viewer", "pager", "tui"]
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
