@@ -1,3 +1,7 @@
+# v0.5.1
+
+* Fix panic caused by unicode and newline
+
 # v0.5.0
 
 * Migrate to Ratatui ([#42](https://github.com/YS-L/csvlens/pull/42) by @joshka)
