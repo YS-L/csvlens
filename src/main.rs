@@ -179,7 +179,7 @@ fn run_csvlens() -> Result<Option<String>> {
 fn main() {
     match run_csvlens() {
         Err(e) => {
-            println!("{e}");
+            println!("{e:?}");
             std::process::exit(1);
         }
         Ok(Some(selection)) => {
