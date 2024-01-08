@@ -11,6 +11,7 @@ mod ui;
 mod util;
 mod view;
 mod wrap;
+
 use crate::app::App;
 use crate::delimiter::Delimiter;
 
@@ -98,6 +99,10 @@ struct Args {
     #[clap(short, long)]
     delimiter: Option<String>,
 
+    /// Use tab separation. Shortcut for -d '<TAB>'.
+    #[clap(short = 't', long)]
+    tab_separated: bool,
+
     /// Searches ignore case. Ignored if any uppercase letters are present in the search string
     #[clap(short, long)]
     ignore_case: bool,
@@ -158,7 +163,7 @@ fn run_csvlens() -> Result<Option<String>> {
     let args = Args::parse();
 
     let show_stats = args.debug;
-    let delimiter = Delimiter::from_arg(&args.delimiter)?;
+    let delimiter = Delimiter::from_arg(&args.delimiter, args.tab_separated)?;
 
     let file = SeekableFile::new(&args.filename)?;
     let filename = file.filename();

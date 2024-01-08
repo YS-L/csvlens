@@ -14,7 +14,11 @@ pub enum Delimiter {
 
 impl Delimiter {
     /// Create a Delimiter by parsing the command line argument for the delimiter
-    pub fn from_arg(delimiter_arg: &Option<String>) -> Result<Self> {
+    pub fn from_arg(delimiter_arg: &Option<String>, tab_separation: bool) -> Result<Self> {
+        if tab_separation {
+            return Ok(Delimiter::Character('\t'.try_into()?));
+        }
+
         if let Some(s) = delimiter_arg {
             if s == "auto" {
                 return Ok(Delimiter::Auto);
