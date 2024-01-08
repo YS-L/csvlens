@@ -19,6 +19,9 @@ impl Delimiter {
             if s == "auto" {
                 return Ok(Delimiter::Auto);
             }
+            if s == r"\t" {
+                return Ok(Delimiter::Character(b'\t'));
+            }
             let mut chars = s.chars();
             let c = chars.next().context("Delimiter should not be empty")?;
             if !c.is_ascii() {
@@ -28,7 +31,7 @@ impl Delimiter {
                 );
             }
             if chars.next().is_some() {
-                bail!("Delimiter should be exactly one character, got {}", s);
+                bail!("Delimiter should be exactly one character (or \\t), got '{}'", s);
             }
             Ok(Delimiter::Character(c.try_into()?))
         } else {
