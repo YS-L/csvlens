@@ -63,6 +63,12 @@ Key | Action
 
 ## Installation
 
+### Direct Download
+
+You can download the `tar.xz` matching your operating system from the [releases page](https://github.com/YS-L/csvlens/releases), extract it and execute the `csvlens` binary.
+
+### Using Cargo
+
 `csvlens` is available on [crates.io](https://crates.io/crates/csvlens), so you
 can install it using:
 ```
