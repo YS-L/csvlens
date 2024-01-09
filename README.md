@@ -51,11 +51,13 @@ Key | Action
 ### Optional parameters
 
 * `-d <delimiter>`: Use this delimiter when parsing the CSV
-  (e.g. `csvlens file.csv -d $'\t'`).
+  (e.g. `csvlens file.csv -d '\t'`).
 
   Specify `-d auto` to auto-detect the delimiter.
 
-* `-i, --ignore-case`: Ignore case when searching. This flag is ignored if any
+* `-t`, `--tab-separated`: Use tab as the delimiter (when specified, `-d` is ignored).
+
+* `-i`, `--ignore-case`: Ignore case when searching. This flag is ignored if any
   uppercase letters are present in the search string.
 
 * `--echo-column <column_name>`: Print the value of this column at the selected
@@ -63,14 +65,24 @@ Key | Action
 
 ## Installation
 
-### Direct Download
+### Direct download
 
-You can download the `tar.xz` matching your operating system from the [releases page](https://github.com/YS-L/csvlens/releases), extract it and execute the `csvlens` binary.
+You can download the `tar.xz` or `zip` file matching your operating system from the
+[releases page](https://github.com/YS-L/csvlens/releases), extract it and execute the `csvlens`
+binary.
 
-### Using Cargo
+### Homebrew
 
-`csvlens` is available on [crates.io](https://crates.io/crates/csvlens), so you
-can install it using:
+For macOS, `csvlens` is available on [Homebrew](https://formulae.brew.sh/formula/csvlens). You can
+install it using:
+```
+brew install csvlens
+```
+
+### Cargo
+
+If you have [Rust](https://www.rust-lang.org/tools/install) installed, `csvlens` is available on
+[crates.io](https://crates.io/crates/csvlens) and you can install it using:
 ```
 cargo install csvlens
 ```
