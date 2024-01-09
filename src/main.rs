@@ -99,7 +99,7 @@ struct Args {
     #[clap(short, long)]
     delimiter: Option<String>,
 
-    /// Use tab separation. Shortcut for -d '<TAB>'.
+    /// Use tab separation. Shortcut for -d '\t'.
     #[clap(short = 't', long)]
     tab_separated: bool,
 
