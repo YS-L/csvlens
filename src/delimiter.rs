@@ -31,7 +31,10 @@ impl Delimiter {
                 );
             }
             if chars.next().is_some() {
-                bail!("Delimiter should be exactly one character (or \\t), got '{}'", s);
+                bail!(
+                    "Delimiter should be exactly one character (or \\t), got '{}'",
+                    s
+                );
             }
             Ok(Delimiter::Character(c.try_into()?))
         } else {
