@@ -97,3 +97,11 @@ cargo install --path $(pwd)
 ```
 pkgin install csvlens
 ```
+
+### Windows
+
+For Windows, `csvlens` is available on [winget](https://learn.microsoft.com/en-gb/windows/package-manager/).
+You can install it using:
+```powershell
+winget install --id YS-L.csvlens
+```
