@@ -1,3 +1,9 @@
+# v0.6.0
+
+* Accept `"\t"` for tab as delimiter argument ([#49](https://github.com/YS-L/csvlens/pull/49) by @peterjc)
+* Add `-t` flag for tsv files ([#47](https://github.com/YS-L/csvlens/pull/47) by @JojiiOfficial)
+* Print lower level causes on error
+
 # v0.5.1
 
 * Fix panic caused by unicode and newline

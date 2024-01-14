@@ -230,7 +230,7 @@ dependencies = [
 
 [[package]]
 name = "csvlens"
-version = "0.5.1"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "clap",
