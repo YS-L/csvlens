@@ -97,3 +97,9 @@ cargo install --path $(pwd)
 ```
 pkgin install csvlens
 ```
+
+### Arch
+`csvlens` is available as [AUR package](https://aur.archlinux.org/packages/csvlens)
+```
+yay -S csvlens
+```
