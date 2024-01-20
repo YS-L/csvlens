@@ -98,6 +98,13 @@ cargo install --path $(pwd)
 pkgin install csvlens
 ```
 
+
+### Arch Linux
+`csvlens` is available as an [AUR package](https://aur.archlinux.org/packages/csvlens). You can install it using:
+```
+yay -S csvlens
+```
+
 ### Windows
 
 For Windows, `csvlens` is available on [winget](https://learn.microsoft.com/en-gb/windows/package-manager/).
