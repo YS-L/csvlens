@@ -48,7 +48,7 @@ pub struct CsvLensReader {
     internal: Arc<Mutex<ReaderInternalState>>,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Row {
     pub record_num: usize,
     pub fields: Vec<String>,
@@ -65,6 +65,22 @@ impl Row {
             fields: subfields,
         }
     }
+
+    fn empty() -> Row {
+        Row {
+            record_num: 0,
+            fields: vec![],
+        }
+    }
+}
+
+#[derive(Debug)]
+struct GetRowIndex {
+    // 0-based index of the record in the csv file
+    record_index: u64,
+
+    // Position where the record should be in the resulting list of rows
+    order_index: usize,
 }
 
 impl CsvLensReader {
@@ -93,6 +109,22 @@ impl CsvLensReader {
     }
 
     fn get_rows_impl(&mut self, indices: &[u64]) -> Result<(Vec<Row>, GetRowsStats)> {
+        let mut get_row_indices = indices
+            .iter()
+            .enumerate()
+            .map(|x| GetRowIndex {
+                record_index: *x.1,
+                order_index: x.0,
+            })
+            .collect::<Vec<_>>();
+        get_row_indices.sort_by(|a, b| a.record_index.cmp(&b.record_index));
+        self._get_rows_impl_sorted(&get_row_indices)
+    }
+
+    fn _get_rows_impl_sorted(
+        &mut self,
+        indices: &[GetRowIndex],
+    ) -> Result<(Vec<Row>, GetRowsStats)> {
         // stats for debugging and testing
         let mut stats = GetRowsStats::new();
 
@@ -103,7 +135,8 @@ impl CsvLensReader {
         let mut pos_iter = pos_table.iter();
         let mut indices_iter = indices.iter();
 
-        let mut res = Vec::new();
+        let mut res = vec![Row::empty(); indices.len()];
+        let mut res_max_index: Option<usize> = None;
 
         let mut next_pos = pos_iter.next();
         let mut next_wanted = indices_iter.next();
@@ -112,9 +145,9 @@ impl CsvLensReader {
                 break;
             }
             // seek as close to the next wanted record index as possible
-            let index = *next_wanted.unwrap();
+            let index = next_wanted.unwrap();
             while let Some(pos) = next_pos {
-                if pos.record() - 1 <= index {
+                if pos.record() - 1 <= index.record_index {
                     self.reader.seek(pos.clone())?;
                     stats.log_seek();
                 } else {
@@ -133,7 +166,7 @@ impl CsvLensReader {
                 if next_wanted.is_none() {
                     break;
                 }
-                let wanted_index = *next_wanted.unwrap();
+                let wanted = next_wanted.unwrap();
                 let record_num = records.reader().position().record();
                 if let Some(r) = records.next() {
                     stats.log_parsed_record();
@@ -141,7 +174,7 @@ impl CsvLensReader {
                     if record_num == 0 {
                         continue;
                     }
-                    if record_num - 1 == wanted_index {
+                    if record_num - 1 == wanted.record_index {
                         let string_record = r?;
                         let mut fields = Vec::new();
                         for field in string_record.iter() {
@@ -151,7 +184,11 @@ impl CsvLensReader {
                             record_num: record_num as usize,
                             fields,
                         };
-                        res.push(row);
+                        res[wanted.order_index] = row;
+                        res_max_index.replace(
+                            res_max_index
+                                .map_or(wanted.order_index, |x| max(x, wanted.order_index)),
+                        );
                         next_wanted = indices_iter.next();
                     }
                     // stop parsing if done scanning whole block between marked positions
@@ -174,6 +211,9 @@ impl CsvLensReader {
                 break;
             }
         }
+
+        // In case requested indices are beyond the last record, truncate those indices.
+        res.truncate(res_max_index.map_or(0, |x| x + 1));
 
         Ok((res, stats))
     }
@@ -471,6 +511,19 @@ mod tests {
         let expected = vec![
             Row::new(1, vec!["1", "quote"]),
             Row::new(2, vec!["5", "Comma, comma"]),
+        ];
+        assert_eq!(rows, expected);
+    }
+
+    #[test]
+    fn get_rows_unsorted_indices() {
+        let config = Arc::new(CsvConfig::new("tests/data/simple.csv", b','));
+        let mut r = CsvLensReader::new(config).unwrap();
+        r.wait_internal();
+        let rows = r.get_rows_for_indices(&vec![1235, 1234]).unwrap();
+        let expected = vec![
+            Row::new(1236, vec!["A1236", "B1236"]),
+            Row::new(1235, vec!["A1235", "B1235"]),
         ];
         assert_eq!(rows, expected);
     }
