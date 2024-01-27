@@ -79,19 +79,6 @@ install it using:
 brew install csvlens
 ```
 
-### Cargo
-
-If you have [Rust](https://www.rust-lang.org/tools/install) installed, `csvlens` is available on
-[crates.io](https://crates.io/crates/csvlens) and you can install it using:
-```
-cargo install csvlens
-```
-
-Or, build and install from source:
-```
-cargo install --path $(pwd)
-```
-
 ### Arch Linux
 `csvlens` is available as an [AUR package](https://aur.archlinux.org/packages/csvlens). You can install it using:
 ```
@@ -110,4 +97,17 @@ winget install --id YS-L.csvlens
 `csvlens` is available on [pkgsrc](https://ftp.netbsd.org/pub/pkgsrc/current/pkgsrc/textproc/csvlens/index.html). If you're using NetBSD you can install it using:
 ```
 pkgin install csvlens
+```
+
+### Cargo
+
+If you have [Rust](https://www.rust-lang.org/tools/install) installed, `csvlens` is available on
+[crates.io](https://crates.io/crates/csvlens) and you can install it using:
+```
+cargo install csvlens
+```
+
+Or, build and install from source after cloning this repo:
+```
+cargo install --path $(pwd)
 ```
