@@ -92,13 +92,6 @@ Or, build and install from source:
 cargo install --path $(pwd)
 ```
 
-### Linux package managers
-`csvlens` is also available on pkgsrc. If you're using NetBSD you can install it using:
-```
-pkgin install csvlens
-```
-
-
 ### Arch Linux
 `csvlens` is available as an [AUR package](https://aur.archlinux.org/packages/csvlens). You can install it using:
 ```
@@ -111,4 +104,10 @@ For Windows, `csvlens` is available on [winget](https://learn.microsoft.com/en-g
 You can install it using:
 ```powershell
 winget install --id YS-L.csvlens
+```
+
+### NetBSD
+`csvlens` is available on [pkgsrc](https://ftp.netbsd.org/pub/pkgsrc/current/pkgsrc/textproc/csvlens/index.html). If you're using NetBSD you can install it using:
+```
+pkgin install csvlens
 ```
