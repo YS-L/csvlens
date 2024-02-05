@@ -87,10 +87,15 @@ yay -S csvlens
 
 ### Windows
 
-For Windows, `csvlens` is available on [winget](https://learn.microsoft.com/en-gb/windows/package-manager/).
-You can install it using:
+For Windows, `csvlens` is available on [winget](https://learn.microsoft.com/en-gb/windows/package-manager/). You can install it using:
 ```powershell
 winget install --id YS-L.csvlens
+```
+
+### FreeBSD
+`csvlens` is available as a [FreeBSD pkg](https://www.freshports.org/textproc/csvlens/). You can install it using:
+```
+pkg install csvlens
 ```
 
 ### NetBSD
