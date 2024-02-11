@@ -84,18 +84,15 @@ impl InputHandler {
 
     fn handler_default(&mut self, key_event: KeyEvent) -> Control {
         match key_event.modifiers {
-            // SHIFT needed to capture capitalised characters
-            KeyModifiers::NONE | KeyModifiers::SHIFT => match key_event.code {
+            KeyModifiers::NONE => match key_event.code {
                 KeyCode::Char('q') => Control::Quit,
                 KeyCode::Char('j') | KeyCode::Down => Control::ScrollDown,
                 KeyCode::Char('k') | KeyCode::Up => Control::ScrollUp,
                 KeyCode::Char('l') | KeyCode::Right => Control::ScrollRight,
                 KeyCode::Char('h') | KeyCode::Left => Control::ScrollLeft,
                 KeyCode::Char('g') | KeyCode::Home => Control::ScrollTop,
-                KeyCode::Char('G') | KeyCode::End => Control::ScrollBottom,
+                KeyCode::End => Control::ScrollBottom,
                 KeyCode::Char('n') => Control::ScrollToNextFound,
-                KeyCode::Char('N') => Control::ScrollToPrevFound,
-                KeyCode::Char('H') => Control::Help,
                 KeyCode::PageDown => Control::ScrollPageDown,
                 KeyCode::PageUp => Control::ScrollPageUp,
                 KeyCode::Char('d') => Control::ScrollHalfPageDown,
@@ -128,6 +125,13 @@ impl InputHandler {
                 KeyCode::Char('r') => Control::Reset,
                 _ => Control::Nothing,
             },
+            KeyModifiers::SHIFT => match key_event.code {
+                KeyCode::Char('G') | KeyCode::End => Control::ScrollBottom,
+                KeyCode::Char('N') => Control::ScrollToPrevFound,
+                KeyCode::Char('H') => Control::Help,
+                KeyCode::Char('J') | KeyCode::Down => Control::ToggleSort,
+                _ => Control::Nothing,
+            },
             KeyModifiers::CONTROL => match key_event.code {
                 KeyCode::Char('f') => Control::ScrollPageDown,
                 KeyCode::Char('b') => Control::ScrollPageUp,
@@ -139,7 +143,9 @@ impl InputHandler {
                 KeyCode::Right => Control::ScrollRightMost,
                 _ => Control::Nothing,
             },
-            _ => Control::Nothing,
+            _ => {
+                Control::Nothing
+            }
         }
     }
 
