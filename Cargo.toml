@@ -23,6 +23,8 @@ tempfile = "3.5"
 regex = "1.8"
 csv-sniffer = "0.3.1"
 tui-input = { version = "0.8", features = ["crossterm"] }
+arrow = {version = "50.0.0", default-features = false, features = ["csv", "prettyprint"]}
+sorted-vec = "0.8.3"
 
 [target.'cfg(windows)'.dependencies]
 crossterm = "0.27.0"

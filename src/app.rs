@@ -5,6 +5,7 @@ use crate::delimiter::{sniff_delimiter, Delimiter};
 use crate::find;
 use crate::help;
 use crate::input::{Control, InputHandler};
+use crate::sort::{self, SorterStatus};
 use crate::ui::{CsvTable, CsvTableState, FilterColumnsState, FinderState};
 use crate::view;
 
@@ -24,10 +25,10 @@ fn get_offsets_to_make_visible(
     csv_table_state: &CsvTableState,
 ) -> (Option<u64>, Option<u64>) {
     // TODO: row_index() should probably be u64
-    let new_rows_offset = if rows_view.in_view(found_record.row_index() as u64) {
+    let new_rows_offset = if rows_view.in_view(found_record.row_order() as u64) {
         None
     } else {
-        Some(found_record.row_index() as u64)
+        Some(found_record.row_order() as u64)
     };
 
     let cols_offset = csv_table_state.cols_offset;
@@ -50,6 +51,8 @@ fn scroll_to_found_record(
     let (new_rows_offset, new_cols_offset) =
         get_offsets_to_make_visible(&found_record, rows_view, csv_table_state);
 
+    // csv_table_state.debug = format!("{:?} {:?}", new_rows_offset, new_cols_offset);
+    // csv_table_state.debug = format!("{:?}", found_record);
     if let Some(rows_offset) = new_rows_offset {
         rows_view.set_rows_from(rows_offset).unwrap();
         csv_table_state.set_rows_offset(rows_offset);
@@ -104,6 +107,7 @@ pub struct App {
     echo_column: Option<String>,
     ignore_case: bool,
     help_page_state: help::HelpPageState,
+    sorter: Option<Arc<sort::Sorter>>,
 }
 
 impl App {
@@ -170,6 +174,7 @@ impl App {
             echo_column,
             ignore_case,
             help_page_state,
+            sorter: None,
         };
 
         Ok(app)
@@ -331,23 +336,16 @@ impl App {
             Control::Find(s) | Control::Filter(s) => {
                 let re = self.create_regex(s);
                 if let Ok(target) = re {
-                    // TODO: need to reset row views filter if any first?
-                    self.finder =
-                        Some(find::Finder::new(self.shared_config.clone(), target).unwrap());
-                    match control {
-                        Control::Find(_) => {
-                            // will scroll to first result below once ready
-                            self.first_found_scrolled = false;
-                            self.rows_view.reset_filter().unwrap();
+                    let _sorter = if let Some(s) = &self.sorter {
+                        if s.status() == SorterStatus::Finished {
+                            Some(s.clone())
+                        } else {
+                            None
                         }
-                        Control::Filter(_) => {
-                            self.rows_view.set_rows_from(0).unwrap();
-                            self.rows_view
-                                .set_filter(self.finder.as_ref().unwrap())
-                                .unwrap();
-                        }
-                        _ => {}
-                    }
+                    } else {
+                        None
+                    };
+                    self.create_finder(target, matches!(control, Control::Filter(_)), _sorter);
                 } else {
                     self.finder = None;
                     // TODO: how to show multi-line error
@@ -390,6 +388,35 @@ impl App {
                         .replace("Line wrap enabled".to_string());
                 }
             }
+            Control::ToggleSort => {
+                if let Some(selected_column_index) = self.get_global_selected_column_index() {
+                    let mut should_create_new_sorter = false;
+                    if let Some(sorter) = &self.sorter {
+                        if selected_column_index as usize != sorter.column_index {
+                            should_create_new_sorter = true;
+                        }
+                    } else {
+                        should_create_new_sorter = true;
+                    }
+                    if should_create_new_sorter {
+                        let column_name = self
+                            .rows_view
+                            .headers()
+                            .get(selected_column_index as usize)
+                            .map(|h| h.name.clone())
+                            .unwrap_or_default();
+                        let _sorter = sort::Sorter::new(
+                            self.shared_config.clone(),
+                            selected_column_index as usize,
+                            column_name,
+                        );
+                        self.sorter = Some(Arc::new(_sorter));
+                    }
+                } else {
+                    self.transient_message
+                        .replace("Press TAB and select a column before sorting".to_string());
+                }
+            }
             Control::IncreaseWidth => {
                 self.adjust_column_width(4);
             }
@@ -400,6 +427,7 @@ impl App {
                 self.csv_table_state.column_width_overrides.reset();
                 self.reset_filter();
                 self.rows_view.reset_columns_filter().unwrap();
+                self.reset_sorter();
             }
             Control::UnknownOption(s) => {
                 self.csv_table_state.reset_buffer();
@@ -407,6 +435,42 @@ impl App {
                     .replace(format!("Unknown option: {s}"));
             }
             _ => {}
+        }
+
+        if let Some(sorter) = &self.sorter {
+            // Update rows_view sorter if outdated
+            let mut should_set_rows_view_sorter = false;
+            if sorter.status() == SorterStatus::Finished {
+                if let Some(rows_view_sorter) = self.rows_view.sorter() {
+                    if rows_view_sorter.column_index != sorter.column_index {
+                        should_set_rows_view_sorter = true;
+                    }
+                } else {
+                    should_set_rows_view_sorter = true;
+                }
+            }
+            if should_set_rows_view_sorter {
+                self.rows_view.set_sorter(sorter).unwrap();
+            }
+
+            // Update finder if sorter outdated
+            let mut should_create_new_finder = false;
+            if sorter.status() == SorterStatus::Finished {
+                if let Some(finder) = &self.finder {
+                    if let Some(finder_sorter) = finder.sorter() {
+                        if finder_sorter.column_index != sorter.column_index {
+                            should_create_new_finder = true;
+                        }
+                    } else {
+                        should_create_new_finder = true;
+                    }
+                }
+            }
+            if should_create_new_finder {
+                let target = self.finder.as_ref().unwrap().target();
+                let sorter = self.sorter.clone();
+                self.create_finder(target, self.rows_view.is_filter(), sorter);
+            }
         }
 
         if let Some(fdr) = self.finder.as_mut() {
@@ -426,8 +490,8 @@ impl App {
                 }
 
                 // reset cursor if out of view
-                if let Some(cursor_row_index) = fdr.cursor_row_index() {
-                    if !self.rows_view.in_view(cursor_row_index as u64) {
+                if let Some(cursor_row_order) = fdr.cursor_row_order() {
+                    if !self.rows_view.in_view(cursor_row_order as u64) {
                         fdr.reset_cursor();
                     }
                 }
@@ -474,11 +538,28 @@ impl App {
         self.csv_table_state.filter_columns_state =
             FilterColumnsState::from_rows_view(&self.rows_view);
 
+        self.csv_table_state.update_sorter(&self.sorter);
+
         self.csv_table_state.transient_message = self.transient_message.clone();
 
-        // self.csv_table_state.debug = format!("{:?}", self.csv_table_state.column_width_overrides);
+        // self.csv_table_state.debug = format!("{:?}", self.sorter);
 
         Ok(())
+    }
+
+    fn create_finder(&mut self, target: Regex, is_filter: bool, sorter: Option<Arc<sort::Sorter>>) {
+        let _finder = find::Finder::new(self.shared_config.clone(), target, sorter).unwrap();
+        self.finder = Some(_finder);
+        if is_filter {
+            self.rows_view.set_rows_from(0).unwrap();
+            self.rows_view
+                .set_filter(self.finder.as_ref().unwrap())
+                .unwrap();
+        } else {
+            // will scroll to first result below once ready
+            self.first_found_scrolled = false;
+            self.rows_view.reset_filter().unwrap();
+        }
     }
 
     fn create_regex(&mut self, s: &String) -> std::result::Result<Regex, regex::Error> {
@@ -504,10 +585,7 @@ impl App {
     }
 
     fn adjust_column_width(&mut self, delta: i16) {
-        // local index as in local to the view port
-        if let Some(local_column_index) = self.rows_view.selection.column.index() {
-            let column_index = local_column_index.saturating_add(self.csv_table_state.cols_offset);
-
+        if let Some(column_index) = self.get_selected_column_index() {
             if let Some(view_layout) = &mut self.csv_table_state.view_layout {
                 let current_width = view_layout.column_widths[column_index as usize];
                 let new_width = (current_width as i16).saturating_add(delta);
@@ -524,12 +602,32 @@ impl App {
         }
     }
 
+    fn get_selected_column_index(&self) -> Option<u64> {
+        // local index as in local to the view port
+        if let Some(local_column_index) = self.rows_view.selection.column.index() {
+            return Some(local_column_index.saturating_add(self.csv_table_state.cols_offset));
+        }
+        None
+    }
+
+    fn get_global_selected_column_index(&self) -> Option<u64> {
+        // TODO: maybe this and above should be methods provided by RowsView directly?
+        self.get_selected_column_index()
+            .map(|local_index| self.rows_view.get_column_origin_index(local_index as usize) as u64)
+    }
+
     fn reset_filter(&mut self) {
         if self.finder.is_some() {
             self.finder = None;
             self.csv_table_state.finder_state = FinderState::FinderInactive;
             self.rows_view.reset_filter().unwrap();
         }
+    }
+
+    fn reset_sorter(&mut self) {
+        // TODO: consolidate rows_view reset
+        self.sorter = None;
+        self.rows_view.reset_sorter().unwrap();
     }
 
     fn render_frame(&mut self, f: &mut Frame) {
@@ -1240,6 +1338,95 @@ mod tests {
             "5  │  43      37      48      N     89      46      11      W     Wisconsin…    ",
             "───┴────────────────────────────────────────────────────────────────────────────",
             "stdin [Row 1/128, Col 1/10]                                                     ",
+        ];
+        assert_eq!(lines, expected);
+    }
+
+    #[test]
+    fn test_sorting() {
+        let mut app = App::new(
+            "tests/data/cities.csv",
+            Delimiter::Default,
+            None,
+            false,
+            None,
+            false,
+        )
+        .unwrap();
+        thread::sleep(time::Duration::from_millis(100));
+
+        let backend = TestBackend::new(80, 10);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        step_and_draw(&mut app, &mut terminal, Control::ToggleSelectionType);
+        step_and_draw(&mut app, &mut terminal, Control::ScrollRight);
+        step_and_draw(&mut app, &mut terminal, Control::ToggleSort);
+        thread::sleep(time::Duration::from_millis(200));
+        step_and_draw(&mut app, &mut terminal, Control::Nothing);
+
+        let actual_buffer = terminal.backend().buffer().clone();
+        let lines = to_lines(&actual_buffer);
+        let expected = vec![
+            "────────────────────────────────────────────────────────────────────────────────",
+            "        LatD    LatM [▾]      LatS    NS    LonD    LonM    LonS    EW    C…    ",
+            "─────┬──────────────────────────────────────────────────────────────────────────",
+            "118  │  44      1             12      N     92      27      35      W     R…    ",
+            "56   │  43      2             59      N     76      9       0       W     S…    ",
+            "49   │  39      2             59      N     95      40      11      W     T…    ",
+            "29   │  46      4             11      N     118     19      48      W     W…    ",
+            "83   │  32      4             48      N     81      5       23      W     S…    ",
+            "─────┴──────────────────────────────────────────────────────────────────────────",
+            "stdin [Row 118/128, Col 1/10]                                                   ",
+        ];
+        assert_eq!(lines, expected);
+    }
+
+    #[test]
+    fn test_sorting_with_filter() {
+        let mut app = App::new(
+            "tests/data/cities.csv",
+            Delimiter::Default,
+            None,
+            false,
+            None,
+            false,
+        )
+        .unwrap();
+        thread::sleep(time::Duration::from_millis(100));
+
+        let backend = TestBackend::new(80, 10);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        step_and_draw(&mut app, &mut terminal, Control::ToggleSelectionType);
+        step_and_draw(&mut app, &mut terminal, Control::ScrollRight);
+        step_and_draw(&mut app, &mut terminal, Control::ToggleSort);
+
+        thread::sleep(time::Duration::from_millis(200));
+        step_and_draw(&mut app, &mut terminal, Control::Nothing);
+
+        step_and_draw(&mut app, &mut terminal, Control::Filter("San".into()));
+        step_and_draw(
+            &mut app,
+            &mut terminal,
+            Control::FilterColumns("Lat|City".into()),
+        );
+
+        thread::sleep(time::Duration::from_millis(200));
+        step_and_draw(&mut app, &mut terminal, Control::Nothing);
+
+        let actual_buffer = terminal.backend().buffer().clone();
+        let lines = to_lines(&actual_buffer);
+        let expected = vec![
+            "────────────────────────────────────────────────────────────────────────────────",
+            "       LatD    LatM [▾]      LatS    City                                       ",
+            "────┬──────────────────────────────────────────────────┬────────────────────────",
+            "94  │  34      6             36      San Bernardino    │                        ",
+            "90  │  37      20            24      San Jose          │                        ",
+            "95  │  29      25            12      San Antonio       │                        ",
+            "88  │  34      25            11      Santa Barbara     │                        ",
+            "86  │  38      26            23      Santa Rosa        │                        ",
+            "────┴──────────────────────────────────────────────────┴────────────────────────",
+            "stdin [Row 94/128, Col 1/4] [Filter \"San\": -/11] [Filter \"Lat|City\": 4/10 cols] ",
         ];
         assert_eq!(lines, expected);
     }

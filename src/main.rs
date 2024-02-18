@@ -6,8 +6,9 @@ mod find;
 mod help;
 mod history;
 mod input;
-mod ui;
 #[allow(dead_code)]
+mod sort;
+mod ui;
 mod util;
 mod view;
 mod wrap;

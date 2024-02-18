@@ -1,6 +1,8 @@
 use crate::csv;
+use crate::sort;
 use anyhow::Result;
 use regex::Regex;
+use sorted_vec::SortedVec;
 use std::cmp::min;
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::thread::{self};
@@ -8,20 +10,26 @@ use std::time::Instant;
 
 pub struct Finder {
     internal: Arc<Mutex<FinderInternalState>>,
-    cursor: Option<usize>,
+    pub cursor: Option<usize>,
     row_hint: usize,
     target: Regex,
+    sorter: Option<Arc<sort::Sorter>>,
 }
 
 #[derive(Clone, Debug)]
 pub struct FoundRecord {
-    pub row_index: usize,
+    row_index: usize,
+    row_order: usize,
     column_indices: Vec<usize>,
 }
 
 impl FoundRecord {
     pub fn row_index(&self) -> usize {
         self.row_index
+    }
+
+    pub fn row_order(&self) -> usize {
+        self.row_order
     }
 
     pub fn column_indices(&self) -> &Vec<usize> {
@@ -33,14 +41,39 @@ impl FoundRecord {
     }
 }
 
+impl Ord for FoundRecord {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.row_order.cmp(&other.row_order)
+    }
+}
+
+impl PartialOrd for FoundRecord {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.row_order.cmp(&other.row_order))
+    }
+}
+
+impl PartialEq for FoundRecord {
+    fn eq(&self, other: &Self) -> bool {
+        self.row_order == other.row_order
+    }
+}
+
+impl Eq for FoundRecord {}
+
 impl Finder {
-    pub fn new(config: Arc<csv::CsvConfig>, target: Regex) -> Result<Self> {
-        let internal = FinderInternalState::init(config, target.clone());
+    pub fn new(
+        config: Arc<csv::CsvConfig>,
+        target: Regex,
+        sorter: Option<Arc<sort::Sorter>>,
+    ) -> Result<Self> {
+        let internal = FinderInternalState::init(config, target.clone(), sorter.clone());
         let finder = Finder {
             internal,
             cursor: None,
             row_hint: 0,
             target,
+            sorter: sorter.clone(),
         };
         Ok(finder)
     }
@@ -57,14 +90,18 @@ impl Finder {
         self.cursor
     }
 
-    pub fn cursor_row_index(&self) -> Option<usize> {
+    pub fn cursor_row_order(&self) -> Option<usize> {
         let m_guard = self.internal.lock().unwrap();
         self.get_found_record_at_cursor(&m_guard)
-            .map(|x| x.row_index())
+            .map(|x| x.row_order())
     }
 
     pub fn target(&self) -> Regex {
         self.target.clone()
+    }
+
+    pub fn sorter(&self) -> &Option<Arc<sort::Sorter>> {
+        &self.sorter
     }
 
     pub fn reset_cursor(&mut self) {
@@ -151,17 +188,21 @@ impl Drop for Finder {
 
 struct FinderInternalState {
     count: usize,
-    founds: Vec<FoundRecord>,
+    founds: SortedVec<FoundRecord>,
     done: bool,
     should_terminate: bool,
     elapsed: Option<u128>,
 }
 
 impl FinderInternalState {
-    pub fn init(config: Arc<csv::CsvConfig>, target: Regex) -> Arc<Mutex<FinderInternalState>> {
+    pub fn init(
+        config: Arc<csv::CsvConfig>,
+        target: Regex,
+        sorter: Option<Arc<sort::Sorter>>,
+    ) -> Arc<Mutex<FinderInternalState>> {
         let internal = FinderInternalState {
             count: 0,
-            founds: vec![],
+            founds: SortedVec::new(),
             done: false,
             should_terminate: false,
             elapsed: None,
@@ -189,8 +230,13 @@ impl FinderInternalState {
                     }
                 }
                 if !column_indices.is_empty() {
+                    let row_order = match &sorter {
+                        Some(s) => s.get_record_order(row_index as u64).unwrap() as usize,
+                        _ => row_index,
+                    };
                     let found = FoundRecord {
                         row_index,
+                        row_order,
                         column_indices,
                     };
                     let mut m = _m.lock().unwrap();
@@ -216,7 +262,7 @@ impl FinderInternalState {
     }
 
     fn next_from(&self, row_hint: usize) -> usize {
-        let mut index = self.founds.partition_point(|r| r.row_index() < row_hint);
+        let mut index = self.founds.partition_point(|r| r.row_order() < row_hint);
         if index >= self.founds.len() {
             index -= 1;
         }

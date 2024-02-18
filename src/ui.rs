@@ -1,6 +1,7 @@
 use crate::common::InputMode;
 use crate::csv::Row;
 use crate::find;
+use crate::sort;
 use crate::view;
 use crate::view::Header;
 use crate::wrap;
@@ -16,6 +17,7 @@ use tui_input::Input;
 
 use std::cmp::{max, min};
 use std::collections::HashMap;
+use std::sync::Arc;
 
 const NUM_SPACES_AFTER_LINE_NUMBER: u16 = 2;
 const NUM_SPACES_BETWEEN_COLUMNS: u16 = 4;
@@ -66,15 +68,21 @@ impl<'a> CsvTable<'a> {
 }
 
 impl<'a> CsvTable<'a> {
-    fn get_column_widths(&self, area_width: u16, overrides: &ColumnWidthOverrides) -> Vec<u16> {
+    fn get_column_widths(
+        &self,
+        area_width: u16,
+        overrides: &ColumnWidthOverrides,
+        sorter_state: &SorterState,
+    ) -> Vec<u16> {
         let mut column_widths = Vec::new();
 
         for h in self.header {
+            let column_name = self.get_effective_column_name(h.name.as_str(), sorter_state);
             if let Some(w) = overrides.get(h.origin_index) {
                 column_widths.push(*w);
                 continue;
             } else {
-                column_widths.push(h.name.len() as u16);
+                column_widths.push(column_name.len() as u16);
             }
         }
 
@@ -253,6 +261,15 @@ impl<'a> CsvTable<'a> {
                 .set_style(Style::default().fg(Color::Rgb(64, 64, 64)))
                 .set_symbol(line::HORIZONTAL_UP);
         }
+    }
+
+    fn get_effective_column_name(&self, column_name: &str, sorter_state: &SorterState) -> String {
+        if let SorterState::Enabled(info) = sorter_state {
+            if info.status == sort::SorterStatus::Finished && info.column_name == column_name {
+                return format!("{} [▾]", column_name);
+            }
+        }
+        column_name.to_string()
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -510,7 +527,7 @@ impl<'a> CsvTable<'a> {
         format!("{chars_before}█{chars_after}")
     }
 
-    fn render_status(&self, area: Rect, buf: &mut Buffer, state: &mut CsvTableState) {
+    fn render_status(&self, area: Rect, buf: &mut Buffer, state: &CsvTableState) {
         // Content of status line (separator already plotted elsewhere)
         let style = Style::default().fg(Color::Rgb(128, 128, 128));
         let mut content: String;
@@ -592,6 +609,14 @@ impl<'a> CsvTable<'a> {
                 content += format!(" {}", info.status_line()).as_str();
             }
 
+            // Sorter
+            if let SorterState::Enabled(info) = &state.sorter_state {
+                let sorter_status_line = info.status_line();
+                if !sorter_status_line.is_empty() {
+                    content += format!(" {}", sorter_status_line).as_str();
+                }
+            }
+
             // Echo option
             if let Some(column_name) = &state.echo_column {
                 content += format!(" [Echo {column_name} ↵]").as_str();
@@ -612,7 +637,11 @@ impl<'a> CsvTable<'a> {
     }
 
     fn get_view_layout(&self, area: Rect, state: &CsvTableState) -> ViewLayout {
-        let column_widths = self.get_column_widths(area.width, &state.column_width_overrides);
+        let column_widths = self.get_column_widths(
+            area.width,
+            &state.column_width_overrides,
+            &state.sorter_state,
+        );
         let row_heights = self.get_row_heights(self.rows, &column_widths, state.enable_line_wrap);
         ViewLayout {
             column_widths,
@@ -662,7 +691,7 @@ impl<'a> StatefulWidget for CsvTable<'a> {
             &self
                 .header
                 .iter()
-                .map(|h| h.name.clone())
+                .map(|h| self.get_effective_column_name(h.name.as_str(), &state.sorter_state))
                 .collect::<Vec<String>>(),
             None,
             &layout,
@@ -857,6 +886,38 @@ impl FilterColumnsInfo {
     }
 }
 
+enum SorterState {
+    Disabled,
+    Enabled(SorterInfo),
+}
+
+impl SorterState {
+    fn from_sorter(sorter: &sort::Sorter) -> Self {
+        Self::Enabled(SorterInfo {
+            status: sorter.status(),
+            column_name: sorter.column_name().to_string(),
+        })
+    }
+}
+
+struct SorterInfo {
+    status: sort::SorterStatus,
+    column_name: String,
+}
+
+impl SorterInfo {
+    fn status_line(&self) -> String {
+        let prefix = format!("[Sorting by {}", self.column_name);
+        match &self.status {
+            sort::SorterStatus::Running => format!("{prefix}...]").to_string(),
+            sort::SorterStatus::Error(error_msg) => {
+                format!("[{} failed: {}]", prefix, error_msg).to_string()
+            }
+            _ => "".to_string(),
+        }
+    }
+}
+
 struct BordersState {
     x_row_separator: u16,
     y_first_record: u16,
@@ -913,6 +974,7 @@ pub struct CsvTableState {
     buffer_content: BufferState,
     pub finder_state: FinderState,
     pub filter_columns_state: FilterColumnsState,
+    sorter_state: SorterState,
     borders_state: Option<BordersState>,
     // TODO: should probably be with BordersState
     col_ending_pos_x: u16,
@@ -945,6 +1007,7 @@ impl CsvTableState {
             buffer_content: BufferState::Disabled,
             finder_state: FinderState::FinderInactive,
             filter_columns_state: FilterColumnsState::Disabled,
+            sorter_state: SorterState::Disabled,
             borders_state: None,
             col_ending_pos_x: 0,
             selection: None,
@@ -1000,5 +1063,13 @@ impl CsvTableState {
             .map(|bs| bs.x_row_separator)
             .unwrap_or(0)
             + NUM_SPACES_AFTER_LINE_NUMBER
+    }
+
+    pub fn update_sorter(&mut self, sorter: &Option<Arc<sort::Sorter>>) {
+        if let Some(s) = sorter {
+            self.sorter_state = SorterState::from_sorter(s.as_ref());
+        } else {
+            self.sorter_state = SorterState::Disabled;
+        }
     }
 }

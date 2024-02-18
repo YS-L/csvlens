@@ -40,6 +40,10 @@ impl CsvConfig {
     pub fn filename(&self) -> &str {
         self.path.as_str()
     }
+
+    pub fn delimiter(&self) -> u8 {
+        self.delimiter
+    }
 }
 
 pub struct CsvLensReader {

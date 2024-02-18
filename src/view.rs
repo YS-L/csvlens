@@ -1,10 +1,12 @@
 use crate::csv::{CsvLensReader, Row};
 use crate::find;
 use crate::input::Control;
+use crate::sort::Sorter;
 
 use anyhow::Result;
 use regex::Regex;
 use std::cmp::min;
+use std::sync::Arc;
 use std::time::Instant;
 
 struct RowsFilter {
@@ -251,6 +253,7 @@ pub struct RowsView {
     cols_offset: u64,
     filter: Option<RowsFilter>,
     columns_filter: Option<ColumnsFilter>,
+    sorter: Option<Arc<Sorter>>,
     pub selection: Selection,
     elapsed: Option<u128>,
 }
@@ -270,6 +273,7 @@ impl RowsView {
             cols_offset: 0,
             filter: None,
             columns_filter: None,
+            sorter: None,
             selection: Selection::default(num_rows),
             elapsed: None,
         };
@@ -408,6 +412,20 @@ impl RowsView {
                 origin_index: i,
             })
             .collect::<Vec<_>>()
+    }
+
+    pub fn sorter(&self) -> &Option<Arc<Sorter>> {
+        &self.sorter
+    }
+
+    pub fn set_sorter(&mut self, sorter: &Arc<Sorter>) -> Result<()> {
+        self.sorter = Some(sorter.clone());
+        self.do_get_rows()
+    }
+
+    pub fn reset_sorter(&mut self) -> Result<()> {
+        self.sorter = None;
+        self.do_get_rows()
     }
 
     pub fn rows_from(&self) -> u64 {
@@ -578,6 +596,12 @@ impl RowsView {
         let mut rows = if let Some(filter) = &self.filter {
             let indices = &filter.indices;
             self.reader.get_rows_for_indices(indices)?
+        } else if let Some(sorter) = &self.sorter {
+            if let Some(sorted_indices) = sorter.get_sorted_indices(self.rows_from, self.num_rows) {
+                self.reader.get_rows_for_indices(&sorted_indices)?
+            } else {
+                self.reader.get_rows(self.rows_from, self.num_rows)?
+            }
         } else {
             self.reader.get_rows(self.rows_from, self.num_rows)?
         };

@@ -34,6 +34,7 @@ pub enum Control {
     Select,
     ToggleSelectionType,
     ToggleLineWrap,
+    ToggleSort,
     Reset,
     Help,
     UnknownOption(String),
@@ -143,9 +144,7 @@ impl InputHandler {
                 KeyCode::Right => Control::ScrollRightMost,
                 _ => Control::Nothing,
             },
-            _ => {
-                Control::Nothing
-            }
+            _ => Control::Nothing,
         }
     }
 
