@@ -42,6 +42,7 @@ Key | Action
 `TAB` | Toggle between row, column or cell selection modes
 `>` | Increase selected column's width
 `<` | Decrease selected column's width
+`Shift + ↓` (or `Shift + j`) | Sort rows by the selected column
 `Enter` (in Cell mode) | Print the selected cell to stdout and exit
 `-S` | Toggle line wrapping
 `r` | Reset to default view (clear all filters and custom column widths)

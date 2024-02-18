@@ -39,6 +39,7 @@ N (in Find mode)        : Jump to previous result
 TAB                     : Toggle between row, column or cell selection modes
 >                       : Increase selected column's width
 <                       : Decrease selected column's width
+Shift + ↓ (or J)        : Sort rows by the selected column
 Enter (in Cell mode)    : Print the selected cell to stdout and exit
 
 # Other options
