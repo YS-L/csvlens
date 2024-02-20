@@ -139,8 +139,7 @@ impl SorterInternalState {
                     .with_delimiter(_delimiter)
                     .with_header(true)
                     .with_projection(vec![column_index])
-                    .build(file)
-                    .unwrap();
+                    .build(file)?;
 
                 // Parse csv in batches to construct the column
                 let mut arrs: Vec<Arc<dyn Array>> = Vec::new();
@@ -156,11 +155,11 @@ impl SorterInternalState {
                     .iter()
                     .map(|arr| arr.as_ref())
                     .collect::<Vec<&dyn Array>>();
-                let combined_arr = concat(&ref_arrs).unwrap();
+                let combined_arr = concat(&ref_arrs)?;
 
                 // Sort
                 let sorted_indices =
-                    kernels::sort::sort_to_indices(combined_arr.as_ref(), None, None).unwrap();
+                    kernels::sort::sort_to_indices(combined_arr.as_ref(), None, None)?;
 
                 // Construct the result. Maybe this can be kept as arrow Arrays?
                 let mut sorted_record_indices: Vec<usize> = vec![];
@@ -248,5 +247,16 @@ mod tests {
         let rows = s.get_sorted_indices(0, 5).unwrap();
         let expected = vec![0, 9, 99, 999, 1000];
         assert_eq!(rows, expected);
+    }
+
+    #[test]
+    fn test_empty() {
+        let config = Arc::new(csv::CsvConfig::new("tests/data/empty.csv", b','));
+        let s = Sorter::new(config, 1, "b".to_string());
+        s.wait_internal();
+        assert_eq!(
+            s.status(),
+            SorterStatus::Error("Compute error: Sort not supported for data type Null".to_string())
+        );
     }
 }

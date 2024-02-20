@@ -911,7 +911,7 @@ impl SorterInfo {
         match &self.status {
             sort::SorterStatus::Running => format!("{prefix}...]").to_string(),
             sort::SorterStatus::Error(error_msg) => {
-                format!("[{} failed: {}]", prefix, error_msg).to_string()
+                format!("{} failed: {}]", prefix, error_msg).to_string()
             }
             _ => "".to_string(),
         }
