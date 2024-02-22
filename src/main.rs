@@ -104,6 +104,10 @@ struct Args {
     #[clap(short = 't', long)]
     tab_separated: bool,
 
+    /// Do not interpret the first row as headers.
+    #[clap(long)]
+    no_headers: bool,
+
     /// Searches ignore case. Ignored if any uppercase letters are present in the search string
     #[clap(short, long)]
     ignore_case: bool,
@@ -176,6 +180,7 @@ fn run_csvlens() -> Result<Option<String>> {
         show_stats,
         args.echo_column,
         args.ignore_case,
+        args.no_headers,
     )?;
 
     let mut app_runner = AppRunner::new(app);

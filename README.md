@@ -64,6 +64,8 @@ Key | Action
 * `--echo-column <column_name>`: Print the value of this column at the selected
   row to stdout on `Enter` key and then exit.
 
+* `--no-headers`: Do not interpret the first row as headers.
+
 ## Installation
 
 ### Direct download

@@ -19,13 +19,15 @@ fn string_record_to_vec(record: &csv::StringRecord) -> Vec<String> {
 pub struct CsvConfig {
     path: String,
     delimiter: u8,
+    no_headers: bool,
 }
 
 impl CsvConfig {
-    pub fn new(path: &str, delimiter: u8) -> CsvConfig {
+    pub fn new(path: &str, delimiter: u8, no_headers: bool) -> CsvConfig {
         CsvConfig {
             path: path.to_string(),
             delimiter,
+            no_headers,
         }
     }
 
@@ -33,6 +35,7 @@ impl CsvConfig {
         let reader = ReaderBuilder::new()
             .flexible(true)
             .delimiter(self.delimiter)
+            .has_headers(!self.no_headers)
             .from_path(self.path.as_str())?;
         Ok(reader)
     }
@@ -44,9 +47,36 @@ impl CsvConfig {
     pub fn delimiter(&self) -> u8 {
         self.delimiter
     }
+
+    pub fn no_headers(&self) -> bool {
+        self.no_headers
+    }
+
+    pub fn has_headers(&self) -> bool {
+        !self.no_headers
+    }
+
+    /// Convert position to a 0-based record index
+    pub fn position_to_record_index(&self, position: u64) -> u64 {
+        if self.no_headers {
+            position
+        } else {
+            position - 1
+        }
+    }
+
+    /// Convert position to a 1-based record number
+    pub fn position_to_record_num(&self, position: u64) -> u64 {
+        if self.no_headers {
+            position + 1
+        } else {
+            position
+        }
+    }
 }
 
 pub struct CsvLensReader {
+    config: Arc<CsvConfig>,
     reader: Reader<File>,
     pub headers: Vec<String>,
     internal: Arc<Mutex<ReaderInternalState>>,
@@ -90,12 +120,22 @@ struct GetRowIndex {
 impl CsvLensReader {
     pub fn new(config: Arc<CsvConfig>) -> Result<Self> {
         let mut reader = config.new_reader()?;
-        let headers_record = reader.headers()?;
-        let headers = string_record_to_vec(headers_record);
 
-        let (m_internal, _handle) = ReaderInternalState::init_internal(config);
+        let headers_record = if config.no_headers() {
+            let mut dummy_headers = csv::StringRecord::new();
+            for (i, _) in reader.headers()?.into_iter().enumerate() {
+                dummy_headers.push_field((i + 1).to_string().as_str());
+            }
+            dummy_headers
+        } else {
+            reader.headers()?.clone()
+        };
+        let headers = string_record_to_vec(&headers_record);
+
+        let (m_internal, _handle) = ReaderInternalState::init_internal(config.clone());
 
         let reader = Self {
+            config: config.clone(),
             reader,
             headers,
             internal: m_internal,
@@ -151,7 +191,7 @@ impl CsvLensReader {
             // seek as close to the next wanted record index as possible
             let index = next_wanted.unwrap();
             while let Some(pos) = next_pos {
-                if pos.record() - 1 <= index.record_index {
+                if self.config.position_to_record_index(pos.record()) <= index.record_index {
                     self.reader.seek(pos.clone())?;
                     stats.log_seek();
                 } else {
@@ -171,21 +211,23 @@ impl CsvLensReader {
                     break;
                 }
                 let wanted = next_wanted.unwrap();
-                let record_num = records.reader().position().record();
+                let record_position = records.reader().position().record();
                 if let Some(r) = records.next() {
                     stats.log_parsed_record();
                     // no effective pre-seeking happened, this is still the header
-                    if record_num == 0 {
+                    if self.config.has_headers() && record_position == 0 {
                         continue;
                     }
-                    if record_num - 1 == wanted.record_index {
+                    if self.config.position_to_record_index(record_position) == wanted.record_index
+                    {
                         let string_record = r?;
                         let mut fields = Vec::new();
                         for field in string_record.iter() {
                             fields.push(String::from(field));
                         }
                         let row = Row {
-                            record_num: record_num as usize,
+                            record_num: self.config.position_to_record_num(record_position)
+                                as usize,
                             fields,
                         };
                         res[wanted.order_index] = row;
@@ -197,7 +239,7 @@ impl CsvLensReader {
                     }
                     // stop parsing if done scanning whole block between marked positions
                     if let Some(pos) = next_pos {
-                        if record_num >= pos.record() {
+                        if record_position >= pos.record() {
                             break;
                         }
                     }
@@ -282,12 +324,15 @@ impl ReaderInternalState {
         let _m = m_state.clone();
         let handle = thread::spawn(move || {
             // quick line count
-            let total_line_number_approx;
+            let mut total_line_number_approx;
             {
                 let file = File::open(config.filename()).unwrap();
                 let buf_reader = BufReader::new(file);
                 // subtract 1 for headers
-                total_line_number_approx = buf_reader.lines().count().saturating_sub(1);
+                total_line_number_approx = buf_reader.lines().count();
+                if config.has_headers() {
+                    total_line_number_approx -= 1;
+                }
 
                 let mut m = _m.lock().unwrap();
                 m.total_line_number_approx = Some(total_line_number_approx);
@@ -353,7 +398,7 @@ mod tests {
 
     #[test]
     fn test_cities_get_rows() {
-        let config = Arc::new(CsvConfig::new("tests/data/cities.csv", b','));
+        let config = Arc::new(CsvConfig::new("tests/data/cities.csv", b',', false));
         let mut r = CsvLensReader::new(config).unwrap();
         r.wait_internal();
         let rows = r.get_rows(2, 3).unwrap();
@@ -400,7 +445,7 @@ mod tests {
 
     #[test]
     fn test_simple_get_rows() {
-        let config = Arc::new(CsvConfig::new("tests/data/simple.csv", b','));
+        let config = Arc::new(CsvConfig::new("tests/data/simple.csv", b',', false));
         let mut r = CsvLensReader::new(config).unwrap();
         r.wait_internal();
         let rows = r.get_rows(1234, 2).unwrap();
@@ -413,7 +458,7 @@ mod tests {
 
     #[test]
     fn test_simple_get_rows_out_of_bound() {
-        let config = Arc::new(CsvConfig::new("tests/data/simple.csv", b','));
+        let config = Arc::new(CsvConfig::new("tests/data/simple.csv", b',', false));
         let mut r = CsvLensReader::new(config).unwrap();
         r.wait_internal();
         let indices = vec![5000];
@@ -423,7 +468,7 @@ mod tests {
 
     #[test]
     fn test_simple_get_rows_impl_1() {
-        let config = Arc::new(CsvConfig::new("tests/data/simple.csv", b','));
+        let config = Arc::new(CsvConfig::new("tests/data/simple.csv", b',', false));
         let mut r = CsvLensReader::new(config).unwrap();
         r.wait_internal();
         let indices = vec![1, 3, 5, 1234, 2345, 3456, 4999];
@@ -447,7 +492,7 @@ mod tests {
 
     #[test]
     fn test_simple_get_rows_impl_2() {
-        let config = Arc::new(CsvConfig::new("tests/data/simple.csv", b','));
+        let config = Arc::new(CsvConfig::new("tests/data/simple.csv", b',', false));
         let mut r = CsvLensReader::new(config).unwrap();
         r.wait_internal();
         let indices = vec![1234];
@@ -463,7 +508,7 @@ mod tests {
 
     #[test]
     fn test_simple_get_rows_impl_3() {
-        let config = Arc::new(CsvConfig::new("tests/data/simple.csv", b','));
+        let config = Arc::new(CsvConfig::new("tests/data/simple.csv", b',', false));
         let mut r = CsvLensReader::new(config).unwrap();
         r.wait_internal();
         let indices = vec![2];
@@ -479,7 +524,7 @@ mod tests {
 
     #[test]
     fn test_small() {
-        let config = Arc::new(CsvConfig::new("tests/data/small.csv", b','));
+        let config = Arc::new(CsvConfig::new("tests/data/small.csv", b',', false));
         let mut r = CsvLensReader::new(config).unwrap();
         let rows = r.get_rows(0, 50).unwrap();
         let expected = vec![
@@ -491,7 +536,7 @@ mod tests {
 
     #[test]
     fn test_small_delimiter() {
-        let config = Arc::new(CsvConfig::new("tests/data/small.bsv", b'|'));
+        let config = Arc::new(CsvConfig::new("tests/data/small.bsv", b'|', false));
         let mut r = CsvLensReader::new(config).unwrap();
         let rows = r.get_rows(0, 50).unwrap();
         let expected = vec![Row::new(1, vec!["c1", "v1"]), Row::new(2, vec!["c2", "v2"])];
@@ -500,7 +545,7 @@ mod tests {
 
     #[test]
     fn test_irregular() {
-        let config = Arc::new(CsvConfig::new("tests/data/irregular.csv", b','));
+        let config = Arc::new(CsvConfig::new("tests/data/irregular.csv", b',', false));
         let mut r = CsvLensReader::new(config).unwrap();
         let rows = r.get_rows(0, 50).unwrap();
         let expected = vec![Row::new(1, vec!["c1"]), Row::new(2, vec!["c2", " v2"])];
@@ -509,7 +554,11 @@ mod tests {
 
     #[test]
     fn test_double_quoting_as_escape_chars() {
-        let config = Arc::new(CsvConfig::new("tests/data/good_double_quote.csv", b','));
+        let config = Arc::new(CsvConfig::new(
+            "tests/data/good_double_quote.csv",
+            b',',
+            false,
+        ));
         let mut r = CsvLensReader::new(config).unwrap();
         let rows = r.get_rows(0, 50).unwrap();
         let expected = vec![
@@ -521,7 +570,7 @@ mod tests {
 
     #[test]
     fn get_rows_unsorted_indices() {
-        let config = Arc::new(CsvConfig::new("tests/data/simple.csv", b','));
+        let config = Arc::new(CsvConfig::new("tests/data/simple.csv", b',', false));
         let mut r = CsvLensReader::new(config).unwrap();
         r.wait_internal();
         let rows = r.get_rows_for_indices(&vec![1235, 1234]).unwrap();

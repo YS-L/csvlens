@@ -122,22 +122,20 @@ impl SorterInternalState {
         let m_state = Arc::new(Mutex::new(internal));
 
         let _m = m_state.clone();
-        let _filename = config.filename().to_owned();
-        let _delimiter = config.delimiter();
 
         let _handle = thread::spawn(move || {
             fn run(
                 m: Arc<Mutex<SorterInternalState>>,
-                filename: &str,
-                _delimiter: u8,
+                config: Arc<csv::CsvConfig>,
                 column_index: usize,
             ) -> Result<SortResult> {
                 // Get schema
-                let schema = SorterInternalState::infer_schema(filename, _delimiter)?;
-                let file = File::open(filename)?;
+                let schema =
+                    SorterInternalState::infer_schema(config.filename(), config.delimiter())?;
+                let file = File::open(config.filename())?;
                 let arrow_csv_reader = arrow::csv::ReaderBuilder::new(Arc::new(schema))
-                    .with_delimiter(_delimiter)
-                    .with_header(true)
+                    .with_delimiter(config.delimiter())
+                    .with_header(!config.no_headers())
                     .with_projection(vec![column_index])
                     .build(file)?;
 
@@ -177,7 +175,7 @@ impl SorterInternalState {
                 Ok(sort_result)
             }
 
-            let sort_result = run(_m.clone(), _filename.as_str(), _delimiter, column_index);
+            let sort_result = run(_m.clone(), config, column_index);
 
             let mut m = _m.lock().unwrap();
             if let Ok(sort_result) = sort_result {
@@ -241,7 +239,7 @@ mod tests {
 
     #[test]
     fn test_simple() {
-        let config = Arc::new(csv::CsvConfig::new("tests/data/simple.csv", b','));
+        let config = Arc::new(csv::CsvConfig::new("tests/data/simple.csv", b',', false));
         let s = Sorter::new(config, 0, "A1".to_string());
         s.wait_internal();
         let rows = s.get_sorted_indices(0, 5).unwrap();
@@ -251,7 +249,7 @@ mod tests {
 
     #[test]
     fn test_empty() {
-        let config = Arc::new(csv::CsvConfig::new("tests/data/empty.csv", b','));
+        let config = Arc::new(csv::CsvConfig::new("tests/data/empty.csv", b',', false));
         let s = Sorter::new(config, 1, "b".to_string());
         s.wait_internal();
         assert_eq!(

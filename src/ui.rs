@@ -982,6 +982,7 @@ pub struct CsvTableState {
     pub transient_message: Option<String>,
     pub echo_column: Option<String>,
     pub ignore_case: bool,
+    pub no_headers: bool,
     pub view_layout: Option<ViewLayout>,
     pub enable_line_wrap: bool,
     pub column_width_overrides: ColumnWidthOverrides,
@@ -994,6 +995,7 @@ impl CsvTableState {
         total_cols: usize,
         echo_column: &Option<String>,
         ignore_case: bool,
+        no_headers: bool,
     ) -> Self {
         Self {
             rows_offset: 0,
@@ -1014,6 +1016,7 @@ impl CsvTableState {
             transient_message: None,
             echo_column: echo_column.clone(),
             ignore_case,
+            no_headers,
             view_layout: None,
             enable_line_wrap: false,
             column_width_overrides: ColumnWidthOverrides::new(),

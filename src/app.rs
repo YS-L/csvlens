@@ -118,6 +118,7 @@ impl App {
         show_stats: bool,
         echo_column: Option<String>,
         ignore_case: bool,
+        no_headers: bool,
     ) -> Result<Self> {
         let input_handler = InputHandler::new();
 
@@ -132,7 +133,7 @@ impl App {
             Delimiter::Character(d) => d,
             Delimiter::Auto => sniff_delimiter(filename).unwrap_or(b','),
         };
-        let config = csv::CsvConfig::new(filename, delimiter);
+        let config = csv::CsvConfig::new(filename, delimiter, no_headers);
         let shared_config = Arc::new(config);
 
         let csvlens_reader = csv::CsvLensReader::new(shared_config.clone())
@@ -151,6 +152,7 @@ impl App {
             rows_view.headers().len(),
             &echo_column,
             ignore_case,
+            no_headers,
         );
 
         let finder: Option<find::Finder> = None;
@@ -710,6 +712,7 @@ mod tests {
             false,
             None,
             false,
+            false,
         )
         .unwrap();
         thread::sleep(time::Duration::from_millis(100));
@@ -750,6 +753,7 @@ mod tests {
             None,
             false,
             None,
+            false,
             false,
         )
         .unwrap();
@@ -819,6 +823,7 @@ mod tests {
             false,
             None,
             false,
+            false,
         )
         .unwrap();
         thread::sleep(time::Duration::from_millis(100));
@@ -856,6 +861,7 @@ mod tests {
             None,
             false,
             None,
+            false,
             false,
         )
         .unwrap();
@@ -895,6 +901,7 @@ mod tests {
             false,
             None,
             true,
+            false,
         )
         .unwrap();
         thread::sleep(time::Duration::from_millis(100));
@@ -935,6 +942,7 @@ mod tests {
             false,
             None,
             false,
+            false,
         )
         .unwrap();
         thread::sleep(time::Duration::from_millis(100));
@@ -969,6 +977,7 @@ mod tests {
             false,
             None,
             false,
+            false,
         )
         .unwrap();
         thread::sleep(time::Duration::from_millis(100));
@@ -1002,6 +1011,7 @@ mod tests {
             None,
             false,
             None,
+            false,
             false,
         )
         .unwrap();
@@ -1094,6 +1104,7 @@ mod tests {
             false,
             None,
             false,
+            false,
         )
         .unwrap();
         thread::sleep(time::Duration::from_millis(100));
@@ -1138,6 +1149,7 @@ mod tests {
             false,
             None,
             false,
+            false,
         )
         .unwrap();
         thread::sleep(time::Duration::from_millis(100));
@@ -1173,6 +1185,7 @@ mod tests {
             None,
             false,
             None,
+            false,
             false,
         )
         .unwrap();
@@ -1210,6 +1223,7 @@ mod tests {
             None,
             false,
             None,
+            false,
             false,
         )
         .unwrap();
@@ -1268,6 +1282,7 @@ mod tests {
             None,
             false,
             None,
+            false,
             false,
         )
         .unwrap();
@@ -1351,6 +1366,7 @@ mod tests {
             false,
             None,
             false,
+            false,
         )
         .unwrap();
         thread::sleep(time::Duration::from_millis(100));
@@ -1390,6 +1406,7 @@ mod tests {
             false,
             None,
             false,
+            false,
         )
         .unwrap();
         thread::sleep(time::Duration::from_millis(100));
@@ -1428,6 +1445,45 @@ mod tests {
             "────┴──────────────────────────────────────────────────┴────────────────────────",
             "stdin [Row 94/128, Col 1/4] [Filter \"San\": -/11] [Filter \"Lat|City\": 4/10 cols] ",
         ];
+        assert_eq!(lines, expected);
+    }
+
+    #[test]
+    fn test_no_headers() {
+        let mut app = App::new(
+            "tests/data/no_headers.csv",
+            Delimiter::Default,
+            None,
+            false,
+            None,
+            false,
+            true,
+        )
+        .unwrap();
+        thread::sleep(time::Duration::from_millis(100));
+
+        let backend = TestBackend::new(30, 10);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        step_and_draw(&mut app, &mut terminal, Control::Nothing);
+        for _ in 0..7 {
+            step_and_draw(&mut app, &mut terminal, Control::ScrollDown);
+        }
+
+        let expected = vec![
+            "──────────────────────────────",
+            "      1     2                 ",
+            "───┬──────────────┬───────────",
+            "4  │  A4    B4    │           ",
+            "5  │  A5    B5    │           ",
+            "6  │  A6    B6    │           ",
+            "7  │  A7    B7    │           ",
+            "8  │  A8    B8    │           ",
+            "───┴──────────────┴───────────",
+            "stdin [Row 8/20, Col 1/2]     ",
+        ];
+        let actual_buffer = terminal.backend().buffer().clone();
+        let lines = to_lines(&actual_buffer);
         assert_eq!(lines, expected);
     }
 }
