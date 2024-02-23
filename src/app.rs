@@ -401,10 +401,7 @@ impl App {
                     if should_create_new_sorter {
                         let column_name = self
                             .rows_view
-                            .headers()
-                            .get(selected_column_index as usize)
-                            .map(|h| h.name.clone())
-                            .unwrap_or_default();
+                            .get_column_name_global(selected_column_index as usize);
                         let _sorter = sort::Sorter::new(
                             self.shared_config.clone(),
                             selected_column_index as usize,
