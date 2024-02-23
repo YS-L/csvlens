@@ -676,6 +676,57 @@ mod tests {
     use ratatui::backend::TestBackend;
     use ratatui::buffer::Buffer;
 
+    struct AppBuilder {
+        filename: String,
+        delimiter: Delimiter,
+        original_filename: Option<String>,
+        show_stats: bool,
+        echo_column: Option<String>,
+        ignore_case: bool,
+        no_headers: bool,
+    }
+
+    impl AppBuilder {
+        fn new(filename: &str) -> Self {
+            AppBuilder {
+                filename: filename.to_owned(),
+                delimiter: Delimiter::Default,
+                original_filename: None,
+                show_stats: false,
+                echo_column: None,
+                ignore_case: false,
+                no_headers: false,
+            }
+        }
+
+        fn build(self) -> Result<App> {
+            App::new(
+                self.filename.as_str(),
+                self.delimiter,
+                self.original_filename,
+                self.show_stats,
+                self.echo_column,
+                self.ignore_case,
+                self.no_headers,
+            )
+        }
+
+        fn delimiter(mut self, delimiter: Delimiter) -> Self {
+            self.delimiter = delimiter;
+            self
+        }
+
+        fn ignore_case(mut self, ignore_case: bool) -> Self {
+            self.ignore_case = ignore_case;
+            self
+        }
+
+        fn no_headers(mut self, no_headers: bool) -> Self {
+            self.no_headers = no_headers;
+            self
+        }
+    }
+
     fn to_lines(buf: &Buffer) -> Vec<String> {
         let mut symbols: String = "".to_owned();
         let area = buf.area();
@@ -705,16 +756,7 @@ mod tests {
 
     #[test]
     fn test_simple() {
-        let mut app = App::new(
-            "tests/data/simple.csv",
-            Delimiter::Default,
-            None,
-            false,
-            None,
-            false,
-            false,
-        )
-        .unwrap();
+        let mut app = AppBuilder::new("tests/data/simple.csv").build().unwrap();
         thread::sleep(time::Duration::from_millis(100));
 
         let backend = TestBackend::new(30, 10);
@@ -747,16 +789,7 @@ mod tests {
 
     #[test]
     fn test_scroll_horizontal() {
-        let mut app = App::new(
-            "tests/data/cities.csv",
-            Delimiter::Default,
-            None,
-            false,
-            None,
-            false,
-            false,
-        )
-        .unwrap();
+        let mut app = AppBuilder::new("tests/data/cities.csv").build().unwrap();
         thread::sleep(time::Duration::from_millis(100));
 
         let backend = TestBackend::new(30, 10);
@@ -816,16 +849,7 @@ mod tests {
 
     #[test]
     fn test_filter_columns() {
-        let mut app = App::new(
-            "tests/data/cities.csv",
-            Delimiter::Default,
-            None,
-            false,
-            None,
-            false,
-            false,
-        )
-        .unwrap();
+        let mut app = AppBuilder::new("tests/data/cities.csv").build().unwrap();
         thread::sleep(time::Duration::from_millis(100));
 
         let backend = TestBackend::new(80, 10);
@@ -855,16 +879,7 @@ mod tests {
 
     #[test]
     fn test_filter_columns_case_sensitive() {
-        let mut app = App::new(
-            "tests/data/cities.csv",
-            Delimiter::Default,
-            None,
-            false,
-            None,
-            false,
-            false,
-        )
-        .unwrap();
+        let mut app = AppBuilder::new("tests/data/cities.csv").build().unwrap();
         thread::sleep(time::Duration::from_millis(100));
 
         let backend = TestBackend::new(80, 10);
@@ -894,16 +909,10 @@ mod tests {
 
     #[test]
     fn test_filter_columns_ignore_case() {
-        let mut app = App::new(
-            "tests/data/cities.csv",
-            Delimiter::Default,
-            None,
-            false,
-            None,
-            true,
-            false,
-        )
-        .unwrap();
+        let mut app = AppBuilder::new("tests/data/cities.csv")
+            .ignore_case(true)
+            .build()
+            .unwrap();
         thread::sleep(time::Duration::from_millis(100));
 
         let backend = TestBackend::new(80, 10);
@@ -935,16 +944,9 @@ mod tests {
     fn test_extra_fields_in_some_rows() {
         // Test getting column widths should not fail on data with bad formatting (some rows having
         // more fields than the header)
-        let mut app = App::new(
-            "tests/data/bad_double_quote.csv",
-            Delimiter::Default,
-            None,
-            false,
-            None,
-            false,
-            false,
-        )
-        .unwrap();
+        let mut app = AppBuilder::new("tests/data/bad_double_quote.csv")
+            .build()
+            .unwrap();
         thread::sleep(time::Duration::from_millis(100));
 
         let backend = TestBackend::new(35, 10);
@@ -970,16 +972,10 @@ mod tests {
 
     #[test]
     fn test_sniff_delimiter() {
-        let mut app = App::new(
-            "tests/data/small.bsv",
-            Delimiter::Auto,
-            None,
-            false,
-            None,
-            false,
-            false,
-        )
-        .unwrap();
+        let mut app = AppBuilder::new("tests/data/small.bsv")
+            .delimiter(Delimiter::Auto)
+            .build()
+            .unwrap();
         thread::sleep(time::Duration::from_millis(100));
 
         let backend = TestBackend::new(30, 10);
@@ -1005,16 +1001,9 @@ mod tests {
 
     #[test]
     fn test_multi_lines() {
-        let mut app = App::new(
-            "tests/data/multi_lines.csv",
-            Delimiter::Default,
-            None,
-            false,
-            None,
-            false,
-            false,
-        )
-        .unwrap();
+        let mut app = AppBuilder::new("tests/data/multi_lines.csv")
+            .build()
+            .unwrap();
         thread::sleep(time::Duration::from_millis(100));
 
         let backend = TestBackend::new(50, 30);
@@ -1097,16 +1086,7 @@ mod tests {
 
     #[test]
     fn test_column_widths_boundary_condition() {
-        let mut app = App::new(
-            "tests/data/cities.csv",
-            Delimiter::Default,
-            None,
-            false,
-            None,
-            false,
-            false,
-        )
-        .unwrap();
+        let mut app = AppBuilder::new("tests/data/cities.csv").build().unwrap();
         thread::sleep(time::Duration::from_millis(100));
 
         let backend = TestBackend::new(120, 10);
@@ -1142,16 +1122,7 @@ mod tests {
 
     #[test]
     fn test_scroll_right_most() {
-        let mut app = App::new(
-            "tests/data/cities.csv",
-            Delimiter::Default,
-            None,
-            false,
-            None,
-            false,
-            false,
-        )
-        .unwrap();
+        let mut app = AppBuilder::new("tests/data/cities.csv").build().unwrap();
         thread::sleep(time::Duration::from_millis(100));
 
         let backend = TestBackend::new(40, 10);
@@ -1179,16 +1150,7 @@ mod tests {
 
     #[test]
     fn test_scroll_left_most() {
-        let mut app = App::new(
-            "tests/data/cities.csv",
-            Delimiter::Default,
-            None,
-            false,
-            None,
-            false,
-            false,
-        )
-        .unwrap();
+        let mut app = AppBuilder::new("tests/data/cities.csv").build().unwrap();
         thread::sleep(time::Duration::from_millis(100));
 
         let backend = TestBackend::new(40, 10);
@@ -1217,16 +1179,7 @@ mod tests {
 
     #[test]
     fn test_scroll_half_page() {
-        let mut app = App::new(
-            "tests/data/cities.csv",
-            Delimiter::Default,
-            None,
-            false,
-            None,
-            false,
-            false,
-        )
-        .unwrap();
+        let mut app = AppBuilder::new("tests/data/cities.csv").build().unwrap();
         thread::sleep(time::Duration::from_millis(100));
 
         let backend = TestBackend::new(40, 10);
@@ -1276,16 +1229,7 @@ mod tests {
 
     #[test]
     fn test_resize_column() {
-        let mut app = App::new(
-            "tests/data/cities.csv",
-            Delimiter::Default,
-            None,
-            false,
-            None,
-            false,
-            false,
-        )
-        .unwrap();
+        let mut app = AppBuilder::new("tests/data/cities.csv").build().unwrap();
         thread::sleep(time::Duration::from_millis(100));
 
         let backend = TestBackend::new(80, 10);
@@ -1359,16 +1303,7 @@ mod tests {
 
     #[test]
     fn test_sorting() {
-        let mut app = App::new(
-            "tests/data/cities.csv",
-            Delimiter::Default,
-            None,
-            false,
-            None,
-            false,
-            false,
-        )
-        .unwrap();
+        let mut app = AppBuilder::new("tests/data/cities.csv").build().unwrap();
         thread::sleep(time::Duration::from_millis(100));
 
         let backend = TestBackend::new(80, 10);
@@ -1399,16 +1334,7 @@ mod tests {
 
     #[test]
     fn test_sorting_with_filter() {
-        let mut app = App::new(
-            "tests/data/cities.csv",
-            Delimiter::Default,
-            None,
-            false,
-            None,
-            false,
-            false,
-        )
-        .unwrap();
+        let mut app = AppBuilder::new("tests/data/cities.csv").build().unwrap();
         thread::sleep(time::Duration::from_millis(100));
 
         let backend = TestBackend::new(80, 10);
@@ -1450,16 +1376,10 @@ mod tests {
 
     #[test]
     fn test_no_headers() {
-        let mut app = App::new(
-            "tests/data/no_headers.csv",
-            Delimiter::Default,
-            None,
-            false,
-            None,
-            false,
-            true,
-        )
-        .unwrap();
+        let mut app = AppBuilder::new("tests/data/no_headers.csv")
+            .no_headers(true)
+            .build()
+            .unwrap();
         thread::sleep(time::Duration::from_millis(100));
 
         let backend = TestBackend::new(30, 10);
