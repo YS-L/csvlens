@@ -111,6 +111,7 @@ pub struct App {
 }
 
 impl App {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         filename: &str,
         delimiter: Delimiter,
@@ -119,6 +120,7 @@ impl App {
         echo_column: Option<String>,
         ignore_case: bool,
         no_headers: bool,
+        columns: Option<String>,
     ) -> Result<Self> {
         let input_handler = InputHandler::new();
 
@@ -162,7 +164,7 @@ impl App {
         let transient_message: Option<String> = None;
         let help_page_state = help::HelpPageState::new();
 
-        let app = App {
+        let mut app = App {
             input_handler,
             num_rows_not_visible,
             shared_config,
@@ -178,6 +180,10 @@ impl App {
             help_page_state,
             sorter: None,
         };
+
+        if let Some(pat) = &columns {
+            app.set_columns_filter(pat);
+        }
 
         Ok(app)
     }
@@ -355,16 +361,8 @@ impl App {
                 }
                 self.csv_table_state.reset_buffer();
             }
-            Control::FilterColumns(s) => {
-                let re = self.create_regex(s);
-                if let Ok(target) = re {
-                    self.rows_view.set_columns_filter(target).unwrap();
-                } else {
-                    self.rows_view.reset_columns_filter().unwrap();
-                    self.transient_message = Some(format!("Invalid regex: {s}"));
-                }
-                self.csv_table_state.reset_buffer();
-                self.csv_table_state.set_cols_offset(0);
+            Control::FilterColumns(pat) => {
+                self.set_columns_filter(pat);
             }
             Control::BufferContent(input) => {
                 self.csv_table_state
@@ -564,14 +562,25 @@ impl App {
         }
     }
 
-    fn create_regex(&mut self, s: &String) -> std::result::Result<Regex, regex::Error> {
+    fn create_regex(&mut self, s: &str) -> std::result::Result<Regex, regex::Error> {
         let lower_s = s.to_lowercase();
-        let re = if self.ignore_case && lower_s.starts_with(s) {
-            Regex::new(&format!("(?i){}", s.as_str()))
+        if self.ignore_case && lower_s.starts_with(s) {
+            Regex::new(&format!("(?i){}", s))
         } else {
-            Regex::new(s.as_str())
-        };
-        re
+            Regex::new(s)
+        }
+    }
+
+    fn set_columns_filter(&mut self, pat: &str) {
+        let re = self.create_regex(pat);
+        if let Ok(target) = re {
+            self.rows_view.set_columns_filter(target).unwrap();
+        } else {
+            self.rows_view.reset_columns_filter().unwrap();
+            self.transient_message = Some(format!("Invalid regex: {pat}"));
+        }
+        self.csv_table_state.reset_buffer();
+        self.csv_table_state.set_cols_offset(0);
     }
 
     fn increase_cols_offset(&mut self) {
@@ -684,6 +693,7 @@ mod tests {
         echo_column: Option<String>,
         ignore_case: bool,
         no_headers: bool,
+        columns: Option<String>,
     }
 
     impl AppBuilder {
@@ -696,6 +706,7 @@ mod tests {
                 echo_column: None,
                 ignore_case: false,
                 no_headers: false,
+                columns: None,
             }
         }
 
@@ -708,6 +719,7 @@ mod tests {
                 self.echo_column,
                 self.ignore_case,
                 self.no_headers,
+                self.columns,
             )
         }
 
@@ -723,6 +735,11 @@ mod tests {
 
         fn no_headers(mut self, no_headers: bool) -> Self {
             self.no_headers = no_headers;
+            self
+        }
+
+        fn columns(mut self, columns: Option<String>) -> Self {
+            self.columns = columns;
             self
         }
     }
@@ -1401,6 +1418,35 @@ mod tests {
             "8  │  A8    B8    │           ",
             "───┴──────────────┴───────────",
             "stdin [Row 8/20, Col 1/2]     ",
+        ];
+        let actual_buffer = terminal.backend().buffer().clone();
+        let lines = to_lines(&actual_buffer);
+        assert_eq!(lines, expected);
+    }
+
+    #[test]
+    fn test_cli_columns_option() {
+        let mut app = AppBuilder::new("tests/data/cities.csv")
+            .columns(Some("Lat".to_string()))
+            .build()
+            .unwrap();
+        thread::sleep(time::Duration::from_millis(100));
+
+        let backend = TestBackend::new(80, 10);
+        let mut terminal = Terminal::new(backend).unwrap();
+        step_and_draw(&mut app, &mut terminal, Control::Nothing);
+
+        let expected = vec![
+            "────────────────────────────────────────────────────────────────────────────────",
+            "      LatD    LatM    LatS                                                      ",
+            "───┬──────────────────────────┬─────────────────────────────────────────────────",
+            "1  │  41      5       59      │                                                 ",
+            "2  │  42      52      48      │                                                 ",
+            "3  │  46      35      59      │                                                 ",
+            "4  │  42      16      12      │                                                 ",
+            "5  │  43      37      48      │                                                 ",
+            "───┴──────────────────────────┴─────────────────────────────────────────────────",
+            "stdin [Row 1/128, Col 1/3] [Filter \"Lat\": 3/10 cols]                            ",
         ];
         let actual_buffer = terminal.backend().buffer().clone();
         let lines = to_lines(&actual_buffer);
