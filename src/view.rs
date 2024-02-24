@@ -284,6 +284,10 @@ impl RowsView {
         &self.headers
     }
 
+    pub fn raw_headers(&self) -> &Vec<String> {
+        &self.reader.headers
+    }
+
     pub fn rows(&self) -> &Vec<Row> {
         &self.rows
     }
@@ -400,14 +404,6 @@ impl RowsView {
 
     pub fn get_column_origin_index(&self, column_index: usize) -> usize {
         self.headers[column_index].origin_index
-    }
-
-    pub fn get_column_name_global(&self, global_column_index: usize) -> String {
-        self.reader
-            .headers
-            .get(global_column_index)
-            .cloned()
-            .unwrap_or_default()
     }
 
     fn get_default_headers_from_reader(reader: &CsvLensReader) -> Vec<Header> {
