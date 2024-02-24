@@ -97,7 +97,7 @@ struct Args {
     filename: Option<String>,
 
     /// Delimiter character (comma by default) or "auto" to auto-detect the delimiter
-    #[clap(short, long)]
+    #[clap(short, long, value_name = "char")]
     delimiter: Option<String>,
 
     /// Use tab separation. Shortcut for -d '\t'.
@@ -108,15 +108,15 @@ struct Args {
     #[clap(long)]
     no_headers: bool,
 
-    /// Regex to select columns to display by default
+    /// Use this regex to select columns to display by default
     #[arg(long, value_name = "regex")]
     columns: Option<String>,
 
-    /// Regex to filter rows to display by default
+    /// Use this regex to filter rows to display by default
     #[arg(long, value_name = "regex")]
     filter: Option<String>,
 
-    /// Regex to find and hightlight by default
+    /// Use this regex to find and hightlight matches by default
     #[arg(long, value_name = "regex")]
     find: Option<String>,
 
@@ -125,7 +125,7 @@ struct Args {
     ignore_case: bool,
 
     /// Print the value of this column to stdout for the selected row
-    #[arg(long)]
+    #[arg(long, value_name = "column_name")]
     echo_column: Option<String>,
 
     /// Show stats for debugging

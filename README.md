@@ -51,7 +51,7 @@ Key | Action
 
 ### Optional parameters
 
-* `-d <delimiter>`: Use this delimiter when parsing the CSV
+* `-d <char>`: Use this delimiter when parsing the CSV
   (e.g. `csvlens file.csv -d '\t'`).
 
   Specify `-d auto` to auto-detect the delimiter.
@@ -61,10 +61,16 @@ Key | Action
 * `-i`, `--ignore-case`: Ignore case when searching. This flag is ignored if any
   uppercase letters are present in the search string.
 
+* `--no-headers`: Do not interpret the first row as headers.
+
+* `--columns <regex>`: Use this regex to select columns to display by default.
+
+* `--filter <regex>`: Use this regex to filter rows to display by default.
+
+* `--find <regex>`: Use this regex to find and hightlight matches by default.
+
 * `--echo-column <column_name>`: Print the value of this column at the selected
   row to stdout on `Enter` key and then exit.
-
-* `--no-headers`: Do not interpret the first row as headers.
 
 ## Installation
 
