@@ -1,3 +1,9 @@
+# v0.7.0
+
+* Support sorting rows by a column (`Shift + ↓` or `Shift + j`)
+* Support CSV without headers via `--no-headers`
+* Add `--columns`, `--filter`, and `--find` options for filtering rows and columns
+
 # v0.6.0
 
 * Accept `"\t"` for tab as delimiter argument ([#49](https://github.com/YS-L/csvlens/pull/49) by @peterjc)
