@@ -120,7 +120,8 @@ impl App {
         echo_column: Option<String>,
         ignore_case: bool,
         no_headers: bool,
-        columns: Option<String>,
+        columns_regex: Option<String>,
+        filter_regex: Option<String>,
     ) -> Result<Self> {
         let input_handler = InputHandler::new();
 
@@ -181,8 +182,12 @@ impl App {
             sorter: None,
         };
 
-        if let Some(pat) = &columns {
+        if let Some(pat) = &columns_regex {
             app.set_columns_filter(pat);
+        }
+
+        if let Some(pat) = &filter_regex {
+            app.handle_find_or_filter(pat, true);
         }
 
         Ok(app)
@@ -342,24 +347,7 @@ impl App {
                 }
             }
             Control::Find(s) | Control::Filter(s) => {
-                let re = self.create_regex(s);
-                if let Ok(target) = re {
-                    let _sorter = if let Some(s) = &self.sorter {
-                        if s.status() == SorterStatus::Finished {
-                            Some(s.clone())
-                        } else {
-                            None
-                        }
-                    } else {
-                        None
-                    };
-                    self.create_finder(target, matches!(control, Control::Filter(_)), _sorter);
-                } else {
-                    self.finder = None;
-                    // TODO: how to show multi-line error
-                    self.transient_message = Some(format!("Invalid regex: {s}"));
-                }
-                self.csv_table_state.reset_buffer();
+                self.handle_find_or_filter(s, matches!(control, Control::Filter(_)));
             }
             Control::FilterColumns(pat) => {
                 self.set_columns_filter(pat);
@@ -583,6 +571,27 @@ impl App {
         self.csv_table_state.set_cols_offset(0);
     }
 
+    fn handle_find_or_filter(&mut self, pat: &str, is_filter: bool) {
+        let re = self.create_regex(pat);
+        if let Ok(target) = re {
+            let _sorter = if let Some(s) = &self.sorter {
+                if s.status() == SorterStatus::Finished {
+                    Some(s.clone())
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
+            self.create_finder(target, is_filter, _sorter);
+        } else {
+            self.finder = None;
+            // TODO: how to show multi-line error
+            self.transient_message = Some(format!("Invalid regex: {pat}"));
+        }
+        self.csv_table_state.reset_buffer();
+    }
+
     fn increase_cols_offset(&mut self) {
         if self.csv_table_state.has_more_cols_to_show() {
             let new_cols_offset = self.rows_view.cols_offset().saturating_add(1);
@@ -693,7 +702,8 @@ mod tests {
         echo_column: Option<String>,
         ignore_case: bool,
         no_headers: bool,
-        columns: Option<String>,
+        columns_regex: Option<String>,
+        filter_regex: Option<String>,
     }
 
     impl AppBuilder {
@@ -706,7 +716,8 @@ mod tests {
                 echo_column: None,
                 ignore_case: false,
                 no_headers: false,
-                columns: None,
+                columns_regex: None,
+                filter_regex: None,
             }
         }
 
@@ -719,7 +730,8 @@ mod tests {
                 self.echo_column,
                 self.ignore_case,
                 self.no_headers,
-                self.columns,
+                self.columns_regex,
+                self.filter_regex,
             )
         }
 
@@ -738,8 +750,13 @@ mod tests {
             self
         }
 
-        fn columns(mut self, columns: Option<String>) -> Self {
-            self.columns = columns;
+        fn columns_regex(mut self, columns: Option<String>) -> Self {
+            self.columns_regex = columns;
+            self
+        }
+
+        fn filter_regex(mut self, filter: Option<String>) -> Self {
+            self.filter_regex = filter;
             self
         }
     }
@@ -1427,7 +1444,7 @@ mod tests {
     #[test]
     fn test_cli_columns_option() {
         let mut app = AppBuilder::new("tests/data/cities.csv")
-            .columns(Some("Lat".to_string()))
+            .columns_regex(Some("Lat".to_string()))
             .build()
             .unwrap();
         thread::sleep(time::Duration::from_millis(100));
@@ -1447,6 +1464,35 @@ mod tests {
             "5  │  43      37      48      │                                                 ",
             "───┴──────────────────────────┴─────────────────────────────────────────────────",
             "stdin [Row 1/128, Col 1/3] [Filter \"Lat\": 3/10 cols]                            ",
+        ];
+        let actual_buffer = terminal.backend().buffer().clone();
+        let lines = to_lines(&actual_buffer);
+        assert_eq!(lines, expected);
+    }
+
+    #[test]
+    fn test_cli_filter_option() {
+        let mut app = AppBuilder::new("tests/data/cities.csv")
+            .filter_regex(Some("San".to_string()))
+            .build()
+            .unwrap();
+        thread::sleep(time::Duration::from_millis(100));
+
+        let backend = TestBackend::new(80, 10);
+        let mut terminal = Terminal::new(backend).unwrap();
+        step_and_draw(&mut app, &mut terminal, Control::Nothing);
+
+        let expected = vec![
+            "────────────────────────────────────────────────────────────────────────────────",
+            "       LatD    LatM    LatS    NS    LonD    LonM    LonS    EW    City         ",
+            "────┬───────────────────────────────────────────────────────────────────────────",
+            "86  │  38      26      23      N     122     43      12      W     Santa Ro…    ",
+            "87  │  35      40      48      N     105     56      59      W     Santa Fe     ",
+            "88  │  34      25      11      N     119     41      59      W     Santa Ba…    ",
+            "89  │  33      45      35      N     117     52      12      W     Santa Ana    ",
+            "90  │  37      20      24      N     121     52      47      W     San Jose     ",
+            "────┴───────────────────────────────────────────────────────────────────────────",
+            "stdin [Row 86/128, Col 1/10] [Filter \"San\": 1/11]                               ",
         ];
         let actual_buffer = terminal.backend().buffer().clone();
         let lines = to_lines(&actual_buffer);

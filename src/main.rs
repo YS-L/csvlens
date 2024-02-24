@@ -112,6 +112,10 @@ struct Args {
     #[arg(long)]
     columns: Option<String>,
 
+    /// Regex to filter rows to display by default
+    #[arg(long)]
+    filter: Option<String>,
+
     /// Searches ignore case. Ignored if any uppercase letters are present in the search string
     #[clap(short, long)]
     ignore_case: bool,
@@ -186,6 +190,7 @@ fn run_csvlens() -> Result<Option<String>> {
         args.ignore_case,
         args.no_headers,
         args.columns,
+        args.filter,
     )?;
 
     let mut app_runner = AppRunner::new(app);
