@@ -109,12 +109,16 @@ struct Args {
     no_headers: bool,
 
     /// Regex to select columns to display by default
-    #[arg(long)]
+    #[arg(long, value_name = "regex")]
     columns: Option<String>,
 
     /// Regex to filter rows to display by default
-    #[arg(long)]
+    #[arg(long, value_name = "regex")]
     filter: Option<String>,
+
+    /// Regex to find and hightlight by default
+    #[arg(long, value_name = "regex")]
+    find: Option<String>,
 
     /// Searches ignore case. Ignored if any uppercase letters are present in the search string
     #[clap(short, long)]
@@ -191,6 +195,7 @@ fn run_csvlens() -> Result<Option<String>> {
         args.no_headers,
         args.columns,
         args.filter,
+        args.find,
     )?;
 
     let mut app_runner = AppRunner::new(app);

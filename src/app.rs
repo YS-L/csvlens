@@ -122,6 +122,7 @@ impl App {
         no_headers: bool,
         columns_regex: Option<String>,
         filter_regex: Option<String>,
+        find_regex: Option<String>,
     ) -> Result<Self> {
         let input_handler = InputHandler::new();
 
@@ -188,6 +189,8 @@ impl App {
 
         if let Some(pat) = &filter_regex {
             app.handle_find_or_filter(pat, true);
+        } else if let Some(pat) = &find_regex {
+            app.handle_find_or_filter(pat, false);
         }
 
         Ok(app)
@@ -704,6 +707,7 @@ mod tests {
         no_headers: bool,
         columns_regex: Option<String>,
         filter_regex: Option<String>,
+        find_regex: Option<String>,
     }
 
     impl AppBuilder {
@@ -718,6 +722,7 @@ mod tests {
                 no_headers: false,
                 columns_regex: None,
                 filter_regex: None,
+                find_regex: None,
             }
         }
 
@@ -732,6 +737,7 @@ mod tests {
                 self.no_headers,
                 self.columns_regex,
                 self.filter_regex,
+                self.find_regex,
             )
         }
 
