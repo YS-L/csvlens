@@ -21,8 +21,12 @@ Type @0.2s "Bug"
 Enter @4s
 
 Type @1s "*"
-Type @0.2s "Name|Leg"
-Enter @4s
+Type @0.2s "Name|Att|Leg"
+Enter @2s
+
+Tab @1s 1
+Right @1s
+Type @6s "J"
 
 Type "q"
 Sleep 1s
