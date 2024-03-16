@@ -13,6 +13,7 @@ pub struct Finder {
     pub cursor: Option<usize>,
     row_hint: usize,
     target: Regex,
+    column_index: Option<usize>,
     sorter: Option<Arc<sort::Sorter>>,
 }
 
@@ -65,14 +66,17 @@ impl Finder {
     pub fn new(
         config: Arc<csv::CsvConfig>,
         target: Regex,
+        column_index: Option<usize>,
         sorter: Option<Arc<sort::Sorter>>,
     ) -> Result<Self> {
-        let internal = FinderInternalState::init(config, target.clone(), sorter.clone());
+        let internal =
+            FinderInternalState::init(config, target.clone(), column_index, sorter.clone());
         let finder = Finder {
             internal,
             cursor: None,
             row_hint: 0,
             target,
+            column_index,
             sorter: sorter.clone(),
         };
         Ok(finder)
@@ -98,6 +102,10 @@ impl Finder {
 
     pub fn target(&self) -> Regex {
         self.target.clone()
+    }
+
+    pub fn column_index(&self) -> Option<usize> {
+        self.column_index
     }
 
     pub fn sorter(&self) -> &Option<Arc<sort::Sorter>> {
@@ -198,6 +206,7 @@ impl FinderInternalState {
     pub fn init(
         config: Arc<csv::CsvConfig>,
         target: Regex,
+        column_index: Option<usize>,
         sorter: Option<Arc<sort::Sorter>>,
     ) -> Arc<Mutex<FinderInternalState>> {
         let internal = FinderInternalState {
@@ -223,9 +232,17 @@ impl FinderInternalState {
             for (row_index, r) in records.enumerate() {
                 let mut column_indices = vec![];
                 if let Ok(valid_record) = r {
-                    for (column_index, field) in valid_record.iter().enumerate() {
-                        if target.is_match(field) {
-                            column_indices.push(column_index);
+                    if let Some(column_index) = column_index {
+                        if let Some(field) = valid_record.get(column_index) {
+                            if target.is_match(field) {
+                                column_indices.push(column_index);
+                            }
+                        }
+                    } else {
+                        for (column_index, field) in valid_record.iter().enumerate() {
+                            if target.is_match(field) {
+                                column_indices.push(column_index);
+                            }
                         }
                     }
                 }

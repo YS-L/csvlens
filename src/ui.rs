@@ -337,12 +337,19 @@ impl<'a> CsvTable<'a> {
                 style: filler_style,
                 short_padding,
             };
+
+            let should_highlight_cell = |active: &FinderActiveState, content: &str| {
+                if let Some((target_column_index, _)) = active.column_index {
+                    if target_column_index != col_index {
+                        return false;
+                    }
+                }
+                active.target.is_match(content) && !matches!(row_type, RowType::Header)
+            };
             match &state.finder_state {
                 // TODO: seems like doing a bit too much of heavy lifting of
                 // checking for matches (finder's work)
-                FinderState::FinderActive(active)
-                    if active.target.is_match(hname) && !matches!(row_type, RowType::Header) =>
-                {
+                FinderState::FinderActive(active) if should_highlight_cell(active, hname) => {
                     let mut highlight_style = filler_style.style.fg(Color::Rgb(200, 0, 0));
                     if let Some(hl) = &active.found_record {
                         if let Some(row_index) = row_index {
@@ -794,6 +801,7 @@ pub struct FinderActiveState {
     total_found: u64,
     cursor_index: Option<u64>,
     target: Regex,
+    column_index: Option<(usize, String)>,
     found_record: Option<find::FoundRecord>,
     selected_offset: Option<u64>,
     is_filter: bool,
@@ -806,6 +814,9 @@ impl FinderActiveState {
             total_found: finder.count() as u64,
             cursor_index: finder.cursor().map(|x| x as u64),
             target: finder.target(),
+            column_index: finder
+                .column_index()
+                .map(|i| (i, rows_view.get_column_name_from_global_index(i))),
             found_record: finder.current(),
             selected_offset: rows_view.selected_offset(),
             is_filter: rows_view.is_filter(),
@@ -842,7 +853,12 @@ impl FinderActiveState {
             line = format!("{cursor_str}/{}{plus_marker}", self.total_found);
         }
         let action = if self.is_filter { "Filter" } else { "Find" };
-        format!("[{action} \"{}\": {line}]", self.target)
+        let target_column = self
+            .column_index
+            .as_ref()
+            .map(|(_, name)| format!(" in {}", name))
+            .unwrap_or_default();
+        format!("[{action} \"{}\"{target_column}: {line}]", self.target)
     }
 }
 

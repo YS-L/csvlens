@@ -292,6 +292,13 @@ impl RowsView {
         &self.rows
     }
 
+    pub fn get_column_name_from_global_index(&self, column_index: usize) -> String {
+        self.raw_headers()
+            .get(column_index)
+            .cloned()
+            .unwrap_or_default()
+    }
+
     pub fn get_cell_value(&self, column_name: &str) -> Option<String> {
         if let (Some(column_index), Some(row_index)) = (
             self.headers()

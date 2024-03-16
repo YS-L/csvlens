@@ -392,10 +392,7 @@ impl App {
                     if should_create_new_sorter {
                         let column_name = self
                             .rows_view
-                            .raw_headers()
-                            .get(selected_column_index as usize)
-                            .cloned()
-                            .unwrap_or_default();
+                            .get_column_name_from_global_index(selected_column_index as usize);
                         let _sorter = sort::Sorter::new(
                             self.shared_config.clone(),
                             selected_column_index as usize,
@@ -539,7 +536,13 @@ impl App {
     }
 
     fn create_finder(&mut self, target: Regex, is_filter: bool, sorter: Option<Arc<sort::Sorter>>) {
-        let _finder = find::Finder::new(self.shared_config.clone(), target, sorter).unwrap();
+        let _finder = find::Finder::new(
+            self.shared_config.clone(),
+            target,
+            self.get_global_selected_column_index().map(|x| x as usize),
+            sorter,
+        )
+        .unwrap();
         self.finder = Some(_finder);
         if is_filter {
             self.rows_view.set_rows_from(0).unwrap();
@@ -1384,6 +1387,10 @@ mod tests {
         step_and_draw(&mut app, &mut terminal, Control::ScrollRight);
         step_and_draw(&mut app, &mut terminal, Control::ToggleSort);
 
+        // Toggle back to row selection mode before filtering
+        step_and_draw(&mut app, &mut terminal, Control::ToggleSelectionType);
+        step_and_draw(&mut app, &mut terminal, Control::ToggleSelectionType);
+
         thread::sleep(time::Duration::from_millis(200));
         step_and_draw(&mut app, &mut terminal, Control::Nothing);
 
@@ -1409,7 +1416,7 @@ mod tests {
             "88  │  34      25            11      Santa Barbara     │                        ",
             "86  │  38      26            23      Santa Rosa        │                        ",
             "────┴──────────────────────────────────────────────────┴────────────────────────",
-            "stdin [Row 94/128, Col 1/4] [Filter \"San\": -/11] [Filter \"Lat|City\": 4/10 cols] ",
+            "stdin [Row 94/128, Col 1/4] [Filter \"San\": 1/11] [Filter \"Lat|City\": 4/10 cols] ",
         ];
         assert_eq!(lines, expected);
     }
@@ -1502,6 +1509,38 @@ mod tests {
         ];
         let actual_buffer = terminal.backend().buffer().clone();
         let lines = to_lines(&actual_buffer);
+        assert_eq!(lines, expected);
+    }
+
+    #[test]
+    fn test_filter_rows_for_specific_column() {
+        let mut app = AppBuilder::new("tests/data/cities.csv").build().unwrap();
+        thread::sleep(time::Duration::from_millis(100));
+
+        let backend = TestBackend::new(80, 10);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        step_and_draw(&mut app, &mut terminal, Control::ToggleSelectionType);
+        step_and_draw(&mut app, &mut terminal, Control::ScrollRight);
+        step_and_draw(&mut app, &mut terminal, Control::Filter("^1".into()));
+
+        thread::sleep(time::Duration::from_millis(200));
+        step_and_draw(&mut app, &mut terminal, Control::Nothing);
+
+        let actual_buffer = terminal.backend().buffer().clone();
+        let lines = to_lines(&actual_buffer);
+        let expected = vec![
+            "────────────────────────────────────────────────────────────────────────────────",
+            "       LatD    LatM    LatS    NS    LonD    LonM    LonS    EW    City         ",
+            "────┬───────────────────────────────────────────────────────────────────────────",
+            "4   │  42      16      12      N     71      48      0       W     Worcester    ",
+            "8   │  39      11      23      N     78      9       36      W     Winchest…    ",
+            "9   │  34      14      24      N     77      55      11      W     Wilmingt…    ",
+            "12  │  41      15      0       N     77      0       0       W     Williams…    ",
+            "20  │  31      13      11      N     82      20      59      W     Waycross     ",
+            "────┴───────────────────────────────────────────────────────────────────────────",
+            "stdin [Row 4/128, Col 1/10] [Filter \"^1\" in LatM: -/19]                         ",
+        ];
         assert_eq!(lines, expected);
     }
 }
