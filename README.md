@@ -43,6 +43,8 @@ Key | Action
 `>` | Increase selected column's width
 `<` | Decrease selected column's width
 `Shift + ↓` (or `Shift + j`) | Sort rows by the selected column
+`#` (in Cell mode) | Find and highlight rows like the selected cell
+`@` (in Cell mode) | Filter rows like the selected cell
 `Enter` (in Cell mode) | Print the selected cell to stdout and exit
 `-S` | Toggle line wrapping
 `r` | Reset to default view (clear all filters and custom column widths)

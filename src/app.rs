@@ -352,6 +352,19 @@ impl App {
             Control::Find(s) | Control::Filter(s) => {
                 self.handle_find_or_filter(s, matches!(control, Control::Filter(_)));
             }
+            Control::FindLikeCell | Control::FilterLikeCell => {
+                if let Some(value) = self.rows_view.get_cell_value_from_selection() {
+                    self.handle_find_or_filter(
+                        value.as_str(),
+                        matches!(control, Control::FilterLikeCell),
+                    );
+                } else {
+                    self.transient_message.replace(
+                        "Select a cell first before finding (#) or filtering (@) rows like it"
+                            .to_string(),
+                    );
+                }
+            }
             Control::FilterColumns(pat) => {
                 self.set_columns_filter(pat);
             }
@@ -1561,6 +1574,44 @@ mod tests {
             "20  │  31      13      11      N     82      20      59      W     Waycross     ",
             "────┴───────────────────────────────────────────────────────────────────────────",
             "stdin [Row 4/128, Col 1/10] [Filter \"^1\" in LatM: -/19]                         ",
+        ];
+        assert_eq!(lines, expected);
+    }
+
+    #[test]
+    fn test_filter_like_cell() {
+        let mut app = AppBuilder::new("tests/data/cities.csv").build().unwrap();
+        thread::sleep(time::Duration::from_millis(100));
+
+        let backend = TestBackend::new(80, 10);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        // Enter cell selection mode
+        step_and_draw(&mut app, &mut terminal, Control::ToggleSelectionType);
+        step_and_draw(&mut app, &mut terminal, Control::ToggleSelectionType);
+
+        // Select the State column
+        for _ in 0..10 {
+            step_and_draw(&mut app, &mut terminal, Control::ScrollRight);
+        }
+        step_and_draw(&mut app, &mut terminal, Control::FilterLikeCell);
+
+        thread::sleep(time::Duration::from_millis(200));
+        step_and_draw(&mut app, &mut terminal, Control::Nothing);
+
+        let actual_buffer = terminal.backend().buffer().clone();
+        let lines = to_lines(&actual_buffer);
+        let expected = vec![
+            "────────────────────────────────────────────────────────────────────────────────",
+            "       LatS    NS    LonD    LonM    LonS    EW    City            State        ",
+            "────┬───────────────────────────────────────────────────────────────────────┬───",
+            "1   │  59      N     80      39      0       W     Youngstown      OH       │   ",
+            "50  │  0       N     83      32      24      W     Toledo          OH       │   ",
+            "62  │  36      N     80      37      12      W     Steubenville    OH       │   ",
+            "65  │  11      N     83      48      35      W     Springfield     OH       │   ",
+            "92  │  0       N     82      42      35      W     Sandusky        OH       │   ",
+            "────┴───────────────────────────────────────────────────────────────────────┴───",
+            "stdin [Row 1/128, Col 3/10] [Filter \"OH\" in State: 1/6]                         ",
         ];
         assert_eq!(lines, expected);
     }
