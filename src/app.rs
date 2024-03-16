@@ -457,7 +457,18 @@ impl App {
             if should_create_new_finder {
                 let target = self.finder.as_ref().unwrap().target();
                 let sorter = self.sorter.clone();
-                self.create_finder(target, self.rows_view.is_filter(), sorter);
+                if let Some(finder) = &self.finder {
+                    // Inherit previous finder's column index if any, instead of using the current
+                    // selected column intended for sorter
+                    self.create_finder_with_column_index(
+                        target,
+                        self.rows_view.is_filter(),
+                        finder.column_index(),
+                        sorter,
+                    );
+                } else {
+                    self.create_finder(target, self.rows_view.is_filter(), sorter);
+                }
             }
         }
 
@@ -536,13 +547,23 @@ impl App {
     }
 
     fn create_finder(&mut self, target: Regex, is_filter: bool, sorter: Option<Arc<sort::Sorter>>) {
-        let _finder = find::Finder::new(
-            self.shared_config.clone(),
+        self.create_finder_with_column_index(
             target,
+            is_filter,
             self.get_global_selected_column_index().map(|x| x as usize),
             sorter,
-        )
-        .unwrap();
+        );
+    }
+
+    fn create_finder_with_column_index(
+        &mut self,
+        target: Regex,
+        is_filter: bool,
+        column_index: Option<usize>,
+        sorter: Option<Arc<sort::Sorter>>,
+    ) {
+        let _finder =
+            find::Finder::new(self.shared_config.clone(), target, column_index, sorter).unwrap();
         self.finder = Some(_finder);
         if is_filter {
             self.rows_view.set_rows_from(0).unwrap();
