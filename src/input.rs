@@ -124,6 +124,7 @@ impl InputHandler {
                 KeyCode::Char('>') => Control::IncreaseWidth,
                 KeyCode::Char('<') => Control::DecreaseWidth,
                 KeyCode::Char('r') => Control::Reset,
+                KeyCode::Char('?') => Control::Help,
                 _ => Control::Nothing,
             },
             KeyModifiers::SHIFT => match key_event.code {

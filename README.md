@@ -46,7 +46,7 @@ Key | Action
 `Enter` (in Cell mode) | Print the selected cell to stdout and exit
 `-S` | Toggle line wrapping
 `r` | Reset to default view (clear all filters and custom column widths)
-`H` | Display help
+`H` (or `?`) | Display help
 `q` | Exit
 
 ### Optional parameters
