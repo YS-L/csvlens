@@ -93,6 +93,38 @@ fn get_cols_offset_to_fill_frame_width(
     }
 }
 
+#[derive(Default)]
+pub struct LineWrapState {
+    pub enable_line_wrap: bool,
+    pub is_word_wrap: bool,
+}
+
+impl LineWrapState {
+    pub fn toggle(&mut self, is_word_wrap: bool) {
+        // Just switch between line wrap and word wrap if already enabled
+        if self.enable_line_wrap && self.is_word_wrap != is_word_wrap {
+            self.is_word_wrap = is_word_wrap;
+            return;
+        }
+
+        // Toggle enabling or disabling wrapping
+        self.enable_line_wrap = !self.enable_line_wrap;
+        self.is_word_wrap = is_word_wrap
+    }
+
+    pub fn transient_message(&self) -> String {
+        if self.enable_line_wrap {
+            if self.is_word_wrap {
+                "Word wrap enabled".to_string()
+            } else {
+                "Line wrap enabled".to_string()
+            }
+        } else {
+            "Line wrap disabled".to_string()
+        }
+    }
+}
+
 pub struct App {
     input_handler: InputHandler,
     num_rows_not_visible: u16,
@@ -108,6 +140,7 @@ pub struct App {
     ignore_case: bool,
     help_page_state: help::HelpPageState,
     sorter: Option<Arc<sort::Sorter>>,
+    line_wrap_state: LineWrapState,
 }
 
 impl App {
@@ -181,6 +214,7 @@ impl App {
             ignore_case,
             help_page_state,
             sorter: None,
+            line_wrap_state: LineWrapState::default(),
         };
 
         if let Some(pat) = &columns_regex {
@@ -380,17 +414,13 @@ impl App {
             Control::ToggleSelectionType => {
                 self.rows_view.selection.toggle_selection_type();
             }
-            Control::ToggleLineWrap => {
+            Control::ToggleLineWrap(word_wrap) => {
                 self.csv_table_state.reset_buffer();
-                if self.csv_table_state.enable_line_wrap {
-                    self.csv_table_state.enable_line_wrap = false;
-                    self.transient_message
-                        .replace("Line wrap disabled".to_string());
-                } else {
-                    self.csv_table_state.enable_line_wrap = true;
-                    self.transient_message
-                        .replace("Line wrap enabled".to_string());
-                }
+                self.line_wrap_state.toggle(*word_wrap);
+                self.csv_table_state.enable_line_wrap = self.line_wrap_state.enable_line_wrap;
+                self.csv_table_state.is_word_wrap = self.line_wrap_state.is_word_wrap;
+                self.transient_message
+                    .replace(self.line_wrap_state.transient_message());
             }
             Control::ToggleSort => {
                 if let Some(selected_column_index) = self.get_global_selected_column_index() {
@@ -1123,7 +1153,7 @@ mod tests {
         let lines = to_lines(&actual_buffer);
         assert_eq!(lines, expected);
 
-        step_and_draw(&mut app, &mut terminal, Control::ToggleLineWrap);
+        step_and_draw(&mut app, &mut terminal, Control::ToggleLineWrap(false));
         let expected = vec![
             "──────────────────────────────────────────────────",
             "      a    b              c                       ",
@@ -1155,6 +1185,43 @@ mod tests {
             "   │                                     │        ",
             "───┴─────────────────────────────────────┴────────",
             "Line wrap enabled                                 ",
+        ];
+        let actual_buffer = terminal.backend().buffer().clone();
+        let lines = to_lines(&actual_buffer);
+        assert_eq!(lines, expected);
+
+        step_and_draw(&mut app, &mut terminal, Control::ToggleLineWrap(true));
+        let expected = vec![
+            "──────────────────────────────────────────────────",
+            "      a    b              c                       ",
+            "───┬─────────────────────────────────────┬────────",
+            "1  │  1    this is a      12345          │        ",
+            "   │       very long                     │        ",
+            "   │       text that                     │        ",
+            "   │       surely                        │        ",
+            "   │       will not                      │        ",
+            "   │       fit in                        │        ",
+            "   │       your small…                   │        ",
+            "2  │  2    this           678910         │        ",
+            "   │       is                            │        ",
+            "   │       an                            │        ",
+            "   │       even                          │        ",
+            "   │       longer                        │        ",
+            "   │       text                          │        ",
+            "   │       that                          │        ",
+            "   │       surely                        │        ",
+            "   │       will                          │        ",
+            "   │       not                           │        ",
+            "   │       fit                           │        ",
+            "   │       in                            │        ",
+            "   │       your                          │        ",
+            "   │       small                         │        ",
+            "   │       screen                        │        ",
+            "3  │  3    normal         123,456,789    │        ",
+            "   │       text now                      │        ",
+            "   │                                     │        ",
+            "───┴─────────────────────────────────────┴────────",
+            "Word wrap enabled                                 ",
         ];
         let actual_buffer = terminal.backend().buffer().clone();
         let lines = to_lines(&actual_buffer);

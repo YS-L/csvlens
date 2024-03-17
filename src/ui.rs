@@ -375,6 +375,7 @@ impl<'a> CsvTable<'a> {
                         effective_width,
                         row_height,
                         filler_style,
+                        state.is_word_wrap,
                     );
                 }
                 _ => {
@@ -387,6 +388,7 @@ impl<'a> CsvTable<'a> {
                         effective_width,
                         row_height,
                         filler_style,
+                        state.is_word_wrap,
                     );
                 }
             };
@@ -469,6 +471,7 @@ impl<'a> CsvTable<'a> {
         width: u16,
         height: u16,
         filler_style: FillerStyle,
+        is_word_wrap: bool,
     ) {
         const SUFFIX: &str = "…";
         const SUFFIX_LEN: u16 = 1;
@@ -482,7 +485,8 @@ impl<'a> CsvTable<'a> {
             NUM_SPACES_BETWEEN_COLUMNS
         } as usize;
 
-        let mut line_wrapper = wrap::LineWrapper::new(spans, effective_width as usize, false);
+        let mut line_wrapper =
+            wrap::LineWrapper::new(spans, effective_width as usize, is_word_wrap);
 
         for offset in 0..height {
             if let Some(mut line) = line_wrapper.next() {
@@ -1001,6 +1005,7 @@ pub struct CsvTableState {
     pub no_headers: bool,
     pub view_layout: Option<ViewLayout>,
     pub enable_line_wrap: bool,
+    pub is_word_wrap: bool,
     pub column_width_overrides: ColumnWidthOverrides,
     pub debug: String,
 }
@@ -1035,6 +1040,7 @@ impl CsvTableState {
             no_headers,
             view_layout: None,
             enable_line_wrap: false,
+            is_word_wrap: false,
             column_width_overrides: ColumnWidthOverrides::new(),
             debug: "".into(),
         }
