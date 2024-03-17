@@ -482,7 +482,7 @@ impl<'a> CsvTable<'a> {
             NUM_SPACES_BETWEEN_COLUMNS
         } as usize;
 
-        let mut line_wrapper = wrap::LineWrapper::new(spans, effective_width as usize);
+        let mut line_wrapper = wrap::LineWrapper::new(spans, effective_width as usize, false);
 
         for offset in 0..height {
             if let Some(mut line) = line_wrapper.next() {

@@ -36,6 +36,7 @@ pub enum Control {
     Select,
     ToggleSelectionType,
     ToggleLineWrap,
+    ToggleWordWrap,
     ToggleSort,
     Reset,
     Help,
@@ -246,6 +247,10 @@ impl InputHandler {
             KeyCode::Char('S') => {
                 self.reset_buffer();
                 Control::ToggleLineWrap
+            }
+            KeyCode::Char('W') | KeyCode::Char('w') => {
+                self.reset_buffer();
+                Control::ToggleWordWrap
             }
             KeyCode::Char(x) => {
                 self.reset_buffer();
