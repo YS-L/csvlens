@@ -31,24 +31,17 @@ impl<'a> LineWrapper<'a> {
             if let Some(span) = span {
                 let chars_count = span.content.chars().count();
                 let newline_pos = span.content.chars().position(|c| c == '\n');
-                if let Some(pos) = newline_pos {
-                    if pos <= remaining_width {
-                        out_spans.push(Span::styled(
-                            span.content.chars().take(pos).collect::<String>(),
-                            span.style,
-                        ));
-                        self.pending = Some(Span::styled(
-                            span.content.chars().skip(pos + 1).collect::<String>(),
-                            span.style,
-                        ));
-                    } else {
-                        let current: String = span.content.chars().take(remaining_width).collect();
-                        let pending: String = span.content.chars().skip(remaining_width).collect();
-                        out_spans.push(Span::styled(current, span.style));
-                        self.pending = Some(Span::styled(pending, span.style));
-                    }
-                    // Technically in the first case this might not be zero, but
-                    // this is to force the loop to break - we must wrap now.
+                if let Some((pos, true)) = newline_pos.map(|x| (x, x <= remaining_width)) {
+                    out_spans.push(Span::styled(
+                        span.content.chars().take(pos).collect::<String>(),
+                        span.style,
+                    ));
+                    self.pending = Some(Span::styled(
+                        span.content.chars().skip(pos + 1).collect::<String>(),
+                        span.style,
+                    ));
+                    // Technically this might not be zero, but this is to force the loop to break -
+                    // we must wrap now.
                     remaining_width = 0;
                 } else if chars_count <= remaining_width {
                     remaining_width = remaining_width.saturating_sub(chars_count);
