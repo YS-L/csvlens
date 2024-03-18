@@ -1201,7 +1201,8 @@ mod tests {
             "   │       surely                        │        ",
             "   │       will not                      │        ",
             "   │       fit in                        │        ",
-            "   │       your small…                   │        ",
+            "   │       your small                    │        ",
+            "   │       screen                        │        ",
             "2  │  2    this           678910         │        ",
             "   │       is                            │        ",
             "   │       an                            │        ",
@@ -1219,7 +1220,6 @@ mod tests {
             "   │       screen                        │        ",
             "3  │  3    normal         123,456,789    │        ",
             "   │       text now                      │        ",
-            "   │                                     │        ",
             "───┴─────────────────────────────────────┴────────",
             "Word wrap enabled                                 ",
         ];

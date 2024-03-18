@@ -122,6 +122,7 @@ impl<'a> CsvTable<'a> {
         rows: &[Row],
         column_widths: &[u16],
         enable_line_wrap: bool,
+        is_word_wrap: bool,
     ) -> Vec<u16> {
         if !enable_line_wrap {
             return rows.iter().map(|_| 1).collect();
@@ -129,20 +130,23 @@ impl<'a> CsvTable<'a> {
         let mut row_heights = Vec::new();
         for (i, row) in rows.iter().enumerate() {
             for (j, content) in row.fields.iter().enumerate() {
-                let mut num_lines = 0;
-                for parts in content.split('\n') {
-                    let parts_length = parts.chars().count();
-                    num_lines += max(
-                        1,
-                        match column_widths.get(j) {
-                            Some(w) => {
-                                let usable_width = (*w).saturating_sub(NUM_SPACES_BETWEEN_COLUMNS);
-                                (parts_length as f32 / usable_width as f32).ceil() as u16
+                let num_lines = match column_widths.get(j) {
+                    Some(w) => {
+                        let usable_width = (*w).saturating_sub(NUM_SPACES_BETWEEN_COLUMNS);
+                        let spans = [Span::styled(content.as_str(), Style::default())];
+                        let mut line_wrapper =
+                            wrap::LineWrapper::new(&spans, usable_width as usize, is_word_wrap);
+                        let mut num_lines = 0;
+                        loop {
+                            if line_wrapper.next().is_none() {
+                                break;
                             }
-                            None => 1,
-                        },
-                    );
-                }
+                            num_lines += 1;
+                        }
+                        num_lines
+                    }
+                    None => 1,
+                };
                 if let Some(height) = row_heights.get_mut(i) {
                     if *height < num_lines {
                         *height = num_lines;
@@ -653,7 +657,12 @@ impl<'a> CsvTable<'a> {
             &state.column_width_overrides,
             &state.sorter_state,
         );
-        let row_heights = self.get_row_heights(self.rows, &column_widths, state.enable_line_wrap);
+        let row_heights = self.get_row_heights(
+            self.rows,
+            &column_widths,
+            state.enable_line_wrap,
+            state.is_word_wrap,
+        );
         ViewLayout {
             column_widths,
             row_heights,
