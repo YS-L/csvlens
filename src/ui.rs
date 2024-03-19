@@ -651,18 +651,20 @@ impl<'a> CsvTable<'a> {
         buf.set_span(area.x, area.bottom().saturating_sub(1), &span, area.width);
     }
 
-    fn get_view_layout(&self, area: Rect, state: &CsvTableState) -> ViewLayout {
+    fn get_view_layout(&self, area: Rect, state: &mut CsvTableState) -> ViewLayout {
         let column_widths = self.get_column_widths(
             area.width,
             &state.column_width_overrides,
             &state.sorter_state,
         );
+        let tic = std::time::Instant::now();
         let row_heights = self.get_row_heights(
             self.rows,
             &column_widths,
             state.enable_line_wrap,
             state.is_word_wrap,
         );
+        state.debug = format!("get_row_heights elapsed: {:?}", tic.elapsed());
         ViewLayout {
             column_widths,
             row_heights,
