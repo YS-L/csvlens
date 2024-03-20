@@ -91,9 +91,9 @@ brew install csvlens
 ```
 
 ### Arch Linux
-`csvlens` is available as an [AUR package](https://aur.archlinux.org/packages/csvlens). You can install it using:
+`csvlens` is available in the [official repositories](https://archlinux.org/packages/extra/x86_64/csvlens). You can install it using:
 ```
-yay -S csvlens
+pacman -S csvlens
 ```
 
 ### Windows
