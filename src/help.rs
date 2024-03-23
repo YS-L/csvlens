@@ -40,11 +40,14 @@ TAB                     : Toggle between row, column or cell selection modes
 >                       : Increase selected column's width
 <                       : Decrease selected column's width
 Shift + ↓ (or J)        : Sort rows by the selected column
+# (in Cell mode)        : Find and highlight rows like the selected cell
+@ (in Cell mode)        : Filter rows like the selected cell
 Enter (in Cell mode)    : Print the selected cell to stdout and exit
 
 # Other options
 
 -S                      : Toggle line wrapping
+-W                      : Toggle line wrapping by words
 r                       : Reset to default view (clear all filters and custom column widths)
 H (or ?)                : Display this help
 q                       : Exit";
@@ -108,7 +111,7 @@ impl StatefulWidget for HelpPage {
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
         fn line_to_span(line: &str) -> Span {
-            if line.starts_with("# ") {
+            if line.starts_with("# ") && !line.contains(':') {
                 let header_style = Style::default()
                     .add_modifier(Modifier::BOLD)
                     .fg(Color::Rgb(200, 200, 200));
