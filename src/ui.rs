@@ -119,6 +119,7 @@ impl<'a> CsvTable<'a> {
 
     fn get_row_heights(
         &self,
+        area_height: u16,
         rows: &[Row],
         column_widths: &[u16],
         enable_line_wrap: bool,
@@ -127,8 +128,15 @@ impl<'a> CsvTable<'a> {
         if !enable_line_wrap {
             return rows.iter().map(|_| 1).collect();
         }
+        let mut total_height = 0;
         let mut row_heights = Vec::new();
         for (i, row) in rows.iter().enumerate() {
+            if total_height >= area_height {
+                // Exit early if we've already filled the available height. Important since
+                // LineWrapper at its current state is not particularly efficient...
+                row_heights.push(1);
+                continue;
+            }
             for (j, content) in row.fields.iter().enumerate() {
                 let num_lines = match column_widths.get(j) {
                     Some(w) => {
@@ -155,6 +163,7 @@ impl<'a> CsvTable<'a> {
                     row_heights.push(num_lines);
                 }
             }
+            total_height += row_heights[i];
         }
         row_heights
     }
@@ -657,14 +666,15 @@ impl<'a> CsvTable<'a> {
             &state.column_width_overrides,
             &state.sorter_state,
         );
-        let tic = std::time::Instant::now();
+        let _tic = std::time::Instant::now();
         let row_heights = self.get_row_heights(
+            area.height,
             self.rows,
             &column_widths,
             state.enable_line_wrap,
             state.is_word_wrap,
         );
-        state.debug = format!("get_row_heights elapsed: {:?}", tic.elapsed());
+        // state.debug = format!("get_row_heights elapsed: {:?}", _tic.elapsed());
         ViewLayout {
             column_widths,
             row_heights,
