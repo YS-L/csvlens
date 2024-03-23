@@ -10,6 +10,7 @@ use crate::ui::{CsvTable, CsvTableState, FilterColumnsState, FinderState};
 use crate::view;
 
 use anyhow::ensure;
+use arboard::Clipboard;
 use ratatui::backend::Backend;
 use ratatui::{Frame, Terminal};
 
@@ -453,6 +454,14 @@ impl App {
             }
             Control::DecreaseWidth => {
                 self.adjust_column_width(-4);
+            }
+            Control::CopySelection => {
+                if let Some(selected) = self.rows_view.get_cell_value_from_selection() {
+                    let mut clipboard = Clipboard::new().unwrap();
+                    clipboard.set_text(selected).unwrap();
+                    self.transient_message.replace("Copied to clipboard".to_string());
+                    self.transient_message.replace(clipboard.get_text().unwrap());
+                }
             }
             Control::Reset => {
                 self.csv_table_state.column_width_overrides.reset();

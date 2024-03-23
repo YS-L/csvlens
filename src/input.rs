@@ -34,6 +34,7 @@ pub enum Control {
     BufferContent(Input),
     BufferReset,
     Select,
+    CopySelection,
     ToggleSelectionType,
     ToggleLineWrap(bool),
     ToggleSort,
@@ -129,6 +130,7 @@ impl InputHandler {
                 KeyCode::Char('?') => Control::Help,
                 KeyCode::Char('#') => Control::FindLikeCell,
                 KeyCode::Char('@') => Control::FilterLikeCell,
+                KeyCode::Char('y') => Control::CopySelection,
                 _ => Control::Nothing,
             },
             KeyModifiers::SHIFT => match key_event.code {
