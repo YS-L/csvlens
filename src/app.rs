@@ -142,6 +142,7 @@ pub struct App {
     help_page_state: help::HelpPageState,
     sorter: Option<Arc<sort::Sorter>>,
     line_wrap_state: LineWrapState,
+    clipboard: Result<Clipboard>,
 }
 
 impl App {
@@ -200,6 +201,10 @@ impl App {
         let transient_message: Option<String> = None;
         let help_page_state = help::HelpPageState::new();
 
+        let clipboard = match Clipboard::new() {
+            Ok(clipboard) => Ok(clipboard),
+            Err(e) => Err(anyhow::anyhow!(e)),
+        };
         let mut app = App {
             input_handler,
             num_rows_not_visible,
@@ -216,6 +221,7 @@ impl App {
             help_page_state,
             sorter: None,
             line_wrap_state: LineWrapState::default(),
+            clipboard,
         };
 
         if let Some(pat) = &columns_regex {
@@ -457,10 +463,14 @@ impl App {
             }
             Control::CopySelection => {
                 if let Some(selected) = self.rows_view.get_cell_value_from_selection() {
-                    let mut clipboard = Clipboard::new().unwrap();
-                    clipboard.set_text(selected).unwrap();
-                    self.transient_message.replace("Copied to clipboard".to_string());
-                    self.transient_message.replace(clipboard.get_text().unwrap());
+                    match self.clipboard.as_mut().map(|c| c.set_text(&selected)) {
+                        Ok(_) => self
+                            .transient_message
+                            .replace(format!("Copied {} to clipboard", selected.as_str())),
+                        Err(e) => self
+                            .transient_message
+                            .replace(format!("Failed to copy to clipboard: {e}")),
+                    };
                 }
             }
             Control::Reset => {
