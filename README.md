@@ -45,6 +45,7 @@ Key | Action
 `Shift + ↓` (or `Shift + j`) | Sort rows by the selected column
 `#` (in Cell mode) | Find and highlight rows like the selected cell
 `@` (in Cell mode) | Filter rows like the selected cell
+`y` (in Cell Mode) | Copy the selected cell to clipboard
 `Enter` (in Cell mode) | Print the selected cell to stdout and exit
 `-S` | Toggle line wrapping
 `-W` | Toggle line wrapping by words
