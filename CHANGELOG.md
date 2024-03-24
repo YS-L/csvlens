@@ -1,3 +1,12 @@
+# v0.8.0
+
+This release adds support for the following:
+
+* Find and filter within the selected column
+* Find and filter using the selected cell (`#` and `@`)
+* Wrap lines by words (toggled via `-W`)
+* Copy selected cell to clipboard (`y`)
+
 # v0.7.0
 
 * Support sorting rows by a column (`Shift + ↓` or `Shift + j`)
