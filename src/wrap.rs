@@ -20,6 +20,9 @@ impl<'a> LineWrapper<'a> {
     }
 
     pub fn next(&mut self) -> Option<Line<'a>> {
+        if self.finished() {
+            return None;
+        }
         let mut out_spans = vec![];
         let mut remaining_width = self.max_width;
         loop {
@@ -72,14 +75,6 @@ impl<'a> LineWrapper<'a> {
             if remaining_width == 0 {
                 break;
             }
-        }
-        // Filter out empty spans
-        let out_spans = out_spans
-            .into_iter()
-            .filter(|s| !s.content.is_empty())
-            .collect::<Vec<_>>();
-        if out_spans.is_empty() {
-            return None;
         }
         Some(Line::from(out_spans))
     }
@@ -165,6 +160,7 @@ mod tests {
         assert_eq!(
             wrapper.next(),
             Some(Line::from(vec![
+                Span::raw(""),
                 Span::styled("my", style),
                 Span::raw("wor")
             ]))
@@ -295,6 +291,17 @@ mod tests {
         assert_eq!(wrapper.next(), Some(Line::from(vec![Span::raw("ééé")])));
         assert_eq!(wrapper.next(), Some(Line::from(vec![Span::raw(" éé")])));
         assert_eq!(wrapper.next(), Some(Line::from(vec![Span::raw("é")])));
+        assert_eq!(wrapper.next(), None);
+    }
+
+    #[test]
+    fn test_multiple_newlines() {
+        let s = Span::raw("ééé\n\nééé");
+        let spans = vec![s.clone()];
+        let mut wrapper = LineWrapper::new(&spans, 4, false);
+        assert_eq!(wrapper.next(), Some(Line::from(vec![Span::raw("ééé")])));
+        assert_eq!(wrapper.next(), Some(Line::from(vec![Span::raw("")])));
+        assert_eq!(wrapper.next(), Some(Line::from(vec![Span::raw("ééé")])));
         assert_eq!(wrapper.next(), None);
     }
 }

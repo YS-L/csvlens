@@ -1248,6 +1248,199 @@ mod tests {
     }
 
     #[test]
+    fn test_multiple_newlines() {
+        let mut app = AppBuilder::new("tests/data/multiple_newlines.csv")
+            .build()
+            .unwrap();
+        thread::sleep(time::Duration::from_millis(100));
+
+        let backend = TestBackend::new(50, 45);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        step_and_draw(&mut app, &mut terminal, Control::Nothing);
+        step_and_draw(&mut app, &mut terminal, Control::ToggleLineWrap(true));
+        let expected = vec![
+            "──────────────────────────────────────────────────",
+            "      a    b              c                       ",
+            "───┬─────────────────────────────────────┬────────",
+            "1  │  1    this is a      12345          │        ",
+            "   │       very long                     │        ",
+            "   │       text that                     │        ",
+            "   │       surely                        │        ",
+            "   │       will not                      │        ",
+            "   │       fit in                        │        ",
+            "   │       your small                    │        ",
+            "   │       screen                        │        ",
+            "2  │  2    this           678910         │        ",
+            "   │                                     │        ",
+            "   │       is                            │        ",
+            "   │                                     │        ",
+            "   │       an                            │        ",
+            "   │                                     │        ",
+            "   │       even                          │        ",
+            "   │                                     │        ",
+            "   │       longer                        │        ",
+            "   │                                     │        ",
+            "   │       text                          │        ",
+            "   │                                     │        ",
+            "   │       that                          │        ",
+            "   │                                     │        ",
+            "   │       surely                        │        ",
+            "   │                                     │        ",
+            "   │       will                          │        ",
+            "   │                                     │        ",
+            "   │       not                           │        ",
+            "   │                                     │        ",
+            "   │       fit                           │        ",
+            "   │                                     │        ",
+            "   │       in                            │        ",
+            "   │                                     │        ",
+            "   │       your                          │        ",
+            "   │                                     │        ",
+            "   │       small                         │        ",
+            "   │                                     │        ",
+            "   │       screen                        │        ",
+            "3  │  3    normal         123,456,789    │        ",
+            "   │       text now                      │        ",
+            "   │                                     │        ",
+            "───┴─────────────────────────────────────┴────────",
+            "Word wrap enabled                                 ",
+        ];
+        let actual_buffer = terminal.backend().buffer().clone();
+        let lines = to_lines(&actual_buffer);
+        assert_eq!(lines, expected);
+    }
+
+    #[test]
+    fn test_carriage_returns() {
+        let mut app = AppBuilder::new("tests/data/multi_lines_carriage_return.csv")
+            .build()
+            .unwrap();
+        thread::sleep(time::Duration::from_millis(100));
+
+        let backend = TestBackend::new(50, 45);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        step_and_draw(&mut app, &mut terminal, Control::Nothing);
+        step_and_draw(&mut app, &mut terminal, Control::ToggleLineWrap(true));
+        let expected = vec![
+            "──────────────────────────────────────────────────",
+            "      a    b              c                       ",
+            "───┬─────────────────────────────────────┬────────",
+            "1  │  1    this is a      12345          │        ",
+            "   │       very long                     │        ",
+            "   │       text that                     │        ",
+            "   │       surely                        │        ",
+            "   │       will not                      │        ",
+            "   │       fit in                        │        ",
+            "   │       your small                    │        ",
+            "   │       screen                        │        ",
+            "2  │  2    this           678910         │        ",
+            "   │                                     │        ",
+            "   │       is                            │        ",
+            "   │                                     │        ",
+            "   │       an                            │        ",
+            "   │                                     │        ",
+            "   │       even                          │        ",
+            "   │                                     │        ",
+            "   │       longer                        │        ",
+            "   │                                     │        ",
+            "   │       text                          │        ",
+            "   │                                     │        ",
+            "   │       that                          │        ",
+            "   │                                     │        ",
+            "   │       surely                        │        ",
+            "   │                                     │        ",
+            "   │       will                          │        ",
+            "   │                                     │        ",
+            "   │       not                           │        ",
+            "   │                                     │        ",
+            "   │       fit                           │        ",
+            "   │                                     │        ",
+            "   │       in                            │        ",
+            "   │                                     │        ",
+            "   │       your                          │        ",
+            "   │                                     │        ",
+            "   │       small                         │        ",
+            "   │                                     │        ",
+            "   │       screen                        │        ",
+            "3  │  3    normal         123,456,789    │        ",
+            "   │       text now                      │        ",
+            "   │                                     │        ",
+            "───┴─────────────────────────────────────┴────────",
+            "Word wrap enabled                                 ",
+        ];
+        let actual_buffer = terminal.backend().buffer().clone();
+        let lines = to_lines(&actual_buffer);
+        assert_eq!(lines, expected);
+    }
+
+    #[test]
+    fn test_starts_with_newline() {
+        let mut app = AppBuilder::new("tests/data/starts_with_newline.csv")
+            .build()
+            .unwrap();
+        thread::sleep(time::Duration::from_millis(100));
+
+        let backend = TestBackend::new(50, 20);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        step_and_draw(&mut app, &mut terminal, Control::Nothing);
+        let expected = vec![
+            "──────────────────────────────────────────────────",
+            "      a    b              c                       ",
+            "───┬─────────────────────────────────────┬────────",
+            "1  │  1    this is a …    12345          │        ",
+            "2  │  2    …              678910         │        ",
+            "3  │  3    normal tex…    123,456,789    │        ",
+            "   │                                     │        ",
+            "   │                                     │        ",
+            "   │                                     │        ",
+            "   │                                     │        ",
+            "   │                                     │        ",
+            "   │                                     │        ",
+            "   │                                     │        ",
+            "   │                                     │        ",
+            "   │                                     │        ",
+            "   │                                     │        ",
+            "   │                                     │        ",
+            "   │                                     │        ",
+            "───┴─────────────────────────────────────┴────────",
+            "stdin [Row 1/3, Col 1/3]                          ",
+        ];
+        let actual_buffer = terminal.backend().buffer().clone();
+        let lines = to_lines(&actual_buffer);
+        assert_eq!(lines, expected);
+
+        step_and_draw(&mut app, &mut terminal, Control::ToggleLineWrap(true));
+        let expected = vec![
+            "──────────────────────────────────────────────────",
+            "      a    b              c                       ",
+            "───┬─────────────────────────────────────┬────────",
+            "1  │  1    this is a      12345          │        ",
+            "   │       very long                     │        ",
+            "   │       text that                     │        ",
+            "   │       surely                        │        ",
+            "   │       will not                      │        ",
+            "   │       fit in                        │        ",
+            "   │       your small                    │        ",
+            "   │       screen                        │        ",
+            "2  │  2                   678910         │        ",
+            "   │       starts                        │        ",
+            "   │       with new                      │        ",
+            "   │       line                          │        ",
+            "3  │  3    normal         123,456,789    │        ",
+            "   │       text now                      │        ",
+            "   │                                     │        ",
+            "───┴─────────────────────────────────────┴────────",
+            "Word wrap enabled                                 ",
+        ];
+        let actual_buffer = terminal.backend().buffer().clone();
+        let lines = to_lines(&actual_buffer);
+        assert_eq!(lines, expected);
+    }
+
+    #[test]
     fn test_column_widths_boundary_condition() {
         let mut app = AppBuilder::new("tests/data/cities.csv").build().unwrap();
         thread::sleep(time::Duration::from_millis(100));

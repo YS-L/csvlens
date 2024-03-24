@@ -146,10 +146,11 @@ impl<'a> CsvTable<'a> {
                             wrap::LineWrapper::new(&spans, usable_width as usize, is_word_wrap);
                         let mut num_lines = 0;
                         loop {
-                            if line_wrapper.next().is_none() {
+                            line_wrapper.next();
+                            num_lines += 1;
+                            if line_wrapper.finished() {
                                 break;
                             }
-                            num_lines += 1;
                         }
                         num_lines
                     }
@@ -675,6 +676,7 @@ impl<'a> CsvTable<'a> {
             state.is_word_wrap,
         );
         // state.debug = format!("get_row_heights elapsed: {:?}", _tic.elapsed());
+        // state.debug = format!("row_heights: {:?}, area_height: {:?}", row_heights, area.height);
         ViewLayout {
             column_widths,
             row_heights,
