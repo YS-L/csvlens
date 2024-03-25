@@ -116,7 +116,7 @@ struct Args {
     #[arg(long, value_name = "regex")]
     filter: Option<String>,
 
-    /// Use this regex to find and hightlight matches by default
+    /// Use this regex to find and highlight matches by default
     #[arg(long, value_name = "regex")]
     find: Option<String>,
 
