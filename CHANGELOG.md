@@ -1,3 +1,9 @@
+# v0.8.1
+
+* Fix rendering of consecutive newlines
+* Fix clipboard support on Wayland (@ram02z)
+* Allow opting out of clipboard feature
+
 # v0.8.0
 
 This release adds support for the following:
