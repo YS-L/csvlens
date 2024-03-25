@@ -10,6 +10,7 @@ use crate::ui::{CsvTable, CsvTableState, FilterColumnsState, FinderState};
 use crate::view;
 
 use anyhow::ensure;
+#[cfg(feature = "clipboard")]
 use arboard::Clipboard;
 use ratatui::backend::Backend;
 use ratatui::{Frame, Terminal};
@@ -142,6 +143,7 @@ pub struct App {
     help_page_state: help::HelpPageState,
     sorter: Option<Arc<sort::Sorter>>,
     line_wrap_state: LineWrapState,
+    #[cfg(feature = "clipboard")]
     clipboard: Result<Clipboard>,
 }
 
@@ -201,10 +203,12 @@ impl App {
         let transient_message: Option<String> = None;
         let help_page_state = help::HelpPageState::new();
 
+        #[cfg(feature = "clipboard")]
         let clipboard = match Clipboard::new() {
             Ok(clipboard) => Ok(clipboard),
             Err(e) => Err(anyhow::anyhow!(e)),
         };
+
         let mut app = App {
             input_handler,
             num_rows_not_visible,
@@ -221,6 +225,7 @@ impl App {
             help_page_state,
             sorter: None,
             line_wrap_state: LineWrapState::default(),
+            #[cfg(feature = "clipboard")]
             clipboard,
         };
 
@@ -461,6 +466,7 @@ impl App {
             Control::DecreaseWidth => {
                 self.adjust_column_width(-4);
             }
+            #[cfg(feature = "clipboard")]
             Control::CopySelection => {
                 if let Some(selected) = self.rows_view.get_cell_value_from_selection() {
                     match self.clipboard.as_mut().map(|c| c.set_text(&selected)) {

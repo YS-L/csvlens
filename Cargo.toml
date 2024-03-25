@@ -25,10 +25,14 @@ csv-sniffer = "0.3.1"
 tui-input = { version = "0.8", features = ["crossterm"] }
 arrow = {version = "50.0.0", default-features = false, features = ["csv"]}
 sorted-vec = "0.8.3"
-arboard = { version = "3.3.2", features = ["wayland-data-control"] }
+arboard = { version = "3.3.2", features = ["wayland-data-control"], optional = true }
 
 [target.'cfg(windows)'.dependencies]
 crossterm = "0.27.0"
+
+[features]
+default = ["clipboard"]
+clipboard = ["dep:arboard"]
 
 # The profile that 'cargo dist' will build with
 [profile.dist]
