@@ -71,7 +71,7 @@ Key | Action
 
 * `--filter <regex>`: Use this regex to filter rows to display by default.
 
-* `--find <regex>`: Use this regex to find and hightlight matches by default.
+* `--find <regex>`: Use this regex to find and highlight matches by default.
 
 * `--echo-column <column_name>`: Print the value of this column at the selected
   row to stdout on `Enter` key and then exit.
