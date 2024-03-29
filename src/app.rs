@@ -768,6 +768,9 @@ impl App {
         let rows = self.rows_view.rows();
         let csv_table = CsvTable::new(self.rows_view.headers(), rows);
         f.render_stateful_widget(csv_table, size, &mut self.csv_table_state);
+        if let Some((x, y)) = self.csv_table_state.cursor_xy {
+            f.set_cursor(x, y);
+        }
     }
 
     fn draw<B: Backend>(&mut self, terminal: &mut Terminal<B>) -> Result<()> {
@@ -1898,6 +1901,38 @@ mod tests {
             "────┴───────────────────────────────────────────────────────────────────────┴───",
             "stdin [Row 1/128, Col 3/10] [Filter \"OH\" in State: 1/6]                         ",
         ];
+        assert_eq!(lines, expected);
+    }
+
+    #[test]
+    fn test_input_cursor() {
+        let mut app = AppBuilder::new("tests/data/cities.csv").build().unwrap();
+        thread::sleep(time::Duration::from_millis(100));
+
+        let backend = TestBackend::new(30, 10);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        step_and_draw(&mut app, &mut terminal, Control::Nothing);
+        step_and_draw(
+            &mut app,
+            &mut terminal,
+            Control::BufferContent("abc".into()),
+        );
+        assert_eq!(app.csv_table_state.cursor_xy, Some((3, 9)));
+        let expected = vec![
+            "──────────────────────────────",
+            "      LatD    LatM    LatS    ",
+            "───┬──────────────────────────",
+            "1  │  41      5       59      ",
+            "2  │  42      52      48      ",
+            "3  │  46      35      59      ",
+            "4  │  42      16      12      ",
+            "5  │  43      37      48      ",
+            "───┴──────────────────────────",
+            "abc                           ",
+        ];
+        let actual_buffer = terminal.backend().buffer().clone();
+        let lines = to_lines(&actual_buffer);
         assert_eq!(lines, expected);
     }
 }

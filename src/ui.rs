@@ -546,42 +546,37 @@ impl<'a> CsvTable<'a> {
         }
     }
 
-    fn format_input(&self, input: &Input) -> String {
-        let chars_before: String = input.value().chars().take(input.cursor()).collect();
-        let chars_after: String = input.value().chars().skip(input.cursor()).collect();
-        format!("{chars_before}█{chars_after}")
-    }
-
-    fn render_status(&self, area: Rect, buf: &mut Buffer, state: &CsvTableState) {
+    fn render_status(&self, area: Rect, buf: &mut Buffer, state: &mut CsvTableState) {
         // Content of status line (separator already plotted elsewhere)
         let style = Style::default().fg(Color::Rgb(128, 128, 128));
         let mut content: String;
+        state.cursor_xy = None;
         if let Some(msg) = &state.transient_message {
             content = msg.to_owned();
         } else if let BufferState::Enabled(buffer_mode, input) = &state.buffer_content {
-            content = input.value().to_string();
-            let format_buffer = |prefix: &str| {
-                format!(
-                    "{prefix}: {formatted_input}",
-                    formatted_input = self.format_input(input)
-                )
+            let get_prefix = |&input_mode| {
+                let prefix = match input_mode {
+                    InputMode::GotoLine => "Go to line",
+                    InputMode::Find => "Find",
+                    InputMode::Filter => "Filter",
+                    InputMode::FilterColumns => "Columns regex",
+                    InputMode::Option => "Option",
+                    _ => "",
+                };
+                if prefix.is_empty() {
+                    "".to_string()
+                } else {
+                    format!("{prefix}: ")
+                }
             };
-            match buffer_mode {
-                InputMode::GotoLine => {
-                    content = format_buffer("Go to line");
-                }
-                InputMode::Find => {
-                    content = format_buffer("Find");
-                }
-                InputMode::Filter => {
-                    content = format_buffer("Filter");
-                }
-                InputMode::FilterColumns => {
-                    content = format_buffer("Columns regex");
-                }
-                InputMode::Option => content = format_buffer("Option"),
-                _ => {}
-            }
+            let prefix = get_prefix(buffer_mode);
+            content = format!("{prefix}{}", input.value());
+            state.cursor_xy = Some((
+                area.x
+                    .saturating_add(prefix.len() as u16)
+                    .saturating_add(input.cursor() as u16),
+                area.bottom().saturating_sub(1),
+            ));
         } else {
             // Filename
             if let Some(f) = &state.filename {
@@ -1030,6 +1025,7 @@ pub struct CsvTableState {
     pub enable_line_wrap: bool,
     pub is_word_wrap: bool,
     pub column_width_overrides: ColumnWidthOverrides,
+    pub cursor_xy: Option<(u16, u16)>,
     pub debug: String,
 }
 
@@ -1065,6 +1061,7 @@ impl CsvTableState {
             enable_line_wrap: false,
             is_word_wrap: false,
             column_width_overrides: ColumnWidthOverrides::new(),
+            cursor_xy: None,
             debug: "".into(),
         }
     }
