@@ -304,4 +304,16 @@ mod tests {
         assert_eq!(wrapper.next(), Some(Line::from(vec![Span::raw("ééé")])));
         assert_eq!(wrapper.next(), None);
     }
+
+    #[test]
+    fn test_zero_max_width() {
+        let s = Span::raw("ééé\n\nééé");
+        let spans = vec![s.clone()];
+        let mut wrapper = LineWrapper::new(&spans, 0, false);
+        assert_eq!(wrapper.next(), Some(Line::from(vec![Span::raw("")])));
+        assert_eq!(wrapper.next(), Some(Line::from(vec![Span::raw("")])));
+        assert_eq!(wrapper.next(), Some(Line::from(vec![Span::raw("")])));
+        assert_eq!(wrapper.next(), Some(Line::from(vec![Span::raw("")])));
+        assert_eq!(wrapper.finished(), false);
+    }
 }

@@ -1257,6 +1257,62 @@ mod tests {
     }
 
     #[test]
+    fn test_multi_lines_degenerate_width() {
+        let mut app = AppBuilder::new("tests/data/multi_lines.csv")
+            .build()
+            .unwrap();
+        thread::sleep(time::Duration::from_millis(100));
+
+        let backend = TestBackend::new(50, 30);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        step_and_draw(&mut app, &mut terminal, Control::Nothing);
+        step_and_draw(&mut app, &mut terminal, Control::ToggleSelectionType);
+        step_and_draw(&mut app, &mut terminal, Control::ScrollRight);
+        step_and_draw(&mut app, &mut terminal, Control::ToggleLineWrap(false));
+        step_and_draw(&mut app, &mut terminal, Control::DecreaseWidth);
+        step_and_draw(&mut app, &mut terminal, Control::DecreaseWidth);
+        step_and_draw(&mut app, &mut terminal, Control::DecreaseWidth);
+        step_and_draw(&mut app, &mut terminal, Control::DecreaseWidth);
+
+        let expected = vec![
+            "──────────────────────────────────────────────────",
+            "      a    …   c                                  ",
+            "───┬──────────────────────────┬───────────────────",
+            "1  │  1    …   12345          │                   ",
+            "2  │  2    …   678910         │                   ",
+            "3  │  3    …   123,456,789    │                   ",
+            "   │                          │                   ",
+            "   │                          │                   ",
+            "   │                          │                   ",
+            "   │                          │                   ",
+            "   │                          │                   ",
+            "   │                          │                   ",
+            "   │                          │                   ",
+            "   │                          │                   ",
+            "   │                          │                   ",
+            "   │                          │                   ",
+            "   │                          │                   ",
+            "   │                          │                   ",
+            "   │                          │                   ",
+            "   │                          │                   ",
+            "   │                          │                   ",
+            "   │                          │                   ",
+            "   │                          │                   ",
+            "   │                          │                   ",
+            "   │                          │                   ",
+            "   │                          │                   ",
+            "   │                          │                   ",
+            "   │                          │                   ",
+            "───┴──────────────────────────┴───────────────────",
+            "stdin [Row 1/3, Col 1/3]                          ",
+        ];
+        let actual_buffer = terminal.backend().buffer().clone();
+        let lines = to_lines(&actual_buffer);
+        assert_eq!(lines, expected);
+    }
+
+    #[test]
     fn test_multiple_newlines() {
         let mut app = AppBuilder::new("tests/data/multiple_newlines.csv")
             .build()

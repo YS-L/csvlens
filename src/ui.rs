@@ -141,18 +141,22 @@ impl<'a> CsvTable<'a> {
                 let num_lines = match column_widths.get(j) {
                     Some(w) => {
                         let usable_width = (*w).saturating_sub(NUM_SPACES_BETWEEN_COLUMNS);
-                        let spans = [Span::styled(content.as_str(), Style::default())];
-                        let mut line_wrapper =
-                            wrap::LineWrapper::new(&spans, usable_width as usize, is_word_wrap);
-                        let mut num_lines = 0;
-                        loop {
-                            line_wrapper.next();
-                            num_lines += 1;
-                            if line_wrapper.finished() {
-                                break;
+                        if usable_width > 0 {
+                            let spans = [Span::styled(content.as_str(), Style::default())];
+                            let mut line_wrapper =
+                                wrap::LineWrapper::new(&spans, usable_width as usize, is_word_wrap);
+                            let mut num_lines = 0;
+                            loop {
+                                line_wrapper.next();
+                                num_lines += 1;
+                                if line_wrapper.finished() {
+                                    break;
+                                }
                             }
+                            num_lines
+                        } else {
+                            1
                         }
-                        num_lines
                     }
                     None => 1,
                 };
@@ -517,7 +521,7 @@ impl<'a> CsvTable<'a> {
                     }
                 }
                 let padding_width = min(
-                    (effective_width as usize).saturating_sub(line.width()) + buffer_space,
+                    (effective_width as usize + buffer_space).saturating_sub(line.width()),
                     width as usize,
                 );
                 if padding_width > 0 {
