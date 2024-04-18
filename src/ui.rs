@@ -590,10 +590,10 @@ impl<'a> CsvTable<'a> {
             }
 
             // Row / Col
-            let total_str = if state.total_line_number.is_some() {
-                format!("{}", state.total_line_number.unwrap())
-            } else {
-                "?".to_owned()
+            let total_str = match state.total_line_number {
+                Some((total, false)) => format!("{}", total),
+                Some((total, true)) => format!("{}+", total),
+                _ => "?".to_owned(),
             };
             let current_row;
             if let Some(selection) = &state.selection {
@@ -1010,7 +1010,7 @@ pub struct CsvTableState {
     pub num_cols_rendered: u64,
     pub more_cols_to_show: bool,
     filename: Option<String>,
-    total_line_number: Option<usize>,
+    total_line_number: Option<(usize, bool)>,
     total_cols: usize,
     pub debug_stats: DebugStats,
     buffer_content: BufferState,
@@ -1090,8 +1090,8 @@ impl CsvTableState {
         self.num_cols_rendered = n;
     }
 
-    pub fn set_total_line_number(&mut self, n: usize) {
-        self.total_line_number = Some(n);
+    pub fn set_total_line_number(&mut self, n: usize, is_approx: bool) {
+        self.total_line_number = Some((n, is_approx));
     }
 
     pub fn set_total_cols(&mut self, n: usize) {

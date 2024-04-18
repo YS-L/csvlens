@@ -86,6 +86,11 @@ impl Finder {
         (self.internal.lock().unwrap()).count
     }
 
+    pub fn count_and_max_row_index(&self) -> (usize, Option<u64>) {
+        let g = self.internal.lock().unwrap();
+        (g.count, g.founds.last().map(|x| x.row_index() as u64))
+    }
+
     pub fn done(&self) -> bool {
         (self.internal.lock().unwrap()).done
     }

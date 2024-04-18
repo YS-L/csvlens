@@ -591,9 +591,9 @@ impl App {
         self.csv_table_state.selection = Some(self.rows_view.selection.clone());
 
         if let Some(n) = self.rows_view.get_total_line_numbers() {
-            self.csv_table_state.set_total_line_number(n);
+            self.csv_table_state.set_total_line_number(n, false);
         } else if let Some(n) = self.rows_view.get_total_line_numbers_approx() {
-            self.csv_table_state.set_total_line_number(n);
+            self.csv_table_state.set_total_line_number(n, true);
         }
         self.csv_table_state
             .set_total_cols(self.rows_view.headers().len());

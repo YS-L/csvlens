@@ -4,7 +4,6 @@ use anyhow::Result;
 use csv::{Position, Reader, ReaderBuilder};
 use std::cmp::max;
 use std::fs::File;
-use std::io::{BufRead, BufReader};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 
@@ -269,8 +268,14 @@ impl CsvLensReader {
         res
     }
 
-    pub fn get_total_line_numbers_approx(&self) -> Option<usize> {
-        let res = self.internal.lock().unwrap().total_line_number_approx;
+    pub fn get_last_indexed_line_number(&self) -> Option<usize> {
+        let res = self
+            .internal
+            .lock()
+            .unwrap()
+            .pos_table
+            .last()
+            .map(|x| x.record() as usize);
         res
     }
 
@@ -305,7 +310,6 @@ impl GetRowsStats {
 
 struct ReaderInternalState {
     total_line_number: Option<usize>,
-    total_line_number_approx: Option<usize>,
     pos_table: Vec<Position>,
     done: bool,
 }
@@ -314,7 +318,6 @@ impl ReaderInternalState {
     fn init_internal(config: Arc<CsvConfig>) -> (Arc<Mutex<ReaderInternalState>>, JoinHandle<()>) {
         let internal = ReaderInternalState {
             total_line_number: None,
-            total_line_number_approx: None,
             pos_table: vec![],
             done: false,
         };
@@ -323,31 +326,20 @@ impl ReaderInternalState {
 
         let _m = m_state.clone();
         let handle = thread::spawn(move || {
-            // quick line count
-            let mut total_line_number_approx;
-            {
-                let file = File::open(config.filename()).unwrap();
-                let buf_reader = BufReader::new(file);
-                // subtract 1 for headers
-                total_line_number_approx = buf_reader.lines().count();
-                if config.has_headers() {
-                    total_line_number_approx -= 1;
-                }
-
-                let mut m = _m.lock().unwrap();
-                m.total_line_number_approx = Some(total_line_number_approx);
-            }
-
+            let filesize = File::open(config.filename())
+                .unwrap()
+                .metadata()
+                .unwrap()
+                .len();
             let pos_table_num_entries = 10000;
-            let minimum_interval = 100; // handle small csv (don't keep pos every line)
-            let pos_table_update_every = max(
-                minimum_interval,
-                total_line_number_approx / pos_table_num_entries,
-            );
+            let minimum_interval = 500; // handle small csv (don't keep pos every byte)
+            let pos_table_update_every = max(minimum_interval, filesize / pos_table_num_entries);
 
             // full csv parsing
             let bg_reader = config.new_reader().unwrap();
-            let mut n = 0;
+            let mut n_lines = 0;
+            let mut n_bytes: u64 = 0;
+            let mut last_updated_at = 0;
             let mut iter = bg_reader.into_records();
             loop {
                 let next_pos = iter.reader().position().clone();
@@ -355,14 +347,17 @@ impl ReaderInternalState {
                     break;
                 }
                 // must not include headers position here (n > 0)
-                if n > 0 && n % pos_table_update_every == 0 {
+                let cur = (n_bytes / pos_table_update_every) as u64;
+                if n_bytes > 0 && cur > last_updated_at {
                     let mut m = _m.lock().unwrap();
-                    m.pos_table.push(next_pos);
+                    m.pos_table.push(next_pos.clone());
+                    last_updated_at = cur;
                 }
-                n += 1;
+                n_lines += 1;
+                n_bytes = next_pos.byte();
             }
             let mut m = _m.lock().unwrap();
-            m.total_line_number = Some(n);
+            m.total_line_number = Some(n_lines);
             m.done = true;
         });
 
@@ -484,8 +479,8 @@ mod tests {
         ];
         assert_eq!(rows, expected);
         let expected = GetRowsStats {
-            num_seek: 49,
-            num_parsed_record: 505,
+            num_seek: 115,
+            num_parsed_record: 218,
         };
         assert_eq!(stats, expected);
     }
@@ -500,8 +495,8 @@ mod tests {
         let expected = vec![Row::new(1235, vec!["A1235", "B1235"])];
         assert_eq!(rows, expected);
         let expected = GetRowsStats {
-            num_seek: 12,
-            num_parsed_record: 35,
+            num_seek: 25,
+            num_parsed_record: 8,
         };
         assert_eq!(stats, expected);
     }

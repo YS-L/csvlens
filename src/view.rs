@@ -12,13 +12,18 @@ use std::time::Instant;
 struct RowsFilter {
     indices: Vec<u64>,
     total: usize,
+    max_index: Option<u64>,
 }
 
 impl RowsFilter {
     fn new(finder: &find::Finder, rows_from: u64, num_rows: u64) -> RowsFilter {
-        let total = finder.count();
+        let (total, max_index) = finder.count_and_max_row_index();
         let indices = finder.get_subset_found(rows_from as usize, num_rows as usize);
-        RowsFilter { indices, total }
+        RowsFilter {
+            indices,
+            total,
+            max_index,
+        }
     }
 }
 
@@ -483,7 +488,7 @@ impl RowsView {
     }
 
     pub fn get_total_line_numbers_approx(&self) -> Option<usize> {
-        self.reader.get_total_line_numbers_approx()
+        self.reader.get_last_indexed_line_number()
     }
 
     pub fn in_view(&self, row_index: u64) -> bool {
@@ -539,7 +544,7 @@ impl RowsView {
                 self.selection.row.select_first()
             }
             Control::ScrollBottom => {
-                if let Some(total) = self.get_total() {
+                if let Some(total) = self.get_total_line_numbers_indexed() {
                     // Note: Using num_rows_rendered is not exactly correct, but it's simple and
                     // a bit better than num_rows. To be exact, this should use row heights to
                     // determine exactly how many rows to show from the bottom.
@@ -561,15 +566,24 @@ impl RowsView {
         Ok(())
     }
 
-    fn get_total(&self) -> Option<usize> {
-        if let Some(filter) = &self.filter {
-            return Some(filter.total);
-        } else if let Some(n) = self
+    fn get_total_line_numbers_indexed(&self) -> Option<usize> {
+        if let Some(max_line_number) = self
             .reader
             .get_total_line_numbers()
-            .or_else(|| self.reader.get_total_line_numbers_approx())
+            .or_else(|| self.reader.get_last_indexed_line_number())
         {
-            return Some(n);
+            if let Some(filter) = &self.filter {
+                if let Some(max_index) = filter.max_index {
+                    if max_index < max_line_number as u64 {
+                        // Only allow jumping to the bottom of found records if it can be
+                        // efficiently retrieved
+                        return Some(filter.total);
+                    }
+                    return None;
+                }
+            } else {
+                return Some(max_line_number);
+            }
         }
         None
     }
@@ -588,7 +602,7 @@ impl RowsView {
 
     fn bottom_rows_from(&self) -> Option<u64> {
         // fix type conversion craziness
-        if let Some(n) = self.get_total() {
+        if let Some(n) = self.get_total_line_numbers_indexed() {
             return Some(n.saturating_sub(self.num_rows_rendered as usize) as u64);
         }
         None
