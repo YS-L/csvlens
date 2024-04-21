@@ -234,9 +234,9 @@ impl App {
         }
 
         if let Some(pat) = &filter_regex {
-            app.handle_find_or_filter(pat, true);
+            app.handle_find_or_filter(pat, true, false);
         } else if let Some(pat) = &find_regex {
-            app.handle_find_or_filter(pat, false);
+            app.handle_find_or_filter(pat, false, false);
         }
 
         Ok(app)
@@ -396,13 +396,14 @@ impl App {
                 }
             }
             Control::Find(s) | Control::Filter(s) => {
-                self.handle_find_or_filter(s, matches!(control, Control::Filter(_)));
+                self.handle_find_or_filter(s, matches!(control, Control::Filter(_)), false);
             }
             Control::FindLikeCell | Control::FilterLikeCell => {
                 if let Some(value) = self.rows_view.get_cell_value_from_selection() {
                     self.handle_find_or_filter(
                         value.as_str(),
                         matches!(control, Control::FilterLikeCell),
+                        true,
                     );
                 } else {
                     self.transient_message.replace(
@@ -645,17 +646,22 @@ impl App {
         }
     }
 
-    fn create_regex(&mut self, s: &str) -> std::result::Result<Regex, regex::Error> {
+    fn create_regex(&mut self, s: &str, escape: bool) -> std::result::Result<Regex, regex::Error> {
+        let s = if escape {
+            regex::escape(s)
+        } else {
+            s.to_string()
+        };
         let lower_s = s.to_lowercase();
-        if self.ignore_case && lower_s.starts_with(s) {
+        if self.ignore_case && lower_s.starts_with(s.as_str()) {
             Regex::new(&format!("(?i){}", s))
         } else {
-            Regex::new(s)
+            Regex::new(s.as_str())
         }
     }
 
     fn set_columns_filter(&mut self, pat: &str) {
-        let re = self.create_regex(pat);
+        let re = self.create_regex(pat, false);
         if let Ok(target) = re {
             self.rows_view.set_columns_filter(target).unwrap();
         } else {
@@ -666,8 +672,8 @@ impl App {
         self.csv_table_state.set_cols_offset(0);
     }
 
-    fn handle_find_or_filter(&mut self, pat: &str, is_filter: bool) {
-        let re = self.create_regex(pat);
+    fn handle_find_or_filter(&mut self, pat: &str, is_filter: bool, escape: bool) {
+        let re = self.create_regex(pat, escape);
         if let Ok(target) = re {
             let _sorter = if let Some(s) = &self.sorter {
                 if s.status() == SorterStatus::Finished {
@@ -1956,6 +1962,41 @@ mod tests {
             "92  │  0       N     82      42      35      W     Sandusky        OH       │   ",
             "────┴───────────────────────────────────────────────────────────────────────┴───",
             "stdin [Row 1/128, Col 3/10] [Filter \"OH\" in State: 1/6]                         ",
+        ];
+        assert_eq!(lines, expected);
+    }
+
+    #[test]
+    fn test_filter_like_cell_escape() {
+        let mut app = AppBuilder::new("tests/data/filter.csv").build().unwrap();
+        thread::sleep(time::Duration::from_millis(100));
+
+        let backend = TestBackend::new(80, 10);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        // Enter cell selection mode
+        step_and_draw(&mut app, &mut terminal, Control::ToggleSelectionType);
+        step_and_draw(&mut app, &mut terminal, Control::ToggleSelectionType);
+
+        // Filter like the selected cell
+        step_and_draw(&mut app, &mut terminal, Control::FilterLikeCell);
+
+        thread::sleep(time::Duration::from_millis(200));
+        step_and_draw(&mut app, &mut terminal, Control::Nothing);
+
+        let actual_buffer = terminal.backend().buffer().clone();
+        let lines = to_lines(&actual_buffer);
+        let expected = vec![
+            "────────────────────────────────────────────────────────────────────────────────",
+            "      a             b                                                           ",
+            "───┬─────────────────────┬──────────────────────────────────────────────────────",
+            "1  │  $(#1#2#.3)    1    │                                                      ",
+            "   │                     │                                                      ",
+            "   │                     │                                                      ",
+            "   │                     │                                                      ",
+            "   │                     │                                                      ",
+            "───┴─────────────────────┴──────────────────────────────────────────────────────",
+            "stdin [Row 1/3, Col 1/2] [Filter \"\\$\\(\\#1\\#2\\#\\.3\\)\" in a: 1/1]                 ",
         ];
         assert_eq!(lines, expected);
     }
