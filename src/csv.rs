@@ -347,7 +347,7 @@ impl ReaderInternalState {
                     break;
                 }
                 // must not include headers position here (n > 0)
-                let cur = (n_bytes / pos_table_update_every) as u64;
+                let cur = n_bytes / pos_table_update_every;
                 if n_bytes > 0 && cur > last_updated_at {
                     let mut m = _m.lock().unwrap();
                     m.pos_table.push(next_pos.clone());
