@@ -990,8 +990,15 @@ impl DebugStats {
         let mut line = "[".to_string();
         if let Some(stats) = &self.rows_view_stats {
             line += format!(
-                "rows:{:.3}ms seek:{} parse:{}",
+                "rows:{:.3}ms pos:{}us npos:{} seek:{} parse:{}",
                 stats.elapsed.as_micros() as f64 / 1000.0,
+                stats
+                    .reader_stats
+                    .pos_table_elapsed
+                    .as_ref()
+                    .map(|e| e.as_micros())
+                    .unwrap_or(0),
+                stats.reader_stats.pos_table_entry,
                 stats.reader_stats.num_seek,
                 stats.reader_stats.num_parsed_record
             )
