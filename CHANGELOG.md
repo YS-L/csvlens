@@ -1,3 +1,13 @@
+# v0.9.0
+
+* Improve scrolling responsiveness for large csv
+* Find and filter using selected cell (`#` and `@`) to search for exact matches
+* Fix rendering of cursor in input prompt
+* Fix app freeze on line wrap in some cases
+* Fix potential overflow when subtracting durations in Windows (#77)
+* Fix rendering of right border with irregular columns (#73)
+* Fix misspelling ([#72](https://github.com/YS-L/csvlens/pull/72) by @theKnightsOfRohan)
+
 # v0.8.1
 
 * Fix rendering of consecutive newlines
