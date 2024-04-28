@@ -419,9 +419,9 @@ impl<'a> CsvTable<'a> {
             }
             remaining_width = remaining_width.saturating_sub(hlen);
         }
-        state.set_num_cols_rendered(num_cols_rendered);
+        state.num_cols_rendered = max(state.num_cols_rendered, num_cols_rendered);
         state.set_more_cols_to_show(has_more_cols_to_show);
-        state.col_ending_pos_x = col_ending_pos_x;
+        state.col_ending_pos_x = max(state.col_ending_pos_x, col_ending_pos_x);
         row_height
     }
 
@@ -674,6 +674,8 @@ impl<'a> CsvTable<'a> {
             state.enable_line_wrap,
             state.is_word_wrap,
         );
+        state.num_cols_rendered = 0;
+        state.col_ending_pos_x = 0;
         // state.debug = format!("get_row_heights elapsed: {:?}", _tic.elapsed());
         // state.debug = format!("row_heights: {:?}, area_height: {:?}", row_heights, area.height);
         ViewLayout {
@@ -1097,10 +1099,6 @@ impl CsvTableState {
 
     pub fn has_more_cols_to_show(&self) -> bool {
         self.more_cols_to_show
-    }
-
-    fn set_num_cols_rendered(&mut self, n: u64) {
-        self.num_cols_rendered = n;
     }
 
     pub fn set_total_line_number(&mut self, n: usize, is_approx: bool) {

@@ -1112,6 +1112,32 @@ mod tests {
     }
 
     #[test]
+    fn test_extra_fields_right_most_border() {
+        let mut app = AppBuilder::new("tests/data/bad_73.csv").build().unwrap();
+        thread::sleep(time::Duration::from_millis(100));
+
+        let backend = TestBackend::new(35, 10);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        step_and_draw(&mut app, &mut terminal, Control::Nothing);
+        let expected = vec![
+            "───────────────────────────────────",
+            "      COL1     COL2                ",
+            "───┬───────────────────┬───────────",
+            "1  │  c1               │           ",
+            "2  │  c2       v2      │           ",
+            "3  │  c2       4       │           ",
+            "4  │  c3               │           ",
+            "5  │  c4               │           ",
+            "───┴───────────────────┴───────────",
+            "stdin [Row 1/13, Col 1/2]          ",
+        ];
+        let actual_buffer = terminal.backend().buffer().clone();
+        let lines = to_lines(&actual_buffer);
+        assert_eq!(lines, expected);
+    }
+
+    #[test]
     fn test_sniff_delimiter() {
         let mut app = AppBuilder::new("tests/data/small.bsv")
             .delimiter(Delimiter::Auto)
