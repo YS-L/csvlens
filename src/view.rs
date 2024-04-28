@@ -7,7 +7,7 @@ use anyhow::Result;
 use regex::Regex;
 use std::cmp::min;
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 struct RowsFilter {
     indices: Vec<u64>,
@@ -248,6 +248,12 @@ pub struct Header {
     pub origin_index: usize,
 }
 
+#[derive(Debug, Clone)]
+pub struct PerfStats {
+    pub elapsed: Duration,
+    pub reader_stats: crate::csv::GetRowsStats,
+}
+
 pub struct RowsView {
     reader: CsvLensReader,
     rows: Vec<Row>,
@@ -260,13 +266,13 @@ pub struct RowsView {
     columns_filter: Option<ColumnsFilter>,
     sorter: Option<Arc<Sorter>>,
     pub selection: Selection,
-    elapsed: Option<u128>,
+    perf_stats: Option<PerfStats>,
 }
 
 impl RowsView {
     pub fn new(mut reader: CsvLensReader, num_rows: u64) -> Result<RowsView> {
         let rows_from = 0;
-        let rows = reader.get_rows(rows_from, num_rows)?;
+        let rows = reader.get_rows(rows_from, num_rows)?.0;
         let headers = Self::get_default_headers_from_reader(&reader);
         let view = Self {
             reader,
@@ -280,7 +286,7 @@ impl RowsView {
             columns_filter: None,
             sorter: None,
             selection: Selection::default(num_rows),
-            elapsed: None,
+            perf_stats: None,
         };
         Ok(view)
     }
@@ -479,8 +485,8 @@ impl RowsView {
             .map(|x| x.saturating_add(self.rows_from))
     }
 
-    pub fn elapsed(&self) -> Option<u128> {
-        self.elapsed
+    pub fn perf_stats(&self) -> Option<PerfStats> {
+        self.perf_stats.as_ref().cloned()
     }
 
     pub fn get_total_line_numbers(&self) -> Option<usize> {
@@ -618,7 +624,7 @@ impl RowsView {
 
     fn do_get_rows(&mut self) -> Result<()> {
         let start = Instant::now();
-        let mut rows = if let Some(filter) = &self.filter {
+        let (mut rows, reader_stats) = if let Some(filter) = &self.filter {
             let indices = &filter.indices;
             self.reader.get_rows_for_indices(indices)?
         } else if let Some(sorter) = &self.sorter {
@@ -630,12 +636,15 @@ impl RowsView {
         } else {
             self.reader.get_rows(self.rows_from, self.num_rows)?
         };
-        let elapsed = start.elapsed().as_micros();
+        let elapsed = start.elapsed();
         if let Some(columns_filter) = &self.columns_filter {
             rows = Self::subset_columns(&rows, columns_filter.indices());
         }
         self.rows = rows;
-        self.elapsed = Some(elapsed);
+        self.perf_stats = Some(PerfStats {
+            elapsed,
+            reader_stats,
+        });
         // current selected might be out of range, reset it
         // self.selection.row.set_bound(self.rows.len() as u64);
         Ok(())

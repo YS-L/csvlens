@@ -574,7 +574,7 @@ impl App {
         if self.show_stats {
             self.csv_table_state
                 .debug_stats
-                .rows_view_elapsed(self.rows_view.elapsed());
+                .rows_view_perf(self.rows_view.perf_stats());
             if let Some(fdr) = &self.finder {
                 self.csv_table_state
                     .debug_stats

@@ -142,13 +142,13 @@ impl CsvLensReader {
         Ok(reader)
     }
 
-    pub fn get_rows(&mut self, rows_from: u64, num_rows: u64) -> Result<Vec<Row>> {
+    pub fn get_rows(&mut self, rows_from: u64, num_rows: u64) -> Result<(Vec<Row>, GetRowsStats)> {
         let indices: Vec<u64> = (rows_from..rows_from + num_rows).collect();
-        self.get_rows_impl(&indices).map(|x| x.0)
+        self.get_rows_impl(&indices)
     }
 
-    pub fn get_rows_for_indices(&mut self, indices: &[u64]) -> Result<Vec<Row>> {
-        self.get_rows_impl(indices).map(|x| x.0)
+    pub fn get_rows_for_indices(&mut self, indices: &[u64]) -> Result<(Vec<Row>, GetRowsStats)> {
+        self.get_rows_impl(indices)
     }
 
     fn get_rows_impl(&mut self, indices: &[u64]) -> Result<(Vec<Row>, GetRowsStats)> {
@@ -285,10 +285,10 @@ impl CsvLensReader {
     }
 }
 
-#[derive(Debug, PartialEq)]
-struct GetRowsStats {
-    num_seek: u64,
-    num_parsed_record: u64,
+#[derive(Debug, Clone, PartialEq)]
+pub struct GetRowsStats {
+    pub num_seek: u64,
+    pub num_parsed_record: u64,
 }
 
 impl GetRowsStats {
@@ -396,7 +396,7 @@ mod tests {
         let config = Arc::new(CsvConfig::new("tests/data/cities.csv", b',', false));
         let mut r = CsvLensReader::new(config).unwrap();
         r.wait_internal();
-        let rows = r.get_rows(2, 3).unwrap();
+        let rows = r.get_rows(2, 3).unwrap().0;
         let expected = vec![
             Row::new(
                 3,
@@ -443,7 +443,7 @@ mod tests {
         let config = Arc::new(CsvConfig::new("tests/data/simple.csv", b',', false));
         let mut r = CsvLensReader::new(config).unwrap();
         r.wait_internal();
-        let rows = r.get_rows(1234, 2).unwrap();
+        let rows = r.get_rows(1234, 2).unwrap().0;
         let expected = vec![
             Row::new(1235, vec!["A1235", "B1235"]),
             Row::new(1236, vec!["A1236", "B1236"]),
@@ -521,7 +521,7 @@ mod tests {
     fn test_small() {
         let config = Arc::new(CsvConfig::new("tests/data/small.csv", b',', false));
         let mut r = CsvLensReader::new(config).unwrap();
-        let rows = r.get_rows(0, 50).unwrap();
+        let rows = r.get_rows(0, 50).unwrap().0;
         let expected = vec![
             Row::new(1, vec!["c1", " v1"]),
             Row::new(2, vec!["c2", " v2"]),
@@ -533,7 +533,7 @@ mod tests {
     fn test_small_delimiter() {
         let config = Arc::new(CsvConfig::new("tests/data/small.bsv", b'|', false));
         let mut r = CsvLensReader::new(config).unwrap();
-        let rows = r.get_rows(0, 50).unwrap();
+        let rows = r.get_rows(0, 50).unwrap().0;
         let expected = vec![Row::new(1, vec!["c1", "v1"]), Row::new(2, vec!["c2", "v2"])];
         assert_eq!(rows, expected);
     }
@@ -542,7 +542,7 @@ mod tests {
     fn test_irregular() {
         let config = Arc::new(CsvConfig::new("tests/data/irregular.csv", b',', false));
         let mut r = CsvLensReader::new(config).unwrap();
-        let rows = r.get_rows(0, 50).unwrap();
+        let rows = r.get_rows(0, 50).unwrap().0;
         let expected = vec![Row::new(1, vec!["c1"]), Row::new(2, vec!["c2", " v2"])];
         assert_eq!(rows, expected);
     }
@@ -555,7 +555,7 @@ mod tests {
             false,
         ));
         let mut r = CsvLensReader::new(config).unwrap();
-        let rows = r.get_rows(0, 50).unwrap();
+        let rows = r.get_rows(0, 50).unwrap().0;
         let expected = vec![
             Row::new(1, vec!["1", "quote"]),
             Row::new(2, vec!["5", "Comma, comma"]),
@@ -568,7 +568,7 @@ mod tests {
         let config = Arc::new(CsvConfig::new("tests/data/simple.csv", b',', false));
         let mut r = CsvLensReader::new(config).unwrap();
         r.wait_internal();
-        let rows = r.get_rows_for_indices(&vec![1235, 1234]).unwrap();
+        let rows = r.get_rows_for_indices(&vec![1235, 1234]).unwrap().0;
         let expected = vec![
             Row::new(1236, vec!["A1236", "B1236"]),
             Row::new(1235, vec!["A1235", "B1235"]),
