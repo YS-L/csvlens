@@ -648,7 +648,7 @@ impl App {
 
     fn create_regex(&mut self, s: &str, escape: bool) -> std::result::Result<Regex, regex::Error> {
         let s = if escape {
-            regex::escape(s)
+            format!("^{}$", regex::escape(s))
         } else {
             s.to_string()
         };
@@ -1987,7 +1987,7 @@ mod tests {
             "65  │  11      N     83      48      35      W     Springfield     OH       │   ",
             "92  │  0       N     82      42      35      W     Sandusky        OH       │   ",
             "────┴───────────────────────────────────────────────────────────────────────┴───",
-            "stdin [Row 1/128, Col 3/10] [Filter \"OH\" in State: 1/6]                         ",
+            "stdin [Row 1/128, Col 3/10] [Filter \"^OH$\" in State: 1/6]                       ",
         ];
         assert_eq!(lines, expected);
     }
@@ -2022,7 +2022,7 @@ mod tests {
             "   │                     │                                                      ",
             "   │                     │                                                      ",
             "───┴─────────────────────┴──────────────────────────────────────────────────────",
-            "stdin [Row 1/3, Col 1/2] [Filter \"\\$\\(\\#1\\#2\\#\\.3\\)\" in a: 1/1]                 ",
+            "stdin [Row 1/3, Col 1/2] [Filter \"^\\$\\(\\#1\\#2\\#\\.3\\)$\" in a: 1/1]               ",
         ];
         assert_eq!(lines, expected);
     }
