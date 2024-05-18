@@ -1,6 +1,6 @@
 use std::time::{Duration, Instant};
 
-use crossterm::event::{poll, read, Event, KeyCode, KeyEvent, KeyEventKind};
+use crossterm::event::{poll, read, Event, KeyEvent, KeyEventKind};
 
 pub enum CsvlensEvent<I> {
     Input(I),
@@ -15,14 +15,12 @@ pub struct CsvlensEvents {
 
 #[derive(Debug, Clone, Copy)]
 pub struct Config {
-    pub exit_key: KeyCode,
     pub tick_rate: Duration,
 }
 
 impl Default for Config {
     fn default() -> Config {
         Config {
-            exit_key: KeyCode::Char('q'),
             tick_rate: Duration::from_millis(250),
         }
     }

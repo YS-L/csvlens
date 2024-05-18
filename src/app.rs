@@ -19,7 +19,6 @@ use anyhow::{Context, Result};
 use regex::Regex;
 use std::cmp::min;
 use std::sync::Arc;
-use std::usize;
 
 fn get_offsets_to_make_visible(
     found_record: &find::FoundRecord,
@@ -193,7 +192,6 @@ impl App {
             rows_view.headers().len(),
             &echo_column,
             ignore_case,
-            no_headers,
         );
 
         let finder: Option<find::Finder> = None;
@@ -608,7 +606,9 @@ impl App {
 
         self.csv_table_state.update_sorter(&self.sorter);
 
-        self.csv_table_state.transient_message = self.transient_message.clone();
+        self.csv_table_state
+            .transient_message
+            .clone_from(&self.transient_message);
 
         // self.csv_table_state.debug = format!("{:?}", self.sorter);
 
