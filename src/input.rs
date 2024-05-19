@@ -73,7 +73,16 @@ impl InputHandler {
     }
 
     pub fn next(&mut self) -> Control {
-        if let CsvlensEvent::Input(key) = self.events.next().unwrap() {
+        if let CsvlensEvent::Input(mut key) = self.events.next().unwrap() {
+            let platform_consistent_shift = match (key.code, key.modifiers) {
+                (KeyCode::Char(c), _) => c.is_ascii_uppercase(),
+                (_, m) => m.contains(KeyModifiers::SHIFT),
+            };
+            if platform_consistent_shift {
+                key.modifiers.insert(KeyModifiers::SHIFT);
+            } else {
+                key.modifiers.remove(KeyModifiers::SHIFT);
+            }
             if self.is_help_mode() {
                 return self.handler_help(key);
             } else if self.is_input_buffering() {
