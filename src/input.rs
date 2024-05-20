@@ -74,6 +74,25 @@ impl InputHandler {
 
     pub fn next(&mut self) -> Control {
         if let CsvlensEvent::Input(mut key) = self.events.next().unwrap() {
+            /*
+            The shift key modifier is not consistent across platforms.
+
+            For upper case alphabets, e.g. 'A'
+
+            Unix: Char("A") + SHIFT
+            Windows: Char("A") + SHIFT
+
+            For non-alphabets, e.g. '>'
+
+            Unix: Char(">") + NULL
+            Windows: Char(">") + SHIFT
+
+            But the key event handling below assumes that the shift key modifier is only added for
+            alphabets. To satisfy the assumption, the following ensures that the presence or absence
+            of shift modifier is consistent across platforms.
+
+            Idea borrowed from: https://github.com/sxyazi/yazi/pull/174
+            */
             let platform_consistent_shift = match (key.code, key.modifiers) {
                 (KeyCode::Char(c), _) => c.is_ascii_uppercase(),
                 (_, m) => m.contains(KeyModifiers::SHIFT),
