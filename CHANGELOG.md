@@ -1,3 +1,10 @@
+# v0.9.1
+
+## Bug fixes
+
+* Fixed issue with finding and filtering using an empty cell leading to incorrect matches
+* Fixed certain Shift key-related key bindings not functioning correctly on Windows (Issue #82)
+
 # v0.9.0
 
 * Improve scrolling responsiveness for large csv
