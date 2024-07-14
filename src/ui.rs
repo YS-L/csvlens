@@ -106,6 +106,7 @@ impl<'a> CsvTable<'a> {
             }
         }
 
+        // Limit maximum width for a column to make way for other columns
         let max_single_column_width = (area_width as f32 * MAX_COLUMN_WIDTH_FRACTION) as u16;
         let mut clipped_columns: Vec<(usize, u16)> = vec![];
         for (i, w) in column_widths.iter_mut().enumerate() {
@@ -121,17 +122,48 @@ impl<'a> CsvTable<'a> {
         }
 
         // If clipping was too aggressive, redistribute the remaining width
-        // TODO: adjust the columns with smaller unclipped widths first to reduce chance of wasted space
-        let total_width: u16 = column_widths.iter().sum();
-        if total_width < area_width && !clipped_columns.is_empty() {
-            let remaining_width = area_width.saturating_sub(total_width);
-            let adjustment = remaining_width / clipped_columns.len() as u16;
-            for (i, width_before_clipping) in clipped_columns {
-                column_widths[i] = min(width_before_clipping, column_widths[i] + adjustment);
-            }
-        }
+        CsvTable::redistribute_widths_after_clpping(
+            &mut column_widths,
+            area_width,
+            clipped_columns,
+        );
 
         column_widths
+    }
+
+    fn redistribute_widths_after_clpping(
+        column_widths: &mut [u16],
+        area_width: u16,
+        mut clipped_columns: Vec<(usize, u16)>,
+    ) {
+        if clipped_columns.is_empty() {
+            // Nothing to adjust
+            return;
+        }
+
+        let total_width: u16 = column_widths.iter().sum();
+        if total_width >= area_width {
+            // No need to adjust if we're already using the full width
+            return;
+        }
+
+        // Greedily adjust from the narrowest column by equally distributing the remaining width. If
+        // a column doesn't use the allocated adjustment, subsequent columns will get to use it.
+        clipped_columns.sort_by_key(|x| x.1);
+
+        // Subtract 1 to leave space for the right border. If not, this will be too greedy and
+        // consume all the space making that border disappear.
+        let mut remaining_width = area_width.saturating_sub(total_width).saturating_sub(1);
+
+        let mut num_columns_to_adjust = clipped_columns.len();
+        for (i, width_before_clipping) in clipped_columns {
+            let adjustment = remaining_width / num_columns_to_adjust as u16;
+            let width_after_adjustment = min(width_before_clipping, column_widths[i] + adjustment);
+            let added_width = width_after_adjustment - column_widths[i];
+            column_widths[i] = width_after_adjustment;
+            remaining_width -= added_width;
+            num_columns_to_adjust -= 1;
+        }
     }
 
     fn get_row_heights(
@@ -246,6 +278,10 @@ impl<'a> CsvTable<'a> {
         let borders_state = state.borders_state.as_ref().unwrap();
         let y_first_record = borders_state.y_first_record;
         let section_width = borders_state.x_row_separator;
+
+        if area.width < section_width {
+            return;
+        }
 
         let line_number_block = Block::default()
             .borders(Borders::RIGHT)
