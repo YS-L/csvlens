@@ -106,14 +106,31 @@ impl<'a> CsvTable<'a> {
             }
         }
 
+        let max_single_column_width = (area_width as f32 * MAX_COLUMN_WIDTH_FRACTION) as u16;
+        let mut clipped_columns: Vec<(usize, u16)> = vec![];
         for (i, w) in column_widths.iter_mut().enumerate() {
             if overriden_indices.contains(&self.header.get(i).unwrap().origin_index) {
                 *w = max(*w, NUM_SPACES_BETWEEN_COLUMNS);
             } else {
                 *w += NUM_SPACES_BETWEEN_COLUMNS;
-                *w = min(*w, (area_width as f32 * MAX_COLUMN_WIDTH_FRACTION) as u16);
+                if *w > max_single_column_width {
+                    clipped_columns.push((i, *w));
+                    *w = max_single_column_width;
+                }
             }
         }
+
+        // If clipping was too aggressive, redistribute the remaining width
+        // TODO: adjust the columns with smaller unclipped widths first to reduce chance of wasted space
+        let total_width: u16 = column_widths.iter().sum();
+        if total_width < area_width && !clipped_columns.is_empty() {
+            let remaining_width = area_width.saturating_sub(total_width);
+            let adjustment = remaining_width / clipped_columns.len() as u16;
+            for (i, width_before_clipping) in clipped_columns {
+                column_widths[i] = min(width_before_clipping, column_widths[i] + adjustment);
+            }
+        }
+
         column_widths
     }
 
@@ -180,11 +197,7 @@ impl<'a> CsvTable<'a> {
         area: Rect,
         rows: &[Row],
         view_layout: &ViewLayout,
-    ) -> u16 {
-        // TODO: better to determine width from total number of records, so this is always fixed
-        let max_row_num = rows.iter().map(|x| x.record_num).max().unwrap_or(0);
-        let mut section_width = format!("{max_row_num}").len() as u16;
-
+    ) {
         // Render line numbers
         let y_first_record = area.y;
         let mut y = area.y;
@@ -199,23 +212,17 @@ impl<'a> CsvTable<'a> {
                 }
             }
             let span = Span::styled(row_num_formatted, style);
-            buf.set_span(0, y, &span, section_width);
+            buf.set_span(0, y, &span, view_layout.row_number_layout.max_length);
             y += view_layout.row_heights[i];
             if y >= area.bottom() {
                 break;
             }
         }
-        section_width = section_width + NUM_SPACES_AFTER_LINE_NUMBER + 1; // one char reserved for line; add one for symmetry
 
         state.borders_state = Some(BordersState {
-            x_row_separator: section_width,
+            x_row_separator: view_layout.row_number_layout.x_row_separator,
             y_first_record,
         });
-
-        // Add more space before starting first column
-        section_width += NUM_SPACES_AFTER_LINE_NUMBER;
-
-        section_width
     }
 
     fn render_header_borders(&self, buf: &mut Buffer, area: Rect) -> (u16, u16) {
@@ -660,9 +667,15 @@ impl<'a> CsvTable<'a> {
         buf.set_span(area.x, area.bottom().saturating_sub(1), &span, area.width);
     }
 
-    fn get_view_layout(&self, area: Rect, state: &mut CsvTableState) -> ViewLayout {
+    fn get_view_layout(&self, area: Rect, state: &mut CsvTableState, rows: &[Row]) -> ViewLayout {
+        let max_row_num = rows.iter().map(|x| x.record_num).max().unwrap_or(0);
+        let max_row_num_length = format!("{max_row_num}").len() as u16;
+        let row_num_section_width_with_spaces =
+            max_row_num_length + 2 * NUM_SPACES_AFTER_LINE_NUMBER + 1;
+        let x_row_separator = max_row_num_length + NUM_SPACES_AFTER_LINE_NUMBER + 1;
+
         let column_widths = self.get_column_widths(
-            area.width,
+            area.width.saturating_sub(row_num_section_width_with_spaces),
             &state.column_width_overrides,
             &state.sorter_state,
         );
@@ -676,11 +689,16 @@ impl<'a> CsvTable<'a> {
         );
         state.num_cols_rendered = 0;
         state.col_ending_pos_x = 0;
-        // state.debug = format!("get_row_heights elapsed: {:?}", _tic.elapsed());
-        // state.debug = format!("row_heights: {:?}, area_height: {:?}", row_heights, area.height);
+
+        let row_number_layout = RowNumberLayout {
+            max_length: max_row_num_length,
+            width_with_spaces: row_num_section_width_with_spaces,
+            x_row_separator,
+        };
         ViewLayout {
             column_widths,
             row_heights,
+            row_number_layout,
         }
     }
 }
@@ -697,7 +715,7 @@ impl<'a> StatefulWidget for CsvTable<'a> {
 
         let status_height = 2;
 
-        let layout = self.get_view_layout(area, state);
+        let layout = self.get_view_layout(area, state, self.rows);
         state.view_layout = Some(layout.clone());
 
         let (y_header, y_first_record) = self.render_header_borders(buf, area);
@@ -712,8 +730,8 @@ impl<'a> StatefulWidget for CsvTable<'a> {
                 .saturating_sub(status_height),
         );
 
-        let row_num_section_width =
-            self.render_row_numbers(buf, state, rows_area, self.rows, &layout);
+        self.render_row_numbers(buf, state, rows_area, self.rows, &layout);
+        let row_num_section_width = layout.row_number_layout.width_with_spaces;
 
         self.render_row(
             buf,
@@ -782,10 +800,18 @@ struct FillerStyle {
     short_padding: bool,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
+pub struct RowNumberLayout {
+    pub max_length: u16,
+    pub width_with_spaces: u16,
+    pub x_row_separator: u16,
+}
+
+#[derive(Debug, Clone)]
 pub struct ViewLayout {
     pub column_widths: Vec<u16>,
     pub row_heights: Vec<u16>,
+    pub row_number_layout: RowNumberLayout,
 }
 
 impl ViewLayout {
