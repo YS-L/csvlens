@@ -10,6 +10,7 @@ use crossterm::terminal::{
 };
 use ratatui::backend::CrosstermBackend;
 use ratatui::Terminal;
+use std::ffi::OsString;
 use std::panic;
 use std::thread::panicking;
 
@@ -99,8 +100,16 @@ impl Drop for AppRunner {
     }
 }
 
-pub fn run_csvlens() -> Result<Option<String>> {
-    let args = Args::parse();
+pub fn run_csvlens<I, T>(itr: I) -> Result<Option<String>>
+where
+    I: IntoIterator<Item = T>,
+    T: Into<OsString> + Clone,
+{
+    let mut args_items = vec![OsString::from("csvlens")];
+    for item in itr {
+        args_items.push(item.into());
+    }
+    let args = Args::parse_from(args_items);
 
     let show_stats = args.debug;
     let delimiter = Delimiter::from_arg(&args.delimiter, args.tab_separated)?;
