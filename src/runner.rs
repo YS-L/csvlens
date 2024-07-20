@@ -100,13 +100,30 @@ impl Drop for AppRunner {
     }
 }
 
-pub fn run_csvlens<I, T>(itr: I) -> Result<Option<String>>
+/// Run csvlens with a list of arguments. The accepted arguments are the same as the command line
+/// arguments for the csvlens binary.
+///
+/// On success, the result contains an optional string that is the value of the selected cell if
+/// any. If csvlens exits without selecting a cell, the result is None.
+///
+/// Example:
+///
+/// ```
+/// use csvlens::run_csvlens;
+///
+/// match run_csvlens(&["/path/to/your.csv", "--delimiter", "\t"]) {
+///     Ok(Some(selected_cell)) => println!("Selected: {}", selected_cell),
+///     Ok(None) => {},
+///     Err(e) => eprintln!("Error: {:?}", e),
+/// }
+/// ```
+pub fn run_csvlens<I, T>(args: I) -> Result<Option<String>>
 where
     I: IntoIterator<Item = T>,
     T: Into<OsString> + Clone,
 {
     let mut args_items = vec![OsString::from("csvlens")];
-    for item in itr {
+    for item in args {
         args_items.push(item.into());
     }
     let args = Args::parse_from(args_items);
