@@ -1,7 +1,7 @@
 use crate::csv::{CsvLensReader, Row};
 use crate::find;
 use crate::input::Control;
-use crate::sort::Sorter;
+use crate::sort::{SortOrder, Sorter};
 
 use anyhow::Result;
 use regex::Regex;
@@ -265,6 +265,7 @@ pub struct RowsView {
     filter: Option<RowsFilter>,
     columns_filter: Option<ColumnsFilter>,
     sorter: Option<Arc<Sorter>>,
+    sort_order: SortOrder,
     pub selection: Selection,
     perf_stats: Option<PerfStats>,
 }
@@ -285,6 +286,7 @@ impl RowsView {
             filter: None,
             columns_filter: None,
             sorter: None,
+            sort_order: SortOrder::Ascending,
             selection: Selection::default(num_rows),
             perf_stats: None,
         };
@@ -448,6 +450,14 @@ impl RowsView {
     pub fn reset_sorter(&mut self) -> Result<()> {
         self.sorter = None;
         self.do_get_rows()
+    }
+
+    pub fn set_sort_order(&mut self, sort_order: SortOrder) -> Result<()> {
+        if self.sort_order != sort_order {
+            self.sort_order = sort_order;
+            return self.do_get_rows();
+        }
+        Ok(())
     }
 
     pub fn rows_from(&self) -> u64 {
@@ -628,7 +638,9 @@ impl RowsView {
             let indices = &filter.indices;
             self.reader.get_rows_for_indices(indices)?
         } else if let Some(sorter) = &self.sorter {
-            if let Some(sorted_indices) = sorter.get_sorted_indices(self.rows_from, self.num_rows) {
+            if let Some(sorted_indices) =
+                sorter.get_sorted_indices(self.rows_from, self.num_rows, self.sort_order)
+            {
                 self.reader.get_rows_for_indices(&sorted_indices)?
             } else {
                 self.reader.get_rows(self.rows_from, self.num_rows)?

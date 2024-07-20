@@ -2,6 +2,7 @@ use crate::common::InputMode;
 use crate::csv::Row;
 use crate::find;
 use crate::sort;
+use crate::sort::SortOrder;
 use crate::view;
 use crate::view::Header;
 use crate::wrap;
@@ -327,7 +328,11 @@ impl<'a> CsvTable<'a> {
     fn get_effective_column_name(&self, column_name: &str, sorter_state: &SorterState) -> String {
         if let SorterState::Enabled(info) = sorter_state {
             if info.status == sort::SorterStatus::Finished && info.column_name == column_name {
-                return format!("{} [▾]", column_name);
+                let indicator = match info.order {
+                    SortOrder::Ascending => "▴",
+                    SortOrder::Descending => "▾",
+                };
+                return format!("{} [{}]", column_name, indicator);
             }
         }
         column_name.to_string()
@@ -998,10 +1003,11 @@ enum SorterState {
 }
 
 impl SorterState {
-    fn from_sorter(sorter: &sort::Sorter) -> Self {
+    fn from_sorter(sorter: &sort::Sorter, sort_order: SortOrder) -> Self {
         Self::Enabled(SorterInfo {
             status: sorter.status(),
             column_name: sorter.column_name().to_string(),
+            order: sort_order,
         })
     }
 }
@@ -1009,6 +1015,7 @@ impl SorterState {
 struct SorterInfo {
     status: sort::SorterStatus,
     column_name: String,
+    order: SortOrder,
 }
 
 impl SorterInfo {
@@ -1184,9 +1191,9 @@ impl CsvTableState {
             + NUM_SPACES_AFTER_LINE_NUMBER
     }
 
-    pub fn update_sorter(&mut self, sorter: &Option<Arc<sort::Sorter>>) {
+    pub fn update_sorter(&mut self, sorter: &Option<Arc<sort::Sorter>>, sort_order: SortOrder) {
         if let Some(s) = sorter {
-            self.sorter_state = SorterState::from_sorter(s.as_ref());
+            self.sorter_state = SorterState::from_sorter(s.as_ref(), sort_order);
         } else {
             self.sorter_state = SorterState::Disabled;
         }

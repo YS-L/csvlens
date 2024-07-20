@@ -22,7 +22,6 @@ mod history;
 mod input;
 mod io;
 mod runner;
-#[allow(dead_code)]
 mod sort;
 mod ui;
 mod util;

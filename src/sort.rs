@@ -20,7 +20,7 @@ pub enum SorterStatus {
     Error(String),
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum SortOrder {
     Ascending,
     Descending,
@@ -30,7 +30,6 @@ pub enum SortOrder {
 pub struct Sorter {
     pub column_index: usize,
     column_name: String,
-    order: SortOrder,
     internal: Arc<Mutex<SorterInternalState>>,
 }
 
@@ -40,16 +39,29 @@ impl Sorter {
         Sorter {
             column_index,
             column_name,
-            order: SortOrder::Ascending,
             internal,
         }
     }
 
-    pub fn get_sorted_indices(&self, rows_from: u64, num_rows: u64) -> Option<Vec<u64>> {
+    pub fn get_sorted_indices(
+        &self,
+        rows_from: u64,
+        num_rows: u64,
+        order: SortOrder,
+    ) -> Option<Vec<u64>> {
         let m_guard = self.internal.lock().unwrap();
         if let Some(sort_result) = &m_guard.sort_result {
             let mut out = vec![];
-            for i in rows_from..rows_from + num_rows {
+            let index_range: Box<dyn Iterator<Item = u64>> = if order == SortOrder::Ascending {
+                let start = rows_from;
+                let end = start.saturating_add(num_rows);
+                Box::new(start..end)
+            } else {
+                let end = sort_result.num_rows() as u64 - rows_from;
+                let start = end.saturating_sub(num_rows);
+                Box::new((start..end).rev())
+            };
+            for i in index_range {
                 if let Some(record_index) = sort_result.record_indices.get(i as usize) {
                     out.push(*record_index as u64)
                 }
@@ -59,11 +71,16 @@ impl Sorter {
         None
     }
 
-    pub fn get_record_order(&self, row_index: u64) -> Option<u64> {
+    pub fn get_record_order(&self, row_index: u64, order: SortOrder) -> Option<u64> {
         let m_guard = self.internal.lock().unwrap();
         if let Some(sort_result) = &m_guard.sort_result {
-            if let Some(record_order) = sort_result.record_orders.get(row_index as usize) {
-                return Some(*record_order as u64);
+            if let Some(mut record_order) =
+                sort_result.record_orders.get(row_index as usize).cloned()
+            {
+                if order == SortOrder::Descending {
+                    record_order = sort_result.num_rows() - record_order - 1;
+                }
+                return Some(record_order as u64);
             }
         }
         None
@@ -71,10 +88,6 @@ impl Sorter {
 
     pub fn status(&self) -> SorterStatus {
         (self.internal.lock().unwrap()).status.clone()
-    }
-
-    pub fn order(&self) -> SortOrder {
-        self.order
     }
 
     pub fn column_name(&self) -> &str {
@@ -97,6 +110,12 @@ impl Drop for Sorter {
 struct SortResult {
     record_indices: Vec<usize>,
     record_orders: Vec<usize>,
+}
+
+impl SortResult {
+    fn num_rows(&self) -> usize {
+        self.record_indices.len()
+    }
 }
 
 #[derive(Debug)]
@@ -224,15 +243,15 @@ impl SorterInternalState {
 mod tests {
 
     use super::*;
-    use core::time;
 
     impl Sorter {
+        #[cfg(test)]
         fn wait_internal(&self) {
             loop {
                 if self.internal.lock().unwrap().done {
                     break;
                 }
-                thread::sleep(time::Duration::from_millis(100));
+                thread::sleep(core::time::Duration::from_millis(100));
             }
         }
     }
@@ -242,8 +261,18 @@ mod tests {
         let config = Arc::new(csv::CsvConfig::new("tests/data/simple.csv", b',', false));
         let s = Sorter::new(config, 0, "A1".to_string());
         s.wait_internal();
-        let rows = s.get_sorted_indices(0, 5).unwrap();
+        let rows = s.get_sorted_indices(0, 5, SortOrder::Ascending).unwrap();
         let expected = vec![0, 9, 99, 999, 1000];
+        assert_eq!(rows, expected);
+    }
+
+    #[test]
+    fn test_descending() {
+        let config = Arc::new(csv::CsvConfig::new("tests/data/simple.csv", b',', false));
+        let s = Sorter::new(config, 0, "A1".to_string());
+        s.wait_internal();
+        let rows = s.get_sorted_indices(0, 5, SortOrder::Descending).unwrap();
+        let expected = vec![998, 997, 996, 995, 994];
         assert_eq!(rows, expected);
     }
 

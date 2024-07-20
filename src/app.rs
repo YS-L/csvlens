@@ -5,7 +5,7 @@ use crate::delimiter::{sniff_delimiter, Delimiter};
 use crate::find;
 use crate::help;
 use crate::input::{Control, InputHandler};
-use crate::sort::{self, SorterStatus};
+use crate::sort::{self, SortOrder, SorterStatus};
 use crate::ui::{CsvTable, CsvTableState, FilterColumnsState, FinderState};
 use crate::view;
 
@@ -141,6 +141,7 @@ pub struct App {
     ignore_case: bool,
     help_page_state: help::HelpPageState,
     sorter: Option<Arc<sort::Sorter>>,
+    sort_order: SortOrder,
     line_wrap_state: LineWrapState,
     #[cfg(feature = "clipboard")]
     clipboard: Result<Clipboard>,
@@ -222,6 +223,7 @@ impl App {
             ignore_case,
             help_page_state,
             sorter: None,
+            sort_order: SortOrder::Ascending,
             line_wrap_state: LineWrapState::default(),
             #[cfg(feature = "clipboard")]
             clipboard,
@@ -236,6 +238,8 @@ impl App {
         } else if let Some(pat) = &find_regex {
             app.handle_find_or_filter(pat, false, false);
         }
+
+        app.rows_view.set_sort_order(app.sort_order)?;
 
         Ok(app)
     }
@@ -436,9 +440,19 @@ impl App {
             Control::ToggleSort => {
                 if let Some(selected_column_index) = self.get_global_selected_column_index() {
                     let mut should_create_new_sorter = false;
-                    if let Some(sorter) = &self.sorter {
-                        if selected_column_index as usize != sorter.column_index {
+                    if let Some(column_index) = self.sorter.as_ref().map(|s| s.column_index) {
+                        if selected_column_index as usize != column_index {
                             should_create_new_sorter = true;
+                        } else {
+                            match self.sort_order {
+                                SortOrder::Ascending => {
+                                    self.sort_order = SortOrder::Descending;
+                                }
+                                SortOrder::Descending => {
+                                    self.sort_order = SortOrder::Ascending;
+                                }
+                            }
+                            self.rows_view.set_sort_order(self.sort_order)?;
                         }
                     } else {
                         should_create_new_sorter = true;
@@ -497,6 +511,7 @@ impl App {
             let mut should_set_rows_view_sorter = false;
             if sorter.status() == SorterStatus::Finished {
                 if let Some(rows_view_sorter) = self.rows_view.sorter() {
+                    // Sorter can be reused by rows view even if sort order is different.
                     if rows_view_sorter.column_index != sorter.column_index {
                         should_set_rows_view_sorter = true;
                     }
@@ -513,7 +528,11 @@ impl App {
             if sorter.status() == SorterStatus::Finished {
                 if let Some(finder) = &self.finder {
                     if let Some(finder_sorter) = finder.sorter() {
-                        if finder_sorter.column_index != sorter.column_index {
+                        // Internal state of finder needs to be rebuilt if sorter is different,
+                        // including sort order.
+                        if finder_sorter.column_index != sorter.column_index
+                            || finder.sort_order != self.sort_order
+                        {
                             should_create_new_finder = true;
                         }
                     } else {
@@ -604,7 +623,8 @@ impl App {
         self.csv_table_state.filter_columns_state =
             FilterColumnsState::from_rows_view(&self.rows_view);
 
-        self.csv_table_state.update_sorter(&self.sorter);
+        self.csv_table_state
+            .update_sorter(&self.sorter, self.sort_order);
 
         self.csv_table_state
             .transient_message
@@ -631,8 +651,14 @@ impl App {
         column_index: Option<usize>,
         sorter: Option<Arc<sort::Sorter>>,
     ) {
-        let _finder =
-            find::Finder::new(self.shared_config.clone(), target, column_index, sorter).unwrap();
+        let _finder = find::Finder::new(
+            self.shared_config.clone(),
+            target,
+            column_index,
+            sorter,
+            self.sort_order,
+        )
+        .unwrap();
         self.finder = Some(_finder);
         if is_filter {
             self.rows_view.set_rows_from(0).unwrap();
@@ -1773,7 +1799,7 @@ mod tests {
         let lines = to_lines(&actual_buffer);
         let expected = vec![
             "────────────────────────────────────────────────────────────────────────────────",
-            "        LatD    LatM [▾]      LatS    NS    LonD    LonM    LonS    EW    C…    ",
+            "        LatD    LatM [▴]      LatS    NS    LonD    LonM    LonS    EW    C…    ",
             "─────┬──────────────────────────────────────────────────────────────────────────",
             "118  │  44      1             12      N     92      27      35      W     R…    ",
             "56   │  43      2             59      N     76      9       0       W     S…    ",
@@ -1782,6 +1808,25 @@ mod tests {
             "83   │  32      4             48      N     81      5       23      W     S…    ",
             "─────┴──────────────────────────────────────────────────────────────────────────",
             "stdin [Row 118/128, Col 1/10]                                                   ",
+        ];
+        assert_eq!(lines, expected);
+
+        // Check descending
+        step_and_draw(&mut app, &mut terminal, Control::ToggleSort);
+        thread::sleep(time::Duration::from_millis(200));
+        let actual_buffer = terminal.backend().buffer().clone();
+        let lines = to_lines(&actual_buffer);
+        let expected = vec![
+            "────────────────────────────────────────────────────────────────────────────────",
+            "        LatD    LatM [▾]      LatS    NS    LonD    LonM    LonS    EW    C…    ",
+            "─────┬──────────────────────────────────────────────────────────────────────────",
+            "59   │  40      59            24      N     75      11      24      W     S…    ",
+            "24   │  43      58            47      N     75      55      11      W     W…    ",
+            "103  │  44      57            0       N     93      5       59      W     S…    ",
+            "21   │  44      57            35      N     89      38      23      W     W…    ",
+            "60   │  37      57            35      N     121     17      24      W     S…    ",
+            "─────┴──────────────────────────────────────────────────────────────────────────",
+            "stdin [Row 59/128, Col 1/10]                                                    ",
         ];
         assert_eq!(lines, expected);
     }
@@ -1819,7 +1864,7 @@ mod tests {
         let lines = to_lines(&actual_buffer);
         let expected = vec![
             "────────────────────────────────────────────────────────────────────────────────",
-            "       LatD    LatM [▾]      LatS    City                                       ",
+            "       LatD    LatM [▴]      LatS    City                                       ",
             "────┬──────────────────────────────────────────────────┬────────────────────────",
             "94  │  34      6             36      San Bernardino    │                        ",
             "90  │  37      20            24      San Jose          │                        ",
@@ -1828,6 +1873,27 @@ mod tests {
             "86  │  38      26            23      Santa Rosa        │                        ",
             "────┴──────────────────────────────────────────────────┴────────────────────────",
             "stdin [Row 94/128, Col 1/4] [Filter \"San\": 1/11] [Filter \"Lat|City\": 4/10 cols] ",
+        ];
+        assert_eq!(lines, expected);
+
+        // Check descending
+        step_and_draw(&mut app, &mut terminal, Control::ToggleSelectionType);
+        step_and_draw(&mut app, &mut terminal, Control::ToggleSort);
+        thread::sleep(time::Duration::from_millis(200));
+        step_and_draw(&mut app, &mut terminal, Control::Nothing);
+        let actual_buffer = terminal.backend().buffer().clone();
+        let lines = to_lines(&actual_buffer);
+        let expected = vec![
+            "────────────────────────────────────────────────────────────────────────────────",
+            "       LatD    LatM [▾]      LatS    City                                       ",
+            "────┬─────────────────────────────────────────────────┬─────────────────────────",
+            "91  │  37      46            47      San Francisco    │                         ",
+            "89  │  33      45            35      Santa Ana        │                         ",
+            "93  │  32      42            35      San Diego        │                         ",
+            "87  │  35      40            48      Santa Fe         │                         ",
+            "96  │  31      27            35      San Angelo       │                         ",
+            "────┴─────────────────────────────────────────────────┴─────────────────────────",
+            "stdin [Row 91/128, Col 1/4] [Filter \"San\": -/11] [Filter \"Lat|City\": 4/10 cols] ",
         ];
         assert_eq!(lines, expected);
     }

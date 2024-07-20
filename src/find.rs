@@ -1,5 +1,6 @@
 use crate::csv;
 use crate::sort;
+use crate::sort::SortOrder;
 use anyhow::Result;
 use regex::Regex;
 use sorted_vec::SortedVec;
@@ -15,6 +16,7 @@ pub struct Finder {
     target: Regex,
     column_index: Option<usize>,
     sorter: Option<Arc<sort::Sorter>>,
+    pub sort_order: SortOrder,
 }
 
 #[derive(Clone, Debug)]
@@ -68,9 +70,15 @@ impl Finder {
         target: Regex,
         column_index: Option<usize>,
         sorter: Option<Arc<sort::Sorter>>,
+        sort_order: SortOrder,
     ) -> Result<Self> {
-        let internal =
-            FinderInternalState::init(config, target.clone(), column_index, sorter.clone());
+        let internal = FinderInternalState::init(
+            config,
+            target.clone(),
+            column_index,
+            sorter.clone(),
+            sort_order,
+        );
         let finder = Finder {
             internal,
             cursor: None,
@@ -78,6 +86,7 @@ impl Finder {
             target,
             column_index,
             sorter: sorter.clone(),
+            sort_order,
         };
         Ok(finder)
     }
@@ -213,6 +222,7 @@ impl FinderInternalState {
         target: Regex,
         column_index: Option<usize>,
         sorter: Option<Arc<sort::Sorter>>,
+        sort_order: SortOrder,
     ) -> Arc<Mutex<FinderInternalState>> {
         let internal = FinderInternalState {
             count: 0,
@@ -253,7 +263,9 @@ impl FinderInternalState {
                 }
                 if !column_indices.is_empty() {
                     let row_order = match &sorter {
-                        Some(s) => s.get_record_order(row_index as u64).unwrap() as usize,
+                        Some(s) => {
+                            s.get_record_order(row_index as u64, sort_order).unwrap() as usize
+                        }
                         _ => row_index,
                     };
                     let found = FoundRecord {
