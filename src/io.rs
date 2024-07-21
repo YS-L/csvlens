@@ -15,8 +15,10 @@ impl SeekableFile {
         let inner_file_res;
 
         if let Some(filename) = maybe_filename {
-            let mut f =
-                File::open(filename).map_err(|_| CsvlensError::FileReadError(filename.clone()))?;
+            let mut f = File::open(filename).map_err(|e| match e.kind() {
+                std::io::ErrorKind::NotFound => CsvlensError::FileNotFound(filename.clone()),
+                _ => e.into(),
+            })?;
             // If not seekable, it most likely is due to process substitution using
             // pipe - write out to a temp file to make it seekable
             if f.seek(SeekFrom::Start(0)).is_err() {

@@ -27,14 +27,12 @@ impl Delimiter {
                 return Ok(Delimiter::Character(b'\t'));
             }
             let mut chars = s.chars();
-            let c = chars
-                .next()
-                .ok_or_else(|| CsvlensError::DelimiterEmptyError)?;
+            let c = chars.next().ok_or_else(|| CsvlensError::DelimiterEmpty)?;
             if !c.is_ascii() {
-                return Err(CsvlensError::DelimiterNotAsciiError(c));
+                return Err(CsvlensError::DelimiterNotAscii(c));
             }
             if chars.next().is_some() {
-                return Err(CsvlensError::DelimiterMultipleCharactersError(s.clone()));
+                return Err(CsvlensError::DelimiterMultipleCharacters(s.clone()));
             }
             Ok(Delimiter::Character(c.try_into()?))
         } else {
