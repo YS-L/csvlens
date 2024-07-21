@@ -1,4 +1,4 @@
-use anyhow::{bail, Context, Result};
+use crate::errors::{CsvlensError, CsvlensResult};
 
 /// Delimiter behaviour as specified in the command line
 pub enum Delimiter {
@@ -14,7 +14,7 @@ pub enum Delimiter {
 
 impl Delimiter {
     /// Create a Delimiter by parsing the command line argument for the delimiter
-    pub fn from_arg(delimiter_arg: &Option<String>, tab_separation: bool) -> Result<Self> {
+    pub fn from_arg(delimiter_arg: &Option<String>, tab_separation: bool) -> CsvlensResult<Self> {
         if tab_separation {
             return Ok(Delimiter::Character('\t'.try_into()?));
         }
@@ -27,18 +27,14 @@ impl Delimiter {
                 return Ok(Delimiter::Character(b'\t'));
             }
             let mut chars = s.chars();
-            let c = chars.next().context("Delimiter should not be empty")?;
+            let c = chars
+                .next()
+                .ok_or_else(|| CsvlensError::DelimiterEmptyError)?;
             if !c.is_ascii() {
-                bail!(
-                    "Delimiter should be within the ASCII range: {} is too fancy",
-                    c
-                );
+                return Err(CsvlensError::DelimiterNotAsciiError(c));
             }
             if chars.next().is_some() {
-                bail!(
-                    "Delimiter should be exactly one character (or \\t), got '{}'",
-                    s
-                );
+                return Err(CsvlensError::DelimiterMultipleCharactersError(s.clone()));
             }
             Ok(Delimiter::Character(c.try_into()?))
         } else {

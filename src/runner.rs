@@ -1,8 +1,8 @@
 use crate::app::App;
 use crate::delimiter::Delimiter;
+use crate::errors::CsvlensResult;
 use crate::io::SeekableFile;
 
-use anyhow::Result;
 use clap::{command, Parser};
 use crossterm::execute;
 use crossterm::terminal::{
@@ -76,7 +76,7 @@ impl AppRunner {
         AppRunner { app }
     }
 
-    fn run(&mut self) -> Result<Option<String>> {
+    fn run(&mut self) -> CsvlensResult<Option<String>> {
         enable_raw_mode()?;
         let mut output = std::io::stderr();
         execute!(output, EnterAlternateScreen)?;
@@ -117,7 +117,7 @@ impl Drop for AppRunner {
 ///     Err(e) => eprintln!("Error: {:?}", e),
 /// }
 /// ```
-pub fn run_csvlens<I, T>(args: I) -> Result<Option<String>>
+pub fn run_csvlens<I, T>(args: I) -> CsvlensResult<Option<String>>
 where
     I: IntoIterator<Item = T>,
     T: Into<OsString> + Clone,

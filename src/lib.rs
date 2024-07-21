@@ -16,6 +16,7 @@ mod app;
 mod common;
 mod csv;
 mod delimiter;
+pub mod errors;
 mod find;
 mod help;
 mod history;

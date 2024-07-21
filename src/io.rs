@@ -1,7 +1,8 @@
-use anyhow::{Context, Result};
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom, Write};
 use tempfile::NamedTempFile;
+
+use crate::errors::{CsvlensError, CsvlensResult};
 
 pub struct SeekableFile {
     filename: Option<String>,
@@ -9,13 +10,13 @@ pub struct SeekableFile {
 }
 
 impl SeekableFile {
-    pub fn new(maybe_filename: &Option<String>) -> Result<SeekableFile> {
+    pub fn new(maybe_filename: &Option<String>) -> CsvlensResult<SeekableFile> {
         let mut inner_file = NamedTempFile::new()?;
         let inner_file_res;
 
         if let Some(filename) = maybe_filename {
-            let err = format!("Failed to open file: {filename}");
-            let mut f = File::open(filename).context(err)?;
+            let mut f =
+                File::open(filename).map_err(|_| CsvlensError::FileReadError(filename.clone()))?;
             // If not seekable, it most likely is due to process substitution using
             // pipe - write out to a temp file to make it seekable
             if f.seek(SeekFrom::Start(0)).is_err() {
@@ -46,7 +47,7 @@ impl SeekableFile {
         }
     }
 
-    fn chunked_copy<R: Read, W: Write>(source: &mut R, dest: &mut W) -> Result<usize> {
+    fn chunked_copy<R: Read, W: Write>(source: &mut R, dest: &mut W) -> CsvlensResult<usize> {
         let mut total_copied = 0;
         let mut buffer = vec![0; 1_000_000];
         loop {

@@ -2,6 +2,7 @@ extern crate csv_sniffer;
 
 use crate::csv;
 use crate::delimiter::{sniff_delimiter, Delimiter};
+use crate::errors::{CsvlensError, CsvlensResult};
 use crate::find;
 use crate::help;
 use crate::input::{Control, InputHandler};
@@ -9,13 +10,12 @@ use crate::sort::{self, SortOrder, SorterStatus};
 use crate::ui::{CsvTable, CsvTableState, FilterColumnsState, FinderState};
 use crate::view;
 
-use anyhow::ensure;
 #[cfg(feature = "clipboard")]
 use arboard::Clipboard;
 use ratatui::backend::Backend;
 use ratatui::{Frame, Terminal};
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use regex::Regex;
 use std::cmp::min;
 use std::sync::Arc;
@@ -160,7 +160,7 @@ impl App {
         columns_regex: Option<String>,
         filter_regex: Option<String>,
         find_regex: Option<String>,
-    ) -> Result<Self> {
+    ) -> CsvlensResult<Self> {
         let input_handler = InputHandler::new();
 
         // Some lines are reserved for plotting headers (3 lines for headers + 2 lines for status bar)
@@ -177,15 +177,11 @@ impl App {
         let config = csv::CsvConfig::new(filename, delimiter, no_headers);
         let shared_config = Arc::new(config);
 
-        let csvlens_reader = csv::CsvLensReader::new(shared_config.clone())
-            .context(format!("Failed to open file: {filename}"))?;
+        let csvlens_reader = csv::CsvLensReader::new(shared_config.clone())?;
         let rows_view = view::RowsView::new(csvlens_reader, num_rows as u64)?;
 
         if let Some(column_name) = &echo_column {
-            ensure!(
-                rows_view.headers().iter().any(|h| h.name == *column_name),
-                format!("Column name not found: {column_name}"),
-            );
+            return Err(CsvlensError::ColumnNameNotFound(column_name.clone()));
         }
 
         let csv_table_state = CsvTableState::new(
@@ -244,7 +240,10 @@ impl App {
         Ok(app)
     }
 
-    pub fn main_loop<B: Backend>(&mut self, terminal: &mut Terminal<B>) -> Result<Option<String>> {
+    pub fn main_loop<B: Backend>(
+        &mut self,
+        terminal: &mut Terminal<B>,
+    ) -> CsvlensResult<Option<String>> {
         loop {
             let control = self.input_handler.next();
             if matches!(control, Control::Quit) {
@@ -273,7 +272,7 @@ impl App {
         }
     }
 
-    fn step_help(&mut self, control: &Control) -> Result<()> {
+    fn step_help(&mut self, control: &Control) -> CsvlensResult<()> {
         match &control {
             Control::ScrollDown => {
                 self.help_page_state.scroll_down();
@@ -286,7 +285,7 @@ impl App {
         Ok(())
     }
 
-    fn step(&mut self, control: &Control) -> Result<()> {
+    fn step(&mut self, control: &Control) -> CsvlensResult<()> {
         if self.help_page_state.is_active() {
             return self.step_help(control);
         }
@@ -805,12 +804,10 @@ impl App {
         }
     }
 
-    fn draw<B: Backend>(&mut self, terminal: &mut Terminal<B>) -> Result<()> {
-        terminal
-            .draw(|f| {
-                self.render_frame(f);
-            })
-            .unwrap();
+    fn draw<B: Backend>(&mut self, terminal: &mut Terminal<B>) -> CsvlensResult<()> {
+        terminal.draw(|f| {
+            self.render_frame(f);
+        })?;
 
         Ok(())
     }
@@ -853,7 +850,7 @@ mod tests {
             }
         }
 
-        fn build(self) -> Result<App> {
+        fn build(self) -> CsvlensResult<App> {
             App::new(
                 self.filename.as_str(),
                 self.delimiter,

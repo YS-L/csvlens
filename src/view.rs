@@ -1,4 +1,5 @@
 use crate::csv::{CsvLensReader, Row};
+use crate::errors::CsvlensResult;
 use crate::find;
 use crate::input::Control;
 use crate::sort::{SortOrder, Sorter};
@@ -271,7 +272,7 @@ pub struct RowsView {
 }
 
 impl RowsView {
-    pub fn new(mut reader: CsvLensReader, num_rows: u64) -> Result<RowsView> {
+    pub fn new(mut reader: CsvLensReader, num_rows: u64) -> CsvlensResult<RowsView> {
         let rows_from = 0;
         let rows = reader.get_rows(rows_from, num_rows)?.0;
         let headers = Self::get_default_headers_from_reader(&reader);
@@ -366,7 +367,7 @@ impl RowsView {
         self.selection.row.set_bound(num_rows_rendered);
     }
 
-    pub fn set_filter(&mut self, finder: &find::Finder) -> Result<()> {
+    pub fn set_filter(&mut self, finder: &find::Finder) -> CsvlensResult<()> {
         let filter = RowsFilter::new(finder, self.rows_from, self.num_rows);
         // only need to reload rows if the currently shown indices changed
         let mut needs_reload = true;
@@ -389,7 +390,7 @@ impl RowsView {
         self.filter.is_some()
     }
 
-    pub fn reset_filter(&mut self) -> Result<()> {
+    pub fn reset_filter(&mut self) -> CsvlensResult<()> {
         if !self.is_filter() {
             return Ok(());
         }
@@ -401,7 +402,7 @@ impl RowsView {
         self.columns_filter.as_ref()
     }
 
-    pub fn set_columns_filter(&mut self, target: Regex) -> Result<()> {
+    pub fn set_columns_filter(&mut self, target: Regex) -> CsvlensResult<()> {
         let _columns_filter = ColumnsFilter::new(target, &self.reader.headers);
         self.headers = _columns_filter
             .indices()
@@ -416,7 +417,7 @@ impl RowsView {
         self.do_get_rows()
     }
 
-    pub fn reset_columns_filter(&mut self) -> Result<()> {
+    pub fn reset_columns_filter(&mut self) -> CsvlensResult<()> {
         self.columns_filter = None;
         self.headers = Self::get_default_headers_from_reader(&self.reader);
         self.do_get_rows()
@@ -442,17 +443,17 @@ impl RowsView {
         &self.sorter
     }
 
-    pub fn set_sorter(&mut self, sorter: &Arc<Sorter>) -> Result<()> {
+    pub fn set_sorter(&mut self, sorter: &Arc<Sorter>) -> CsvlensResult<()> {
         self.sorter = Some(sorter.clone());
         self.do_get_rows()
     }
 
-    pub fn reset_sorter(&mut self) -> Result<()> {
+    pub fn reset_sorter(&mut self) -> CsvlensResult<()> {
         self.sorter = None;
         self.do_get_rows()
     }
 
-    pub fn set_sort_order(&mut self, sort_order: SortOrder) -> Result<()> {
+    pub fn set_sort_order(&mut self, sort_order: SortOrder) -> CsvlensResult<()> {
         if self.sort_order != sort_order {
             self.sort_order = sort_order;
             return self.do_get_rows();
@@ -464,7 +465,7 @@ impl RowsView {
         self.rows_from
     }
 
-    pub fn set_rows_from(&mut self, rows_from_: u64) -> Result<()> {
+    pub fn set_rows_from(&mut self, rows_from_: u64) -> CsvlensResult<()> {
         let rows_from = if let Some(n) = self.bottom_rows_from() {
             min(rows_from_, n)
         } else {
@@ -515,7 +516,7 @@ impl RowsView {
         false
     }
 
-    pub fn handle_control(&mut self, control: &Control) -> Result<()> {
+    pub fn handle_control(&mut self, control: &Control) -> CsvlensResult<()> {
         match control {
             Control::ScrollDown => {
                 if let Some(i) = self.selection.row.index() {
@@ -604,13 +605,13 @@ impl RowsView {
         None
     }
 
-    fn increase_rows_from(&mut self, delta: u64) -> Result<()> {
+    fn increase_rows_from(&mut self, delta: u64) -> CsvlensResult<()> {
         let new_rows_from = self.rows_from.saturating_add(delta);
         self.set_rows_from(new_rows_from)?;
         Ok(())
     }
 
-    fn decrease_rows_from(&mut self, delta: u64) -> Result<()> {
+    fn decrease_rows_from(&mut self, delta: u64) -> CsvlensResult<()> {
         let new_rows_from = self.rows_from.saturating_sub(delta);
         self.set_rows_from(new_rows_from)?;
         Ok(())
@@ -632,7 +633,7 @@ impl RowsView {
         out
     }
 
-    fn do_get_rows(&mut self) -> Result<()> {
+    fn do_get_rows(&mut self) -> CsvlensResult<()> {
         let start = Instant::now();
         let (mut rows, reader_stats) = if let Some(filter) = &self.filter {
             let indices = &filter.indices;

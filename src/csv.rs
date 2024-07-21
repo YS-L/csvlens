@@ -1,12 +1,13 @@
 extern crate csv;
 
-use anyhow::Result;
 use csv::{Position, Reader, ReaderBuilder};
 use std::cmp::max;
 use std::fs::File;
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time;
+
+use crate::errors::CsvlensResult;
 
 fn string_record_to_vec(record: &csv::StringRecord) -> Vec<String> {
     let mut string_vec = Vec::new();
@@ -31,7 +32,7 @@ impl CsvConfig {
         }
     }
 
-    pub fn new_reader(&self) -> Result<Reader<File>> {
+    pub fn new_reader(&self) -> CsvlensResult<Reader<File>> {
         let reader = ReaderBuilder::new()
             .flexible(true)
             .delimiter(self.delimiter)
@@ -118,7 +119,7 @@ struct GetRowIndex {
 }
 
 impl CsvLensReader {
-    pub fn new(config: Arc<CsvConfig>) -> Result<Self> {
+    pub fn new(config: Arc<CsvConfig>) -> CsvlensResult<Self> {
         let mut reader = config.new_reader()?;
 
         let headers_record = if config.no_headers() {
@@ -143,16 +144,23 @@ impl CsvLensReader {
         Ok(reader)
     }
 
-    pub fn get_rows(&mut self, rows_from: u64, num_rows: u64) -> Result<(Vec<Row>, GetRowsStats)> {
+    pub fn get_rows(
+        &mut self,
+        rows_from: u64,
+        num_rows: u64,
+    ) -> CsvlensResult<(Vec<Row>, GetRowsStats)> {
         let indices: Vec<u64> = (rows_from..rows_from + num_rows).collect();
         self.get_rows_impl(&indices)
     }
 
-    pub fn get_rows_for_indices(&mut self, indices: &[u64]) -> Result<(Vec<Row>, GetRowsStats)> {
+    pub fn get_rows_for_indices(
+        &mut self,
+        indices: &[u64],
+    ) -> CsvlensResult<(Vec<Row>, GetRowsStats)> {
         self.get_rows_impl(indices)
     }
 
-    fn get_rows_impl(&mut self, indices: &[u64]) -> Result<(Vec<Row>, GetRowsStats)> {
+    fn get_rows_impl(&mut self, indices: &[u64]) -> CsvlensResult<(Vec<Row>, GetRowsStats)> {
         let mut get_row_indices = indices
             .iter()
             .enumerate()
@@ -168,7 +176,7 @@ impl CsvLensReader {
     fn _get_rows_impl_sorted(
         &mut self,
         indices: &[GetRowIndex],
-    ) -> Result<(Vec<Row>, GetRowsStats)> {
+    ) -> CsvlensResult<(Vec<Row>, GetRowsStats)> {
         // stats for debugging and testing
         let mut stats = GetRowsStats::new();
 
