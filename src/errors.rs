@@ -27,5 +27,8 @@ pub enum CsvlensError {
     CsvError(#[from] csv::Error),
 
     #[error(transparent)]
+    ArrowError(#[from] arrow::error::ArrowError),
+
+    #[error(transparent)]
     Io(#[from] std::io::Error),
 }

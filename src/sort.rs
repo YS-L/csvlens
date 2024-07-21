@@ -1,11 +1,11 @@
 use crate::csv;
+use crate::errors::CsvlensResult;
 
 use std::fs::File;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::thread::{self};
 
-use anyhow::Result;
 use arrow::array::{Array, ArrayIter};
 use arrow::compute::concat;
 use arrow::compute::kernels;
@@ -147,7 +147,7 @@ impl SorterInternalState {
                 m: Arc<Mutex<SorterInternalState>>,
                 config: Arc<csv::CsvConfig>,
                 column_index: usize,
-            ) -> Result<SortResult> {
+            ) -> CsvlensResult<SortResult> {
                 // Get schema
                 let schema =
                     SorterInternalState::infer_schema(config.filename(), config.delimiter())?;
@@ -165,7 +165,10 @@ impl SorterInternalState {
                     let arr = record_batch.column(0);
                     arrs.push(arr.clone());
                     if m.lock().unwrap().should_terminate {
-                        return Err(anyhow::anyhow!("Terminated"));
+                        return Ok(SortResult {
+                            record_indices: vec![],
+                            record_orders: vec![],
+                        });
                     }
                 }
                 let ref_arrs = arrs
@@ -209,7 +212,7 @@ impl SorterInternalState {
         m_state
     }
 
-    fn infer_schema(filename: &str, delimiter: u8) -> Result<Schema> {
+    fn infer_schema(filename: &str, delimiter: u8) -> CsvlensResult<Schema> {
         let schema = arrow::csv::infer_schema_from_files(
             &[filename.to_string()],
             delimiter,

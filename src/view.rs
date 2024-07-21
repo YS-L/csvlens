@@ -4,7 +4,6 @@ use crate::find;
 use crate::input::Control;
 use crate::sort::{SortOrder, Sorter};
 
-use anyhow::Result;
 use regex::Regex;
 use std::cmp::min;
 use std::sync::Arc;
@@ -352,7 +351,7 @@ impl RowsView {
         self.num_rows
     }
 
-    pub fn set_num_rows(&mut self, num_rows: u64) -> Result<()> {
+    pub fn set_num_rows(&mut self, num_rows: u64) -> CsvlensResult<()> {
         if num_rows == self.num_rows {
             return Ok(());
         }

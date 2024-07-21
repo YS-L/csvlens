@@ -1,7 +1,7 @@
 use crate::csv;
+use crate::errors::CsvlensResult;
 use crate::sort;
 use crate::sort::SortOrder;
-use anyhow::Result;
 use regex::Regex;
 use sorted_vec::SortedVec;
 use std::cmp::min;
@@ -71,7 +71,7 @@ impl Finder {
         column_index: Option<usize>,
         sorter: Option<Arc<sort::Sorter>>,
         sort_order: SortOrder,
-    ) -> Result<Self> {
+    ) -> CsvlensResult<Self> {
         let internal = FinderInternalState::init(
             config,
             target.clone(),
