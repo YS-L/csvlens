@@ -34,12 +34,12 @@ impl Delimiter {
             if !c.is_ascii() {
                 return Err(CsvlensError::DelimiterNotAscii(c));
             }
+            if chars.next().is_some() {
+                return Err(CsvlensError::DelimiterMultipleCharacters(s.clone()));
+            }
             if c == 't' {
                 // commonly occurrs when argument is specified like "-d \t" without quotes
                 return Ok(Delimiter::Tab);
-            }
-            if chars.next().is_some() {
-                return Err(CsvlensError::DelimiterMultipleCharacters(s.clone()));
             }
             Ok(Delimiter::Character(c.try_into()?))
         } else {
