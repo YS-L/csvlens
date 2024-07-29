@@ -5,6 +5,9 @@ pub enum Delimiter {
     /// Use the default delimiter (comma)
     Default,
 
+    /// Use tab as the delimiter
+    Tab,
+
     /// Use the specified delimiter
     Character(u8),
 
@@ -16,7 +19,7 @@ impl Delimiter {
     /// Create a Delimiter by parsing the command line argument for the delimiter
     pub fn from_arg(delimiter_arg: &Option<String>, tab_separation: bool) -> CsvlensResult<Self> {
         if tab_separation {
-            return Ok(Delimiter::Character('\t'.try_into()?));
+            return Ok(Delimiter::Tab);
         }
 
         if let Some(s) = delimiter_arg {
@@ -24,12 +27,16 @@ impl Delimiter {
                 return Ok(Delimiter::Auto);
             }
             if s == r"\t" {
-                return Ok(Delimiter::Character(b'\t'));
+                return Ok(Delimiter::Tab);
             }
             let mut chars = s.chars();
             let c = chars.next().ok_or_else(|| CsvlensError::DelimiterEmpty)?;
             if !c.is_ascii() {
                 return Err(CsvlensError::DelimiterNotAscii(c));
+            }
+            if c == 't' {
+                // commonly occurrs when argument is specified like "-d \t" without quotes
+                return Ok(Delimiter::Tab);
             }
             if chars.next().is_some() {
                 return Err(CsvlensError::DelimiterMultipleCharacters(s.clone()));

@@ -171,6 +171,7 @@ impl App {
 
         let delimiter = match delimiter {
             Delimiter::Default => b',',
+            Delimiter::Tab => b'\t',
             Delimiter::Character(d) => d,
             Delimiter::Auto => sniff_delimiter(filename).unwrap_or(b','),
         };
