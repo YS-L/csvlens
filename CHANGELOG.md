@@ -1,3 +1,10 @@
+# v0.10.0
+
+* Improve horizontal space utilization when rendering wide columns
+* Support toggling sort direction
+* Accept tab delimiter specified as `-d \t` without quotes
+* Add library target
+
 # v0.9.1
 
 ## Bug fixes
