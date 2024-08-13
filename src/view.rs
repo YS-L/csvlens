@@ -347,6 +347,15 @@ impl RowsView {
         None
     }
 
+    pub fn get_row_value(&self) -> Option<(usize, String)> {
+        if let Some(row_index) = self.selection.row.index() {
+            if let Some(row) = self.rows().get(row_index as usize) {
+                return Some((row.record_num, row.fields.join("\t")));
+            }
+        }
+        None
+    }
+
     pub fn num_rows(&self) -> u64 {
         self.num_rows
     }
