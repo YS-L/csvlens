@@ -182,7 +182,9 @@ impl App {
         let rows_view = view::RowsView::new(csvlens_reader, num_rows as u64)?;
 
         if let Some(column_name) = &echo_column {
-            return Err(CsvlensError::ColumnNameNotFound(column_name.clone()));
+            if !rows_view.headers().iter().any(|h| h.name == *column_name) {
+                return Err(CsvlensError::ColumnNameNotFound(column_name.clone()));
+            }
         }
 
         let csv_table_state = CsvTableState::new(
@@ -256,12 +258,8 @@ impl App {
                 }
             }
             if matches!(control, Control::Select) {
-                if let Some(result) = self.rows_view.get_cell_value_from_selection() {
+                if let Some(result) = self.get_selection() {
                     return Ok(Some(result));
-                } else if let Some(column_name) = &self.echo_column {
-                    if let Some(result) = self.rows_view.get_cell_value(column_name) {
-                        return Ok(Some(result));
-                    }
                 }
             }
             if matches!(control, Control::Help) {
@@ -635,6 +633,17 @@ impl App {
         Ok(())
     }
 
+    fn get_selection(&self) -> Option<String> {
+        if let Some(result) = self.rows_view.get_cell_value_from_selection() {
+            return Some(result);
+        } else if let Some(column_name) = &self.echo_column {
+            if let Some(result) = self.rows_view.get_cell_value(column_name) {
+                return Some(result);
+            }
+        };
+        None
+    }
+
     fn create_finder(&mut self, target: Regex, is_filter: bool, sorter: Option<Arc<sort::Sorter>>) {
         self.create_finder_with_column_index(
             target,
@@ -888,6 +897,11 @@ mod tests {
 
         fn filter_regex(mut self, filter: Option<String>) -> Self {
             self.filter_regex = filter;
+            self
+        }
+
+        fn echo_column(mut self, column: &str) -> Self {
+            self.echo_column = Some(column.to_owned());
             self
         }
     }
@@ -2148,5 +2162,36 @@ mod tests {
         let actual_buffer = terminal.backend().buffer().clone();
         let lines = to_lines(&actual_buffer);
         assert_eq!(lines, expected);
+    }
+
+    #[test]
+    fn test_echo_column() {
+        let mut app = AppBuilder::new("tests/data/cities.csv")
+            .echo_column("City")
+            .build()
+            .unwrap();
+        thread::sleep(time::Duration::from_millis(100));
+
+        let backend = TestBackend::new(180, 8);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        step_and_draw(&mut app, &mut terminal, Control::ScrollDown);
+        step_and_draw(&mut app, &mut terminal, Control::ScrollDown);
+        step_and_draw(&mut app, &mut terminal, Control::ScrollDown);
+
+        let selection = app.get_selection();
+        assert_eq!(selection, Some("Worcester".to_string()));
+    }
+
+    #[test]
+    fn test_echo_column_not_found() {
+        let app = AppBuilder::new("tests/data/cities.csv")
+            .echo_column("Cityz")
+            .build();
+        if let Err(e) = app {
+            assert_eq!(e.to_string(), "Column name not found: Cityz");
+        } else {
+            panic!("Expected error");
+        }
     }
 }
