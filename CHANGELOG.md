@@ -1,3 +1,7 @@
+# v0.10.1
+
+* Fix `--echo-column` option error
+
 # v0.10.0
 
 * Improve horizontal space utilization when rendering wide columns
