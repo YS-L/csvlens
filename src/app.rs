@@ -488,6 +488,15 @@ impl App {
                             .transient_message
                             .replace(format!("Failed to copy to clipboard: {e}")),
                     };
+                } else if let Some((index, row)) = self.rows_view.get_row_value() {
+                    match self.clipboard.as_mut().map(|c| c.set_text(&row)) {
+                        Ok(_) => self
+                            .transient_message
+                            .replace(format!("Copied row {} to clipboard", index)),
+                        Err(e) => self
+                            .transient_message
+                            .replace(format!("Failed to copy to clipboard: {e}")),
+                    };
                 }
             }
             Control::Reset => {
