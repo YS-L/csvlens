@@ -304,7 +304,10 @@ impl<'a> CsvTable<'a> {
         block.render(status_separator_area, buf);
 
         // Intersection with bottom separator
-        if let Some(cell) = buf.cell_mut(Position::new(section_width - 1, y_first_record + area.height)) {
+        if let Some(cell) = buf.cell_mut(Position::new(
+            section_width - 1,
+            y_first_record + area.height,
+        )) {
             cell.set_symbol(line::HORIZONTAL_UP);
         }
 
@@ -312,21 +315,27 @@ impl<'a> CsvTable<'a> {
         // TODO: refactor
         let col_ending_pos_x = state.col_ending_pos_x;
         if !state.has_more_cols_to_show() && col_ending_pos_x < area.right() {
-            if let Some(cell) = buf.cell_mut(Position::new(col_ending_pos_x, y_first_record.saturating_sub(1))) {
+            if let Some(cell) = buf.cell_mut(Position::new(
+                col_ending_pos_x,
+                y_first_record.saturating_sub(1),
+            )) {
                 cell.set_style(Style::default().fg(Color::Rgb(64, 64, 64)))
-                .set_symbol(line::HORIZONTAL_DOWN);
+                    .set_symbol(line::HORIZONTAL_DOWN);
             }
 
             for y in y_first_record..y_first_record + area.height {
                 if let Some(cell) = buf.cell_mut(Position::new(col_ending_pos_x, y)) {
                     cell.set_style(Style::default().fg(Color::Rgb(64, 64, 64)))
-                    .set_symbol(line::VERTICAL);
+                        .set_symbol(line::VERTICAL);
                 }
             }
 
-            if let Some(cell) = buf.cell_mut(Position::new(col_ending_pos_x, y_first_record + area.height)) {
+            if let Some(cell) = buf.cell_mut(Position::new(
+                col_ending_pos_x,
+                y_first_record + area.height,
+            )) {
                 cell.set_style(Style::default().fg(Color::Rgb(64, 64, 64)))
-                .set_symbol(line::HORIZONTAL_UP);
+                    .set_symbol(line::HORIZONTAL_UP);
             }
         }
     }

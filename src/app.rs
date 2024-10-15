@@ -13,8 +13,8 @@ use crate::view;
 #[cfg(feature = "clipboard")]
 use arboard::Clipboard;
 use ratatui::backend::Backend;
-use ratatui::{Frame, Terminal};
 use ratatui::prelude::Position;
+use ratatui::{Frame, Terminal};
 
 use anyhow::Result;
 use regex::Regex;
