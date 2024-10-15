@@ -8,6 +8,7 @@ use crate::view::Header;
 use crate::wrap;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
+use ratatui::prelude::Position;
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::symbols::line;
 use ratatui::text::{Line, Span};
@@ -291,8 +292,9 @@ impl<'a> CsvTable<'a> {
         line_number_block.render(line_number_area, buf);
 
         // Intersection with header separator
-        buf.get_mut(section_width - 1, y_first_record - 1)
-            .set_symbol(line::HORIZONTAL_DOWN);
+        if let Some(cell) = buf.cell_mut(Position::new(section_width - 1, y_first_record - 1)) {
+            cell.set_symbol(line::HORIZONTAL_DOWN);
+        }
 
         // Status separator at the bottom (rendered here first for the interesection)
         let block = Block::default()
@@ -302,26 +304,39 @@ impl<'a> CsvTable<'a> {
         block.render(status_separator_area, buf);
 
         // Intersection with bottom separator
-        buf.get_mut(section_width - 1, y_first_record + area.height)
-            .set_symbol(line::HORIZONTAL_UP);
+        if let Some(cell) = buf.cell_mut(Position::new(
+            section_width - 1,
+            y_first_record + area.height,
+        )) {
+            cell.set_symbol(line::HORIZONTAL_UP);
+        }
 
         // Vertical line after last rendered column
         // TODO: refactor
         let col_ending_pos_x = state.col_ending_pos_x;
         if !state.has_more_cols_to_show() && col_ending_pos_x < area.right() {
-            buf.get_mut(col_ending_pos_x, y_first_record.saturating_sub(1))
-                .set_style(Style::default().fg(Color::Rgb(64, 64, 64)))
-                .set_symbol(line::HORIZONTAL_DOWN);
-
-            for y in y_first_record..y_first_record + area.height {
-                buf.get_mut(col_ending_pos_x, y)
-                    .set_style(Style::default().fg(Color::Rgb(64, 64, 64)))
-                    .set_symbol(line::VERTICAL);
+            if let Some(cell) = buf.cell_mut(Position::new(
+                col_ending_pos_x,
+                y_first_record.saturating_sub(1),
+            )) {
+                cell.set_style(Style::default().fg(Color::Rgb(64, 64, 64)))
+                    .set_symbol(line::HORIZONTAL_DOWN);
             }
 
-            buf.get_mut(col_ending_pos_x, y_first_record + area.height)
-                .set_style(Style::default().fg(Color::Rgb(64, 64, 64)))
-                .set_symbol(line::HORIZONTAL_UP);
+            for y in y_first_record..y_first_record + area.height {
+                if let Some(cell) = buf.cell_mut(Position::new(col_ending_pos_x, y)) {
+                    cell.set_style(Style::default().fg(Color::Rgb(64, 64, 64)))
+                        .set_symbol(line::VERTICAL);
+                }
+            }
+
+            if let Some(cell) = buf.cell_mut(Position::new(
+                col_ending_pos_x,
+                y_first_record + area.height,
+            )) {
+                cell.set_style(Style::default().fg(Color::Rgb(64, 64, 64)))
+                    .set_symbol(line::HORIZONTAL_UP);
+            }
         }
     }
 

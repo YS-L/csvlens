@@ -13,6 +13,7 @@ use crate::view;
 #[cfg(feature = "clipboard")]
 use arboard::Clipboard;
 use ratatui::backend::Backend;
+use ratatui::prelude::Position;
 use ratatui::{Frame, Terminal};
 
 use anyhow::Result;
@@ -796,7 +797,7 @@ impl App {
     }
 
     fn render_frame(&mut self, f: &mut Frame) {
-        let size = f.size();
+        let size = f.area();
 
         // Render help; if so exit early.
         if self.help_page_state.is_active() {
@@ -819,7 +820,7 @@ impl App {
         let csv_table = CsvTable::new(self.rows_view.headers(), rows);
         f.render_stateful_widget(csv_table, size, &mut self.csv_table_state);
         if let Some((x, y)) = self.csv_table_state.cursor_xy {
-            f.set_cursor(x, y);
+            f.set_cursor_position(Position::new(x, y));
         }
     }
 
@@ -920,7 +921,7 @@ mod tests {
         let area = buf.area();
         for y in 0..area.bottom() {
             for x in 0..area.right() {
-                let symbol = buf.get(x, y).symbol();
+                let symbol = buf[Position::new(x, y)].symbol();
                 symbols.push_str(symbol);
             }
             if y != area.bottom() - 1 {
