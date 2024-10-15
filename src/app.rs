@@ -1808,11 +1808,14 @@ mod tests {
         let mut app = AppBuilder::new("tests/data/cities.csv").build().unwrap();
         thread::sleep(time::Duration::from_millis(100));
 
-        let backend = TestBackend::new(80, 10);
+        let backend = TestBackend::new(100, 10);
         let mut terminal = Terminal::new(backend).unwrap();
 
         step_and_draw(&mut app, &mut terminal, Control::ToggleSelectionType);
-        step_and_draw(&mut app, &mut terminal, Control::ScrollRight);
+        // Sort by City (no tie)
+        for _ in 0..8 {
+            step_and_draw(&mut app, &mut terminal, Control::ScrollRight);
+        }
         step_and_draw(&mut app, &mut terminal, Control::ToggleSort);
         thread::sleep(time::Duration::from_millis(200));
         step_and_draw(&mut app, &mut terminal, Control::Nothing);
@@ -1820,16 +1823,16 @@ mod tests {
         let actual_buffer = terminal.backend().buffer().clone();
         let lines = to_lines(&actual_buffer);
         let expected = vec![
-            "────────────────────────────────────────────────────────────────────────────────",
-            "        LatD    LatM [▴]      LatS    NS    LonD    LonM    LonS    EW    C…    ",
-            "─────┬──────────────────────────────────────────────────────────────────────────",
-            "118  │  44      1             12      N     92      27      35      W     R…    ",
-            "49   │  39      2             59      N     95      40      11      W     T…    ",
-            "56   │  43      2             59      N     76      9       0       W     S…    ",
-            "16   │  40      4             11      N     80      43      12      W     W…    ",
-            "29   │  46      4             11      N     118     19      48      W     W…    ",
-            "─────┴──────────────────────────────────────────────────────────────────────────",
-            "stdin [Row 118/128, Col 1/10]                                                   ",
+            "────────────────────────────────────────────────────────────────────────────────────────────────────",
+            "        LatD    LatM    LatS    NS    LonD    LonM    LonS    EW    City [▴]      State             ",
+            "─────┬─────────────────────────────────────────────────────────────────────────────────────┬────────",
+            "128  │  41      9       35      N     81      14      23      W     Ravenna       OH       │        ",
+            "127  │  40      19      48      N     75      55      48      W     Reading       PA       │        ",
+            "126  │  40      10      48      N     122     14      23      W     Red Bluff     CA       │        ",
+            "125  │  50      25      11      N     104     39      0       W     Regina        SA       │        ",
+            "124  │  39      31      12      N     119     48      35      W     Reno          NV       │        ",
+            "─────┴─────────────────────────────────────────────────────────────────────────────────────┴────────",
+            "stdin [Row 128/128, Col 1/10]                                                                       ",
         ];
         assert_eq!(lines, expected);
 
@@ -1839,16 +1842,16 @@ mod tests {
         let actual_buffer = terminal.backend().buffer().clone();
         let lines = to_lines(&actual_buffer);
         let expected = vec![
-            "────────────────────────────────────────────────────────────────────────────────",
-            "        LatD    LatM [▾]      LatS    NS    LonD    LonM    LonS    EW    C…    ",
-            "─────┬──────────────────────────────────────────────────────────────────────────",
-            "59   │  40      59            24      N     75      11      24      W     S…    ",
-            "24   │  43      58            47      N     75      55      11      W     W…    ",
-            "53   │  27      57            0       N     82      26      59      W     T…    ",
-            "103  │  44      57            0       N     93      5       59      W     S…    ",
-            "21   │  44      57            35      N     89      38      23      W     W…    ",
-            "─────┴──────────────────────────────────────────────────────────────────────────",
-            "stdin [Row 59/128, Col 1/10]                                                    ",
+            "────────────────────────────────────────────────────────────────────────────────────────────────────",
+            "      LatD    LatM    LatS    NS    LonD    LonM    LonS    EW    City [▾]           State          ",
+            "───┬──────────────────────────────────────────────────────────────────────────────────────────┬─────",
+            "1  │  41      5       59      N     80      39      0       W     Youngstown         OH       │     ",
+            "2  │  42      52      48      N     97      23      23            Yankton            SD       │     ",
+            "3  │  46      35      59      N     120     30      36      W     Yakima             WA       │     ",
+            "4  │  42      16      12      N     71      48      0       W     Worcester          MA       │     ",
+            "5  │  43      37      48      N     89      46      11      W     Wisconsin Dells    WI       │     ",
+            "───┴──────────────────────────────────────────────────────────────────────────────────────────┴─────",
+            "stdin [Row 1/128, Col 1/10]                                                                         ",
         ];
         assert_eq!(lines, expected);
     }
@@ -1862,7 +1865,10 @@ mod tests {
         let mut terminal = Terminal::new(backend).unwrap();
 
         step_and_draw(&mut app, &mut terminal, Control::ToggleSelectionType);
-        step_and_draw(&mut app, &mut terminal, Control::ScrollRight);
+        // Sort by City (no tie)
+        for _ in 0..8 {
+            step_and_draw(&mut app, &mut terminal, Control::ScrollRight);
+        }
         step_and_draw(&mut app, &mut terminal, Control::ToggleSort);
 
         // Toggle back to row selection mode before filtering
@@ -1886,15 +1892,15 @@ mod tests {
         let lines = to_lines(&actual_buffer);
         let expected = vec![
             "────────────────────────────────────────────────────────────────────────────────",
-            "       LatD    LatM [▴]      LatS    City                                       ",
-            "────┬──────────────────────────────────────────────────┬────────────────────────",
-            "94  │  34      6             36      San Bernardino    │                        ",
-            "90  │  37      20            24      San Jose          │                        ",
-            "88  │  34      25            11      Santa Barbara     │                        ",
-            "95  │  29      25            12      San Antonio       │                        ",
-            "86  │  38      26            23      Santa Rosa        │                        ",
-            "────┴──────────────────────────────────────────────────┴────────────────────────",
-            "stdin [Row 94/128, Col 1/4] [Filter \"San\": 1/11] [Filter \"Lat|City\": 4/10 cols] ",
+            "       LatD    LatM    LatS    City [▴]                                         ",
+            "────┬────────────────────────────────────────────┬──────────────────────────────",
+            "96  │  31      27      35      San Angelo        │                              ",
+            "95  │  29      25      12      San Antonio       │                              ",
+            "94  │  34      6       36      San Bernardino    │                              ",
+            "93  │  32      42      35      San Diego         │                              ",
+            "91  │  37      46      47      San Francisco     │                              ",
+            "────┴────────────────────────────────────────────┴──────────────────────────────",
+            "stdin [Row 96/128, Col 1/4] [Filter \"San\": 1/11] [Filter \"Lat|City\": 4/10 cols] ",
         ];
         assert_eq!(lines, expected);
 
@@ -1907,15 +1913,15 @@ mod tests {
         let lines = to_lines(&actual_buffer);
         let expected = vec![
             "────────────────────────────────────────────────────────────────────────────────",
-            "       LatD    LatM [▾]      LatS    City                                       ",
-            "────┬─────────────────────────────────────────────────┬─────────────────────────",
-            "91  │  37      46            47      San Francisco    │                         ",
-            "89  │  33      45            35      Santa Ana        │                         ",
-            "93  │  32      42            35      San Diego        │                         ",
-            "87  │  35      40            48      Santa Fe         │                         ",
-            "96  │  31      27            35      San Angelo       │                         ",
-            "────┴─────────────────────────────────────────────────┴─────────────────────────",
-            "stdin [Row 91/128, Col 1/4] [Filter \"San\": -/11] [Filter \"Lat|City\": 4/10 cols] ",
+            "       LatD    LatM    LatS    City [▾]                                         ",
+            "────┬───────────────────────────────────────────┬───────────────────────────────",
+            "86  │  38      26      23      Santa Rosa       │                               ",
+            "87  │  35      40      48      Santa Fe         │                               ",
+            "88  │  34      25      11      Santa Barbara    │                               ",
+            "89  │  33      45      35      Santa Ana        │                               ",
+            "92  │  41      27      0       Sandusky         │                               ",
+            "────┴───────────────────────────────────────────┴───────────────────────────────",
+            "stdin [Row 86/128, Col 1/4] [Filter \"San\": -/11] [Filter \"Lat|City\": 4/10 cols] ",
         ];
         assert_eq!(lines, expected);
     }
