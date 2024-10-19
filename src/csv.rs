@@ -300,6 +300,16 @@ impl CsvLensReader {
         let res = self.internal.lock().unwrap().pos_table.clone();
         res
     }
+
+    #[cfg(test)]
+    pub fn wait_internal(&self) {
+        loop {
+            if self.internal.lock().unwrap().done {
+                break;
+            }
+            thread::sleep(time::Duration::from_millis(100));
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -388,8 +398,6 @@ impl ReaderInternalState {
 
 #[cfg(test)]
 mod tests {
-    use core::time;
-
     use super::*;
 
     impl Row {
@@ -397,17 +405,6 @@ mod tests {
             Row {
                 record_num,
                 fields: fields.iter().map(|x| x.to_string()).collect(),
-            }
-        }
-    }
-
-    impl CsvLensReader {
-        fn wait_internal(&self) {
-            loop {
-                if self.internal.lock().unwrap().done {
-                    break;
-                }
-                thread::sleep(time::Duration::from_millis(100));
             }
         }
     }

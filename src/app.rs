@@ -834,9 +834,6 @@ impl App {
 }
 #[cfg(test)]
 mod tests {
-    use core::time;
-    use std::thread;
-
     use super::*;
     use ratatui::backend::TestBackend;
     use ratatui::buffer::Buffer;
@@ -943,10 +940,20 @@ mod tests {
         terminal.draw(|f| app.render_frame(f)).unwrap();
     }
 
+    fn till_app_ready(app: &App) {
+        app.rows_view.wait_internal();
+        if let Some(sorter) = &app.sorter {
+            sorter.wait_internal();
+        }
+        if let Some(finder) = &app.finder {
+            finder.wait_internal();
+        }
+    }
+
     #[test]
     fn test_simple() {
         let mut app = AppBuilder::new("tests/data/simple.csv").build().unwrap();
-        thread::sleep(time::Duration::from_millis(100));
+        till_app_ready(&app);
 
         let backend = TestBackend::new(30, 10);
         let mut terminal = Terminal::new(backend).unwrap();
@@ -979,7 +986,7 @@ mod tests {
     #[test]
     fn test_scroll_horizontal() {
         let mut app = AppBuilder::new("tests/data/cities.csv").build().unwrap();
-        thread::sleep(time::Duration::from_millis(100));
+        till_app_ready(&app);
 
         let backend = TestBackend::new(30, 10);
         let mut terminal = Terminal::new(backend).unwrap();
@@ -1039,7 +1046,7 @@ mod tests {
     #[test]
     fn test_filter_columns() {
         let mut app = AppBuilder::new("tests/data/cities.csv").build().unwrap();
-        thread::sleep(time::Duration::from_millis(100));
+        till_app_ready(&app);
 
         let backend = TestBackend::new(80, 10);
         let mut terminal = Terminal::new(backend).unwrap();
@@ -1069,7 +1076,7 @@ mod tests {
     #[test]
     fn test_filter_columns_case_sensitive() {
         let mut app = AppBuilder::new("tests/data/cities.csv").build().unwrap();
-        thread::sleep(time::Duration::from_millis(100));
+        till_app_ready(&app);
 
         let backend = TestBackend::new(80, 10);
         let mut terminal = Terminal::new(backend).unwrap();
@@ -1102,7 +1109,7 @@ mod tests {
             .ignore_case(true)
             .build()
             .unwrap();
-        thread::sleep(time::Duration::from_millis(100));
+        till_app_ready(&app);
 
         let backend = TestBackend::new(80, 10);
         let mut terminal = Terminal::new(backend).unwrap();
@@ -1136,7 +1143,7 @@ mod tests {
         let mut app = AppBuilder::new("tests/data/bad_double_quote.csv")
             .build()
             .unwrap();
-        thread::sleep(time::Duration::from_millis(100));
+        till_app_ready(&app);
 
         let backend = TestBackend::new(35, 10);
         let mut terminal = Terminal::new(backend).unwrap();
@@ -1162,7 +1169,7 @@ mod tests {
     #[test]
     fn test_extra_fields_right_most_border() {
         let mut app = AppBuilder::new("tests/data/bad_73.csv").build().unwrap();
-        thread::sleep(time::Duration::from_millis(100));
+        till_app_ready(&app);
 
         let backend = TestBackend::new(35, 10);
         let mut terminal = Terminal::new(backend).unwrap();
@@ -1191,7 +1198,7 @@ mod tests {
             .delimiter(Delimiter::Auto)
             .build()
             .unwrap();
-        thread::sleep(time::Duration::from_millis(100));
+        till_app_ready(&app);
 
         let backend = TestBackend::new(30, 10);
         let mut terminal = Terminal::new(backend).unwrap();
@@ -1219,7 +1226,7 @@ mod tests {
         let mut app = AppBuilder::new("tests/data/multi_lines.csv")
             .build()
             .unwrap();
-        thread::sleep(time::Duration::from_millis(100));
+        till_app_ready(&app);
 
         let backend = TestBackend::new(50, 30);
         let mut terminal = Terminal::new(backend).unwrap();
@@ -1341,7 +1348,7 @@ mod tests {
         let mut app = AppBuilder::new("tests/data/multi_lines.csv")
             .build()
             .unwrap();
-        thread::sleep(time::Duration::from_millis(100));
+        till_app_ready(&app);
 
         let backend = TestBackend::new(50, 30);
         let mut terminal = Terminal::new(backend).unwrap();
@@ -1398,7 +1405,7 @@ mod tests {
         let mut app = AppBuilder::new("tests/data/multiple_newlines.csv")
             .build()
             .unwrap();
-        thread::sleep(time::Duration::from_millis(100));
+        till_app_ready(&app);
 
         let backend = TestBackend::new(50, 45);
         let mut terminal = Terminal::new(backend).unwrap();
@@ -1462,7 +1469,7 @@ mod tests {
         let mut app = AppBuilder::new("tests/data/multi_lines_carriage_return.csv")
             .build()
             .unwrap();
-        thread::sleep(time::Duration::from_millis(100));
+        till_app_ready(&app);
 
         let backend = TestBackend::new(50, 45);
         let mut terminal = Terminal::new(backend).unwrap();
@@ -1526,7 +1533,7 @@ mod tests {
         let mut app = AppBuilder::new("tests/data/starts_with_newline.csv")
             .build()
             .unwrap();
-        thread::sleep(time::Duration::from_millis(100));
+        till_app_ready(&app);
 
         let backend = TestBackend::new(50, 20);
         let mut terminal = Terminal::new(backend).unwrap();
@@ -1589,7 +1596,7 @@ mod tests {
     #[test]
     fn test_column_widths_boundary_condition() {
         let mut app = AppBuilder::new("tests/data/cities.csv").build().unwrap();
-        thread::sleep(time::Duration::from_millis(100));
+        till_app_ready(&app);
 
         let backend = TestBackend::new(120, 10);
         let mut terminal = Terminal::new(backend).unwrap();
@@ -1599,12 +1606,13 @@ mod tests {
             &mut terminal,
             Control::Filter("Salt Lake City".into()),
         );
+        till_app_ready(&app);
         step_and_draw(
             &mut app,
             &mut terminal,
             Control::FilterColumns("City".into()),
         );
-        thread::sleep(time::Duration::from_millis(100));
+        till_app_ready(&app);
         step_and_draw(&mut app, &mut terminal, Control::Nothing);
         let expected = vec![
             "────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────",
@@ -1625,7 +1633,7 @@ mod tests {
     #[test]
     fn test_scroll_right_most() {
         let mut app = AppBuilder::new("tests/data/cities.csv").build().unwrap();
-        thread::sleep(time::Duration::from_millis(100));
+        till_app_ready(&app);
 
         let backend = TestBackend::new(40, 10);
         let mut terminal = Terminal::new(backend).unwrap();
@@ -1653,7 +1661,7 @@ mod tests {
     #[test]
     fn test_scroll_left_most() {
         let mut app = AppBuilder::new("tests/data/cities.csv").build().unwrap();
-        thread::sleep(time::Duration::from_millis(100));
+        till_app_ready(&app);
 
         let backend = TestBackend::new(40, 10);
         let mut terminal = Terminal::new(backend).unwrap();
@@ -1682,7 +1690,7 @@ mod tests {
     #[test]
     fn test_scroll_half_page() {
         let mut app = AppBuilder::new("tests/data/cities.csv").build().unwrap();
-        thread::sleep(time::Duration::from_millis(100));
+        till_app_ready(&app);
 
         let backend = TestBackend::new(40, 10);
         let mut terminal = Terminal::new(backend).unwrap();
@@ -1732,7 +1740,7 @@ mod tests {
     #[test]
     fn test_resize_column() {
         let mut app = AppBuilder::new("tests/data/cities.csv").build().unwrap();
-        thread::sleep(time::Duration::from_millis(100));
+        till_app_ready(&app);
 
         let backend = TestBackend::new(80, 10);
         let mut terminal = Terminal::new(backend).unwrap();
@@ -1767,7 +1775,7 @@ mod tests {
             &mut terminal,
             Control::FilterColumns("Lat".into()),
         );
-        thread::sleep(time::Duration::from_millis(100));
+        till_app_ready(&app);
         let actual_buffer = terminal.backend().buffer().clone();
         let lines = to_lines(&actual_buffer);
         let expected = vec![
@@ -1806,7 +1814,7 @@ mod tests {
     #[test]
     fn test_sorting() {
         let mut app = AppBuilder::new("tests/data/cities.csv").build().unwrap();
-        thread::sleep(time::Duration::from_millis(100));
+        till_app_ready(&app);
 
         let backend = TestBackend::new(100, 10);
         let mut terminal = Terminal::new(backend).unwrap();
@@ -1817,7 +1825,7 @@ mod tests {
             step_and_draw(&mut app, &mut terminal, Control::ScrollRight);
         }
         step_and_draw(&mut app, &mut terminal, Control::ToggleSort);
-        thread::sleep(time::Duration::from_millis(200));
+        till_app_ready(&app);
         step_and_draw(&mut app, &mut terminal, Control::Nothing);
 
         let actual_buffer = terminal.backend().buffer().clone();
@@ -1838,7 +1846,7 @@ mod tests {
 
         // Check descending
         step_and_draw(&mut app, &mut terminal, Control::ToggleSort);
-        thread::sleep(time::Duration::from_millis(200));
+        till_app_ready(&app);
         let actual_buffer = terminal.backend().buffer().clone();
         let lines = to_lines(&actual_buffer);
         let expected = vec![
@@ -1859,7 +1867,7 @@ mod tests {
     #[test]
     fn test_sorting_with_filter() {
         let mut app = AppBuilder::new("tests/data/cities.csv").build().unwrap();
-        thread::sleep(time::Duration::from_millis(100));
+        till_app_ready(&app);
 
         let backend = TestBackend::new(80, 10);
         let mut terminal = Terminal::new(backend).unwrap();
@@ -1870,12 +1878,12 @@ mod tests {
             step_and_draw(&mut app, &mut terminal, Control::ScrollRight);
         }
         step_and_draw(&mut app, &mut terminal, Control::ToggleSort);
+        till_app_ready(&app);
 
         // Toggle back to row selection mode before filtering
         step_and_draw(&mut app, &mut terminal, Control::ToggleSelectionType);
         step_and_draw(&mut app, &mut terminal, Control::ToggleSelectionType);
 
-        thread::sleep(time::Duration::from_millis(200));
         step_and_draw(&mut app, &mut terminal, Control::Nothing);
 
         step_and_draw(&mut app, &mut terminal, Control::Filter("San".into()));
@@ -1885,7 +1893,7 @@ mod tests {
             Control::FilterColumns("Lat|City".into()),
         );
 
-        thread::sleep(time::Duration::from_millis(200));
+        till_app_ready(&app);
         step_and_draw(&mut app, &mut terminal, Control::Nothing);
 
         let actual_buffer = terminal.backend().buffer().clone();
@@ -1907,7 +1915,7 @@ mod tests {
         // Check descending
         step_and_draw(&mut app, &mut terminal, Control::ToggleSelectionType);
         step_and_draw(&mut app, &mut terminal, Control::ToggleSort);
-        thread::sleep(time::Duration::from_millis(200));
+        till_app_ready(&app);
         step_and_draw(&mut app, &mut terminal, Control::Nothing);
         let actual_buffer = terminal.backend().buffer().clone();
         let lines = to_lines(&actual_buffer);
@@ -1932,7 +1940,7 @@ mod tests {
             .no_headers(true)
             .build()
             .unwrap();
-        thread::sleep(time::Duration::from_millis(100));
+        till_app_ready(&app);
 
         let backend = TestBackend::new(30, 10);
         let mut terminal = Terminal::new(backend).unwrap();
@@ -1965,7 +1973,7 @@ mod tests {
             .columns_regex(Some("Lat".to_string()))
             .build()
             .unwrap();
-        thread::sleep(time::Duration::from_millis(100));
+        till_app_ready(&app);
 
         let backend = TestBackend::new(80, 10);
         let mut terminal = Terminal::new(backend).unwrap();
@@ -1994,7 +2002,7 @@ mod tests {
             .filter_regex(Some("San".to_string()))
             .build()
             .unwrap();
-        thread::sleep(time::Duration::from_millis(100));
+        till_app_ready(&app);
 
         let backend = TestBackend::new(80, 10);
         let mut terminal = Terminal::new(backend).unwrap();
@@ -2020,7 +2028,7 @@ mod tests {
     #[test]
     fn test_filter_rows_for_specific_column() {
         let mut app = AppBuilder::new("tests/data/cities.csv").build().unwrap();
-        thread::sleep(time::Duration::from_millis(100));
+        till_app_ready(&app);
 
         let backend = TestBackend::new(80, 10);
         let mut terminal = Terminal::new(backend).unwrap();
@@ -2029,7 +2037,7 @@ mod tests {
         step_and_draw(&mut app, &mut terminal, Control::ScrollRight);
         step_and_draw(&mut app, &mut terminal, Control::Filter("^1".into()));
 
-        thread::sleep(time::Duration::from_millis(200));
+        till_app_ready(&app);
         step_and_draw(&mut app, &mut terminal, Control::Nothing);
 
         let actual_buffer = terminal.backend().buffer().clone();
@@ -2052,7 +2060,7 @@ mod tests {
     #[test]
     fn test_filter_like_cell() {
         let mut app = AppBuilder::new("tests/data/cities.csv").build().unwrap();
-        thread::sleep(time::Duration::from_millis(100));
+        till_app_ready(&app);
 
         let backend = TestBackend::new(80, 10);
         let mut terminal = Terminal::new(backend).unwrap();
@@ -2067,7 +2075,7 @@ mod tests {
         }
         step_and_draw(&mut app, &mut terminal, Control::FilterLikeCell);
 
-        thread::sleep(time::Duration::from_millis(200));
+        till_app_ready(&app);
         step_and_draw(&mut app, &mut terminal, Control::Nothing);
 
         let actual_buffer = terminal.backend().buffer().clone();
@@ -2090,7 +2098,7 @@ mod tests {
     #[test]
     fn test_filter_like_cell_escape() {
         let mut app = AppBuilder::new("tests/data/filter.csv").build().unwrap();
-        thread::sleep(time::Duration::from_millis(100));
+        till_app_ready(&app);
 
         let backend = TestBackend::new(80, 10);
         let mut terminal = Terminal::new(backend).unwrap();
@@ -2101,8 +2109,8 @@ mod tests {
 
         // Filter like the selected cell
         step_and_draw(&mut app, &mut terminal, Control::FilterLikeCell);
+        till_app_ready(&app);
 
-        thread::sleep(time::Duration::from_millis(200));
         step_and_draw(&mut app, &mut terminal, Control::Nothing);
 
         let actual_buffer = terminal.backend().buffer().clone();
@@ -2125,7 +2133,7 @@ mod tests {
     #[test]
     fn test_input_cursor() {
         let mut app = AppBuilder::new("tests/data/cities.csv").build().unwrap();
-        thread::sleep(time::Duration::from_millis(100));
+        till_app_ready(&app);
 
         let backend = TestBackend::new(30, 10);
         let mut terminal = Terminal::new(backend).unwrap();
@@ -2159,7 +2167,7 @@ mod tests {
         let mut app = AppBuilder::new("tests/data/one_wide_column.txt")
             .build()
             .unwrap();
-        thread::sleep(time::Duration::from_millis(100));
+        till_app_ready(&app);
 
         let backend = TestBackend::new(180, 8);
         let mut terminal = Terminal::new(backend).unwrap();
@@ -2186,7 +2194,7 @@ mod tests {
             .echo_column("City")
             .build()
             .unwrap();
-        thread::sleep(time::Duration::from_millis(100));
+        till_app_ready(&app);
 
         let backend = TestBackend::new(180, 8);
         let mut terminal = Terminal::new(backend).unwrap();
