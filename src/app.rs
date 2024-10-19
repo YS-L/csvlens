@@ -20,6 +20,7 @@ use anyhow::Result;
 use regex::Regex;
 use std::cmp::min;
 use std::sync::Arc;
+use std::time::Instant;
 
 fn get_offsets_to_make_visible(
     found_record: &find::FoundRecord,
@@ -240,6 +241,7 @@ impl App {
         }
 
         app.rows_view.set_sort_order(app.sort_order)?;
+        app.csv_table_state.debug_stats.show_stats(app.show_stats);
 
         Ok(app)
     }
@@ -596,17 +598,15 @@ impl App {
         }
 
         // update rows and elapsed time if there are new results
-        if self.show_stats {
+        self.csv_table_state
+            .debug_stats
+            .rows_view_perf(self.rows_view.perf_stats());
+        if let Some(fdr) = &self.finder {
             self.csv_table_state
                 .debug_stats
-                .rows_view_perf(self.rows_view.perf_stats());
-            if let Some(fdr) = &self.finder {
-                self.csv_table_state
-                    .debug_stats
-                    .finder_elapsed(fdr.elapsed());
-            } else {
-                self.csv_table_state.debug_stats.finder_elapsed(None);
-            }
+                .finder_elapsed(fdr.elapsed());
+        } else {
+            self.csv_table_state.debug_stats.finder_elapsed(None);
         }
 
         // TODO: is this update too late?
@@ -825,10 +825,13 @@ impl App {
     }
 
     fn draw<B: Backend>(&mut self, terminal: &mut Terminal<B>) -> CsvlensResult<()> {
+        let start = Instant::now();
         terminal.draw(|f| {
             self.render_frame(f);
         })?;
-
+        self.csv_table_state
+            .debug_stats
+            .render_elapsed(Some(start.elapsed()));
         Ok(())
     }
 }

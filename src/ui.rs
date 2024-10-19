@@ -20,6 +20,7 @@ use tui_input::Input;
 use std::cmp::{max, min};
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Duration;
 
 const NUM_SPACES_AFTER_LINE_NUMBER: u16 = 2;
 const NUM_SPACES_BETWEEN_COLUMNS: u16 = 4;
@@ -1052,27 +1053,42 @@ struct BordersState {
 }
 
 pub struct DebugStats {
+    show_stats: bool,
     rows_view_stats: Option<crate::view::PerfStats>,
-    finder_elapsed: Option<f64>,
+    finder_elapsed: Option<Duration>,
+    render_elapsed: Option<Duration>,
 }
 
 impl DebugStats {
     pub fn new() -> Self {
         DebugStats {
+            show_stats: false,
             rows_view_stats: None,
             finder_elapsed: None,
+            render_elapsed: None,
         }
+    }
+
+    pub fn show_stats(&mut self, show: bool) {
+        self.show_stats = show;
     }
 
     pub fn rows_view_perf(&mut self, stats: Option<crate::view::PerfStats>) {
         self.rows_view_stats = stats;
     }
 
-    pub fn finder_elapsed(&mut self, elapsed: Option<u128>) {
-        self.finder_elapsed = elapsed.map(|e| e as f64 / 1000.0);
+    pub fn finder_elapsed(&mut self, elapsed: Option<Duration>) {
+        self.finder_elapsed = elapsed;
+    }
+
+    pub fn render_elapsed(&mut self, elapsed: Option<Duration>) {
+        self.render_elapsed = elapsed;
     }
 
     pub fn status_line(&self) -> Option<String> {
+        if !self.show_stats {
+            return None;
+        }
         let mut line = "[".to_string();
         if let Some(stats) = &self.rows_view_stats {
             line += format!(
@@ -1091,14 +1107,13 @@ impl DebugStats {
             .as_str();
         }
         if let Some(elapsed) = self.finder_elapsed {
-            line += format!(" finder:{elapsed}ms").as_str();
+            line += format!(" finder:{:.3}ms", elapsed.as_micros() as f64 / 1000.0).as_str();
+        }
+        if let Some(elapsed) = self.render_elapsed {
+            line += format!(" render:{:.3}ms", elapsed.as_micros() as f64 / 1000.0).as_str();
         }
         line += "]";
-        if line == "[]" {
-            None
-        } else {
-            Some(line)
-        }
+        Some(line)
     }
 }
 

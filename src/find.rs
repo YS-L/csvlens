@@ -7,7 +7,7 @@ use sorted_vec::SortedVec;
 use std::cmp::min;
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::thread::{self};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 pub struct Finder {
     internal: Arc<Mutex<FinderInternalState>>,
@@ -183,7 +183,7 @@ impl Finder {
         m_guard.terminate();
     }
 
-    pub fn elapsed(&self) -> Option<u128> {
+    pub fn elapsed(&self) -> Option<Duration> {
         let m_guard = self.internal.lock().unwrap();
         m_guard.elapsed()
     }
@@ -223,7 +223,7 @@ struct FinderInternalState {
     founds: SortedVec<FoundRecord>,
     done: bool,
     should_terminate: bool,
-    elapsed: Option<u128>,
+    elapsed: Option<Duration>,
 }
 
 impl FinderInternalState {
@@ -294,7 +294,7 @@ impl FinderInternalState {
 
             let mut m = _m.lock().unwrap();
             m.done = true;
-            m.elapsed = Some(start.elapsed().as_micros());
+            m.elapsed = Some(start.elapsed());
         });
 
         m_state
@@ -326,7 +326,7 @@ impl FinderInternalState {
         self.should_terminate = true;
     }
 
-    fn elapsed(&self) -> Option<u128> {
+    fn elapsed(&self) -> Option<Duration> {
         self.elapsed
     }
 }
