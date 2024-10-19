@@ -1053,6 +1053,7 @@ struct BordersState {
 }
 
 pub struct DebugStats {
+    show_stats: bool,
     rows_view_stats: Option<crate::view::PerfStats>,
     finder_elapsed: Option<Duration>,
     render_elapsed: Option<Duration>,
@@ -1061,10 +1062,15 @@ pub struct DebugStats {
 impl DebugStats {
     pub fn new() -> Self {
         DebugStats {
+            show_stats: false,
             rows_view_stats: None,
             finder_elapsed: None,
             render_elapsed: None,
         }
+    }
+
+    pub fn show_stats(&mut self, show: bool) {
+        self.show_stats = show;
     }
 
     pub fn rows_view_perf(&mut self, stats: Option<crate::view::PerfStats>) {
@@ -1080,6 +1086,9 @@ impl DebugStats {
     }
 
     pub fn status_line(&self) -> Option<String> {
+        if !self.show_stats {
+            return None;
+        }
         let mut line = "[".to_string();
         if let Some(stats) = &self.rows_view_stats {
             line += format!(
@@ -1104,11 +1113,7 @@ impl DebugStats {
             line += format!(" render:{:.3}ms", elapsed.as_micros() as f64 / 1000.0).as_str();
         }
         line += "]";
-        if line == "[]" {
-            None
-        } else {
-            Some(line)
-        }
+        Some(line)
     }
 }
 
