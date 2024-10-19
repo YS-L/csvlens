@@ -20,6 +20,7 @@ use tui_input::Input;
 use std::cmp::{max, min};
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Duration;
 
 const NUM_SPACES_AFTER_LINE_NUMBER: u16 = 2;
 const NUM_SPACES_BETWEEN_COLUMNS: u16 = 4;
@@ -1053,8 +1054,8 @@ struct BordersState {
 
 pub struct DebugStats {
     rows_view_stats: Option<crate::view::PerfStats>,
-    finder_elapsed: Option<f64>,
-    render_elapsed: Option<f64>,
+    finder_elapsed: Option<Duration>,
+    render_elapsed: Option<Duration>,
 }
 
 impl DebugStats {
@@ -1070,12 +1071,12 @@ impl DebugStats {
         self.rows_view_stats = stats;
     }
 
-    pub fn finder_elapsed(&mut self, elapsed: Option<u128>) {
-        self.finder_elapsed = elapsed.map(|e| e as f64 / 1000.0);
+    pub fn finder_elapsed(&mut self, elapsed: Option<Duration>) {
+        self.finder_elapsed = elapsed;
     }
 
-    pub fn render_elapsed(&mut self, elapsed: Option<u128>) {
-        self.render_elapsed = elapsed.map(|e| e as f64 / 1000.0);
+    pub fn render_elapsed(&mut self, elapsed: Option<Duration>) {
+        self.render_elapsed = elapsed;
     }
 
     pub fn status_line(&self) -> Option<String> {
@@ -1097,10 +1098,10 @@ impl DebugStats {
             .as_str();
         }
         if let Some(elapsed) = self.finder_elapsed {
-            line += format!(" finder:{elapsed}ms").as_str();
+            line += format!(" finder:{:.3}ms", elapsed.as_micros() as f64 / 1000.0).as_str();
         }
         if let Some(elapsed) = self.render_elapsed {
-            line += format!(" render:{elapsed}ms").as_str();
+            line += format!(" render:{:.3}ms", elapsed.as_micros() as f64 / 1000.0).as_str();
         }
         line += "]";
         if line == "[]" {

@@ -833,7 +833,7 @@ impl App {
         if self.show_stats {
             self.csv_table_state
                 .debug_stats
-                .render_elapsed(Some(start.elapsed().as_micros()));
+                .render_elapsed(Some(start.elapsed()));
         }
         Ok(())
     }
