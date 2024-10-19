@@ -11,6 +11,7 @@ use crossterm::terminal::{
 use ratatui::backend::CrosstermBackend;
 use ratatui::Terminal;
 use std::ffi::OsString;
+use std::io::LineWriter;
 use std::panic;
 use std::thread::panicking;
 
@@ -81,7 +82,7 @@ impl AppRunner {
         let mut output = std::io::stderr();
         execute!(output, EnterAlternateScreen)?;
 
-        let backend = CrosstermBackend::new(output);
+        let backend = CrosstermBackend::new(LineWriter::new(output));
         let mut terminal = Terminal::new(backend)?;
 
         self.app.main_loop(&mut terminal)
