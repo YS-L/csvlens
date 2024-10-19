@@ -670,4 +670,9 @@ impl RowsView {
         // self.selection.row.set_bound(self.rows.len() as u64);
         Ok(())
     }
+
+    #[cfg(test)]
+    pub fn wait_internal(&self) {
+        self.reader.wait_internal()
+    }
 }

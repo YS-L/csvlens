@@ -98,6 +98,16 @@ impl Sorter {
         let mut m = self.internal.lock().unwrap();
         m.terminate();
     }
+
+    #[cfg(test)]
+    pub fn wait_internal(&self) {
+        loop {
+            if self.internal.lock().unwrap().done {
+                break;
+            }
+            thread::sleep(core::time::Duration::from_millis(100));
+        }
+    }
 }
 
 impl Drop for Sorter {
@@ -243,21 +253,10 @@ impl SorterInternalState {
     }
 }
 
+#[cfg(test)]
 mod tests {
 
     use super::*;
-
-    impl Sorter {
-        #[cfg(test)]
-        fn wait_internal(&self) {
-            loop {
-                if self.internal.lock().unwrap().done {
-                    break;
-                }
-                thread::sleep(core::time::Duration::from_millis(100));
-            }
-        }
-    }
 
     #[test]
     fn test_simple() {

@@ -200,6 +200,16 @@ impl Finder {
             .collect();
         indices
     }
+
+    #[cfg(test)]
+    pub fn wait_internal(&self) {
+        loop {
+            if self.internal.lock().unwrap().done {
+                break;
+            }
+            thread::sleep(core::time::Duration::from_millis(100));
+        }
+    }
 }
 
 impl Drop for Finder {
