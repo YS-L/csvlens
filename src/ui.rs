@@ -1054,6 +1054,7 @@ struct BordersState {
 pub struct DebugStats {
     rows_view_stats: Option<crate::view::PerfStats>,
     finder_elapsed: Option<f64>,
+    render_elapsed: Option<f64>,
 }
 
 impl DebugStats {
@@ -1061,6 +1062,7 @@ impl DebugStats {
         DebugStats {
             rows_view_stats: None,
             finder_elapsed: None,
+            render_elapsed: None,
         }
     }
 
@@ -1070,6 +1072,10 @@ impl DebugStats {
 
     pub fn finder_elapsed(&mut self, elapsed: Option<u128>) {
         self.finder_elapsed = elapsed.map(|e| e as f64 / 1000.0);
+    }
+
+    pub fn render_elapsed(&mut self, elapsed: Option<u128>) {
+        self.render_elapsed = elapsed.map(|e| e as f64 / 1000.0);
     }
 
     pub fn status_line(&self) -> Option<String> {
@@ -1092,6 +1098,9 @@ impl DebugStats {
         }
         if let Some(elapsed) = self.finder_elapsed {
             line += format!(" finder:{elapsed}ms").as_str();
+        }
+        if let Some(elapsed) = self.render_elapsed {
+            line += format!(" render:{elapsed}ms").as_str();
         }
         line += "]";
         if line == "[]" {

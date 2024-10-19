@@ -20,6 +20,7 @@ use anyhow::Result;
 use regex::Regex;
 use std::cmp::min;
 use std::sync::Arc;
+use std::time::Instant;
 
 fn get_offsets_to_make_visible(
     found_record: &find::FoundRecord,
@@ -825,10 +826,15 @@ impl App {
     }
 
     fn draw<B: Backend>(&mut self, terminal: &mut Terminal<B>) -> CsvlensResult<()> {
+        let start = Instant::now();
         terminal.draw(|f| {
             self.render_frame(f);
         })?;
-
+        if self.show_stats {
+            self.csv_table_state
+                .debug_stats
+                .render_elapsed(Some(start.elapsed().as_micros()));
+        }
         Ok(())
     }
 }
