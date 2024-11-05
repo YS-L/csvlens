@@ -25,7 +25,7 @@ csv-sniffer = "0.3.1"
 tui-input = { version = "0.8", features = ["crossterm"] }
 arrow = {version = "53", default-features = false, features = ["csv"]}
 sorted-vec = "0.8.4"
-arboard = { version = "3.4", features = ["wayland-data-control"], optional = true }
+arboard = { version = "3.4", default-features = false, features = ["wayland-data-control"], optional = true }
 thiserror = "1.0.63"
 
 [target.'cfg(windows)'.dependencies]
