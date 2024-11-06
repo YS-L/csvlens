@@ -117,6 +117,12 @@ pkg install csvlens
 pkgin install csvlens
 ```
 
+### OpenBSD
+`csvlens` is available as an [OpenBSD port](https://cvsweb.openbsd.org/ports/textproc/csvlens/). If you're using OpenBSD 7.6-current or later, you can install it using:
+```
+doas pkg_add csvlens
+```
+
 ### Cargo
 
 If you have [Rust](https://www.rust-lang.org/tools/install) installed, `csvlens` is available on
