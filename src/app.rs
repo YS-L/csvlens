@@ -1077,6 +1077,36 @@ mod tests {
     }
 
     #[test]
+    fn test_filter_columns_irregular() {
+        let mut app = AppBuilder::new("tests/data/irregular.csv").build().unwrap();
+        till_app_ready(&app);
+
+        let backend = TestBackend::new(80, 10);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        step_and_draw(
+            &mut app,
+            &mut terminal,
+            Control::FilterColumns("COL2".into()),
+        );
+        let expected = vec![
+            "────────────────────────────────────────────────────────────────────────────────",
+            "       COL2                                                                     ",
+            "───┬───────────┬────────────────────────────────────────────────────────────────",
+            "1  │           │                                                                ",
+            "2  │   v2      │                                                                ",
+            "   │           │                                                                ",
+            "   │           │                                                                ",
+            "   │           │                                                                ",
+            "───┴───────────┴────────────────────────────────────────────────────────────────",
+            "stdin [Row 1/2, Col 1/1] [Filter \"COL2\": 1/2 cols]                              ",
+        ];
+        let actual_buffer = terminal.backend().buffer().clone();
+        let lines = to_lines(&actual_buffer);
+        assert_eq!(lines, expected);
+    }
+
+    #[test]
     fn test_filter_columns_case_sensitive() {
         let mut app = AppBuilder::new("tests/data/cities.csv").build().unwrap();
         till_app_ready(&app);
