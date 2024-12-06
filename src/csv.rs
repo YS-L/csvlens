@@ -9,6 +9,8 @@ use std::time;
 
 use crate::errors::CsvlensResult;
 
+use unic_bidi::BidiInfo;
+
 fn string_record_to_vec(record: &csv::StringRecord) -> Vec<String> {
     let mut string_vec = Vec::new();
     for field in record.iter() {
@@ -241,7 +243,15 @@ impl CsvLensReader {
                         let string_record = r?;
                         let mut fields = Vec::new();
                         for field in string_record.iter() {
-                            fields.push(String::from(field));
+                            if field.is_empty() {
+                                fields.push(String::from(""));
+                                continue;
+                            }
+                            let bidi_info = BidiInfo::new(field, None);
+                            let para = &bidi_info.paragraphs[0];
+                            let line = para.range.clone();
+                            let display = bidi_info.reorder_line(para, line);
+                            fields.push(String::from(display));
                         }
                         let row = Row {
                             record_num: self.config.position_to_record_num(record_position)
