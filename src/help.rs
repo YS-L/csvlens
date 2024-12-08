@@ -42,7 +42,7 @@ TAB                     : Toggle between row, column or cell selection modes
 Shift + ↓ (or J)        : Sort rows by the selected column
 # (in Cell mode)        : Find and highlight rows like the selected cell
 @ (in Cell mode)        : Filter rows like the selected cell
-y (in Cell Mode)        : Copy the selected cell to clipboard
+y                       : Copy the selected row or cell to clipboard
 Enter (in Cell mode)    : Print the selected cell to stdout and exit
 
 # Other options
