@@ -760,7 +760,7 @@ impl<'a> CsvTable<'a> {
     }
 }
 
-impl<'a> StatefulWidget for CsvTable<'a> {
+impl StatefulWidget for CsvTable<'_> {
     type State = CsvTableState;
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
