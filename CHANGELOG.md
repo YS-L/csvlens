@@ -1,3 +1,11 @@
+# v0.11.0
+
+* Support copying a row to the clipboard (#97 by @mendelmaleh)
+* Improve rendering performance by using line-buffered `stderr` (#107)
+* Fix panic when filtering columns with irregular CSV (#112 by @antmelon)
+* Disable `arboard` default features to reduce image related dependencies (#114 by @jqnatividad)
+* Improve test stability across different environments (#101)
+
 # v0.10.1
 
 * Fix `--echo-column` option error
