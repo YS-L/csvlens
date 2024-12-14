@@ -62,6 +62,7 @@ fn scroll_to_found_record(
     }
 
     if let Some(cols_offset) = new_cols_offset {
+        rows_view.set_cols_offset(cols_offset);
         csv_table_state.set_cols_offset(cols_offset);
     }
 }
