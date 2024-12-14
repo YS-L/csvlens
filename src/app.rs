@@ -23,7 +23,7 @@ use std::sync::Arc;
 use std::time::Instant;
 
 fn get_offsets_to_make_visible(
-    found_record: &find::FoundRecord,
+    found_record: &find::FoundEntry,
     rows_view: &view::RowsView,
     csv_table_state: &CsvTableState,
 ) -> (Option<u64>, Option<u64>) {
@@ -36,7 +36,7 @@ fn get_offsets_to_make_visible(
 
     let cols_offset = csv_table_state.cols_offset;
     let last_rendered_col = cols_offset.saturating_add(csv_table_state.num_cols_rendered);
-    let column_index = found_record.first_column() as u64;
+    let column_index = found_record.column_index() as u64;
     let new_cols_offset = if column_index >= cols_offset && column_index < last_rendered_col {
         None
     } else {
@@ -46,13 +46,13 @@ fn get_offsets_to_make_visible(
     (new_rows_offset, new_cols_offset)
 }
 
-fn scroll_to_found_record(
-    found_record: find::FoundRecord,
+fn scroll_to_found_entry(
+    found_entry: find::FoundEntry,
     rows_view: &mut view::RowsView,
     csv_table_state: &mut CsvTableState,
 ) {
     let (new_rows_offset, new_cols_offset) =
-        get_offsets_to_make_visible(&found_record, rows_view, csv_table_state);
+        get_offsets_to_make_visible(&found_entry, rows_view, csv_table_state);
 
     // csv_table_state.debug = format!("{:?} {:?}", new_rows_offset, new_cols_offset);
     // csv_table_state.debug = format!("{:?}", found_record);
@@ -379,9 +379,9 @@ impl App {
             }
             Control::ScrollToNextFound if !self.rows_view.is_filter() => {
                 if let Some(fdr) = self.finder.as_mut() {
-                    if let Some(found_record) = fdr.next() {
-                        scroll_to_found_record(
-                            found_record,
+                    if let Some(found_entry) = fdr.next() {
+                        scroll_to_found_entry(
+                            found_entry,
                             &mut self.rows_view,
                             &mut self.csv_table_state,
                         );
@@ -390,9 +390,9 @@ impl App {
             }
             Control::ScrollToPrevFound if !self.rows_view.is_filter() => {
                 if let Some(fdr) = self.finder.as_mut() {
-                    if let Some(found_record) = fdr.prev() {
-                        scroll_to_found_record(
-                            found_record,
+                    if let Some(found_entry) = fdr.prev() {
+                        scroll_to_found_entry(
+                            found_entry,
                             &mut self.rows_view,
                             &mut self.csv_table_state,
                         );
@@ -575,9 +575,9 @@ impl App {
                 if !self.first_found_scrolled && fdr.count() > 0 {
                     // set row_hint to 0 so that this always scrolls to first result
                     fdr.set_row_hint(0);
-                    if let Some(found_record) = fdr.next() {
-                        scroll_to_found_record(
-                            found_record,
+                    if let Some(found_entry) = fdr.next() {
+                        scroll_to_found_entry(
+                            found_entry,
                             &mut self.rows_view,
                             &mut self.csv_table_state,
                         );

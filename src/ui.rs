@@ -435,10 +435,7 @@ impl<'a> CsvTable<'a> {
                     let mut highlight_style = filler_style.style.fg(Color::Rgb(200, 0, 0));
                     if let Some(hl) = &active.found_record {
                         if let Some(row_index) = row_index {
-                            // TODO: vec::contains slow or does it even matter?
-                            if row_index == hl.row_index()
-                                && hl.column_indices().contains(&col_index)
-                            {
+                            if row_index == hl.row_index() && hl.column_index() == col_index {
                                 highlight_style = highlight_style.bg(Color::LightYellow);
                             }
                         }
@@ -913,7 +910,7 @@ pub struct FinderActiveState {
     cursor_index: Option<u64>,
     target: Regex,
     column_index: Option<(usize, String)>,
-    found_record: Option<find::FoundRecord>,
+    found_record: Option<find::FoundEntry>,
     selected_offset: Option<u64>,
     is_filter: bool,
 }
