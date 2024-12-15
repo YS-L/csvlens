@@ -17,8 +17,8 @@ pub enum RowPos {
 
 #[derive(Debug, Clone)]
 pub struct FinderCursor {
-    row: RowPos,
-    column: usize,
+    pub row: RowPos,
+    pub column: usize,
 }
 
 impl FinderCursor {
@@ -94,7 +94,7 @@ impl FinderCursor {
 pub struct Finder {
     internal: Arc<Mutex<FinderInternalState>>,
     pub cursor: Option<FinderCursor>,
-    pub row_hint: RowPos,
+    row_hint: RowPos,
     target: Regex,
     column_index: Option<usize>,
     sorter: Option<Arc<sort::Sorter>>,
@@ -239,27 +239,26 @@ impl Finder {
         (self.internal.lock().unwrap()).count
     }
 
+    pub fn count_and_max_row_index(&self) -> (usize, Option<u64>) {
+        let g = self.internal.lock().unwrap();
+        (g.count, g.founds.last().map(|x| x.row_index() as u64))
+    }
+
     pub fn found_any(&self) -> bool {
         let g = self.internal.lock().unwrap();
         g.count > 0 || g.found_header.is_some()
     }
 
-    pub fn count_and_max_row_index(&self) -> (usize, Option<u64>) {
-        let g = self.internal.lock().unwrap();
-        (g.count, g.founds.last().map(|x| x.row_index() as u64))
+    pub fn header_has_match(&self) -> bool {
+        (self.internal.lock().unwrap()).found_header.is_some()
     }
 
     pub fn done(&self) -> bool {
         (self.internal.lock().unwrap()).done
     }
 
-    pub fn cursor(&self) -> Option<usize> {
-        if let Some(cursor) = &self.cursor {
-            if let RowPos::Row(row) = cursor.row {
-                return Some(row);
-            }
-        }
-        None
+    pub fn cursor(&self) -> Option<FinderCursor> {
+        self.cursor.as_ref().cloned()
     }
 
     pub fn cursor_row_order(&self) -> Option<usize> {

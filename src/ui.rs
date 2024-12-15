@@ -925,20 +925,23 @@ impl FinderState {
 pub struct FinderActiveState {
     find_complete: bool,
     total_found: u64,
-    cursor_index: Option<u64>,
+    cursor: Option<find::FinderCursor>,
     target: Regex,
     column_index: Option<(usize, String)>,
     found_record: Option<find::FoundEntry>,
     selected_offset: Option<u64>,
     is_filter: bool,
+    header_has_match: bool,
 }
 
 impl FinderActiveState {
     pub fn new(finder: &find::Finder, rows_view: &view::RowsView) -> Self {
+        let header_has_match = finder.header_has_match();
+        let total_count = finder.count() + if header_has_match { 1 } else { 0 };
         FinderActiveState {
             find_complete: finder.done(),
-            total_found: finder.count() as u64,
-            cursor_index: finder.cursor().map(|x| x as u64),
+            total_found: total_count as u64,
+            cursor: finder.cursor(),
             target: finder.target(),
             column_index: finder
                 .column_index()
@@ -946,6 +949,7 @@ impl FinderActiveState {
             found_record: finder.current(),
             selected_offset: rows_view.selected_offset(),
             is_filter: rows_view.is_filter(),
+            header_has_match,
         }
     }
 
@@ -971,8 +975,14 @@ impl FinderActiveState {
                 } else {
                     cursor_str = "-".to_owned();
                 }
-            } else if let Some(i) = self.cursor_index {
-                cursor_str = (i.saturating_add(1)).to_string();
+            } else if let Some(cursor) = &self.cursor {
+                cursor_str = match cursor.row {
+                    find::RowPos::Row(i) => (i
+                        .saturating_add(1)
+                        .saturating_add(if self.header_has_match { 1 } else { 0 }))
+                    .to_string(),
+                    find::RowPos::Header => "1".to_string(),
+                };
             } else {
                 cursor_str = "-".to_owned();
             }
