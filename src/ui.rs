@@ -428,6 +428,9 @@ impl<'a> CsvTable<'a> {
                         return false;
                     }
                 }
+                if active.is_filter && matches!(row_type, RowType::Header) {
+                    return false;
+                }
                 active.target.is_match(content)
             };
             match &state.finder_state {
@@ -447,7 +450,6 @@ impl<'a> CsvTable<'a> {
                                 }
                             }
                             find::FoundEntry::Header(entry) => {
-                                // panic!("Header entry found in record: {:?}", entry);
                                 if matches!(row_type, RowType::Header)
                                     && entry.column_index() == col_index
                                 {
