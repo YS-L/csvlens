@@ -9,14 +9,91 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use std::thread::{self};
 use std::time::{Duration, Instant};
 
-struct FinderCursor {
-    row: usize,
+#[derive(Debug, Clone)]
+pub enum CursorRow {
+    Header,
+    Row(usize),
+}
+
+#[derive(Debug, Clone)]
+pub struct FinderCursor {
+    row: CursorRow,
     column: usize,
+}
+
+impl FinderCursor {
+    fn next_row(&self, total_count: usize) -> FinderCursor {
+        match self.row {
+            CursorRow::Header => FinderCursor {
+                row: if total_count > 0 {
+                    CursorRow::Row(0)
+                } else {
+                    CursorRow::Header
+                },
+                column: 0,
+            },
+            CursorRow::Row(n) => FinderCursor {
+                row: if n + 1 < total_count {
+                    CursorRow::Row(n + 1)
+                } else {
+                    CursorRow::Row(n)
+                },
+                column: 0,
+            },
+        }
+    }
+
+    fn prev_row(&self, has_header_found: bool) -> FinderCursor {
+        match self.row {
+            CursorRow::Header => FinderCursor {
+                row: CursorRow::Header,
+                column: 0,
+            },
+            CursorRow::Row(0) => FinderCursor {
+                row: if has_header_found {
+                    CursorRow::Header
+                } else {
+                    CursorRow::Row(0)
+                },
+                column: 0,
+            },
+            CursorRow::Row(n) => FinderCursor {
+                row: CursorRow::Row(n.saturating_sub(1)),
+                column: 0,
+            },
+        }
+    }
+
+    fn next_column(&self) -> FinderCursor {
+        match self.row {
+            CursorRow::Header => FinderCursor {
+                row: CursorRow::Header,
+                column: self.column.saturating_add(1),
+            },
+            CursorRow::Row(n) => FinderCursor {
+                row: CursorRow::Row(n),
+                column: self.column.saturating_add(1),
+            },
+        }
+    }
+
+    fn prev_column(&self) -> FinderCursor {
+        match self.row {
+            CursorRow::Header => FinderCursor {
+                row: CursorRow::Header,
+                column: self.column.saturating_sub(1),
+            },
+            CursorRow::Row(n) => FinderCursor {
+                row: CursorRow::Row(n),
+                column: self.column.saturating_sub(1),
+            },
+        }
+    }
 }
 
 pub struct Finder {
     internal: Arc<Mutex<FinderInternalState>>,
-    cursor: Option<FinderCursor>,
+    pub cursor: Option<FinderCursor>,
     row_hint: usize,
     target: Regex,
     column_index: Option<usize>,
@@ -24,14 +101,19 @@ pub struct Finder {
     pub sort_order: SortOrder,
 }
 
+pub enum FoundEntry {
+    Header(HeaderEntry),
+    Row(RowEntry),
+}
+
 #[derive(Clone, Debug)]
-pub struct FoundEntry {
+pub struct RowEntry {
     row_index: usize,
     row_order: usize,
     column_index: usize,
 }
 
-impl FoundEntry {
+impl RowEntry {
     pub fn row_index(&self) -> usize {
         self.row_index
     }
@@ -46,13 +128,43 @@ impl FoundEntry {
 }
 
 #[derive(Clone, Debug)]
-pub struct FoundRecord {
+pub struct HeaderEntry {
+    column_index: usize,
+}
+
+impl HeaderEntry {
+    pub fn column_index(&self) -> usize {
+        self.column_index
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct FoundHeader {
+    column_indices: Vec<usize>,
+}
+
+impl FoundHeader {
+    pub fn column_indices(&self) -> &Vec<usize> {
+        &self.column_indices
+    }
+
+    pub fn get_entry(&self, entry_index: usize) -> Option<HeaderEntry> {
+        self.column_indices
+            .get(entry_index)
+            .map(|column_index| HeaderEntry {
+                column_index: *column_index,
+            })
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct FoundRow {
     row_index: usize,
     row_order: usize,
     column_indices: Vec<usize>,
 }
 
-impl FoundRecord {
+impl FoundRow {
     pub fn row_index(&self) -> usize {
         self.row_index
     }
@@ -65,10 +177,10 @@ impl FoundRecord {
         &self.column_indices
     }
 
-    pub fn get_entry(&self, entry_index: usize) -> Option<FoundEntry> {
+    pub fn get_entry(&self, entry_index: usize) -> Option<RowEntry> {
         self.column_indices
             .get(entry_index)
-            .map(|column_index| FoundEntry {
+            .map(|column_index| RowEntry {
                 row_index: self.row_index,
                 row_order: self.row_order,
                 column_index: *column_index,
@@ -76,25 +188,25 @@ impl FoundRecord {
     }
 }
 
-impl Ord for FoundRecord {
+impl Ord for FoundRow {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.row_order.cmp(&other.row_order)
     }
 }
 
-impl PartialOrd for FoundRecord {
+impl PartialOrd for FoundRow {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.row_order.cmp(&other.row_order))
     }
 }
 
-impl PartialEq for FoundRecord {
+impl PartialEq for FoundRow {
     fn eq(&self, other: &Self) -> bool {
         self.row_order == other.row_order
     }
 }
 
-impl Eq for FoundRecord {}
+impl Eq for FoundRow {}
 
 impl Finder {
     pub fn new(
@@ -137,13 +249,21 @@ impl Finder {
     }
 
     pub fn cursor(&self) -> Option<usize> {
-        self.cursor.as_ref().map(|x| x.row)
+        if let Some(cursor) = &self.cursor {
+            if let CursorRow::Row(row) = cursor.row {
+                return Some(row);
+            }
+        }
+        None
     }
 
     pub fn cursor_row_order(&self) -> Option<usize> {
         let m_guard = self.internal.lock().unwrap();
-        self.get_found_record_at_cursor(&m_guard)
-            .map(|x| x.row_order())
+        if let Some(FoundEntry::Row(entry)) = self.get_found_record_at_cursor(&m_guard) {
+            Some(entry.row_order())
+        } else {
+            None
+        }
     }
 
     pub fn target(&self) -> Regex {
@@ -171,24 +291,22 @@ impl Finder {
         let count = m_guard.count;
         let founds = &m_guard.founds;
         if let Some(cursor) = &self.cursor {
-            if let Some(record) = founds.get(cursor.row) {
-                if cursor.column + 1 < record.column_indices().len() {
+            let column_indices = match cursor.row {
+                CursorRow::Header => m_guard.found_header.as_ref().map(|x| x.column_indices()),
+                CursorRow::Row(n) => founds.get(n).map(|x| x.column_indices()),
+            };
+            if let Some(column_indices) = column_indices {
+                if cursor.column + 1 < column_indices.len() {
                     // Try next column first if available
-                    self.cursor = Some(FinderCursor {
-                        row: cursor.row,
-                        column: cursor.column + 1,
-                    });
-                } else if cursor.row + 1 < count {
+                    self.cursor = Some(cursor.next_column());
+                } else {
                     // Next row if available
-                    self.cursor = Some(FinderCursor {
-                        row: cursor.row + 1,
-                        column: 0,
-                    });
+                    self.cursor = Some(cursor.next_row(count));
                 }
             }
         } else if count > 0 {
             self.cursor = Some(FinderCursor {
-                row: m_guard.next_from(self.row_hint),
+                row: CursorRow::Row(m_guard.next_from(self.row_hint)),
                 column: 0,
             });
         }
@@ -200,28 +318,16 @@ impl Finder {
         if let Some(cursor) = &self.cursor {
             if cursor.column > 0 {
                 // Try previous column first if available
-                self.cursor = Some(FinderCursor {
-                    row: cursor.row,
-                    column: cursor.column.saturating_sub(1),
-                });
+                self.cursor = Some(cursor.prev_column());
             } else {
                 // Previous row if available
-                let n = cursor.row;
-                if n > 0 {
-                    let prev_row = n.saturating_sub(1);
-                    if let Some(prev_record) = m_guard.founds.get(prev_row) {
-                        self.cursor = Some(FinderCursor {
-                            row: prev_row,
-                            column: prev_record.column_indices().len() - 1,
-                        });
-                    }
-                }
+                self.cursor = Some(cursor.prev_row(m_guard.found_header.is_some()));
             }
         } else {
             let count = m_guard.count;
             if count > 0 {
                 self.cursor = Some(FinderCursor {
-                    row: m_guard.prev_from(self.row_hint),
+                    row: CursorRow::Row(m_guard.prev_from(self.row_hint)),
                     column: 0,
                 });
             }
@@ -239,8 +345,18 @@ impl Finder {
         m_guard: &MutexGuard<FinderInternalState>,
     ) -> Option<FoundEntry> {
         if let Some(cursor) = &self.cursor {
-            let res = m_guard.founds.get(cursor.row);
-            res.and_then(|x| x.get_entry(cursor.column))
+            match cursor.row {
+                CursorRow::Header => m_guard
+                    .found_header
+                    .as_ref()
+                    .and_then(|x| x.get_entry(cursor.column))
+                    .map(FoundEntry::Header),
+                CursorRow::Row(n) => m_guard
+                    .founds
+                    .get(n)
+                    .and_then(|x| x.get_entry(cursor.column))
+                    .map(FoundEntry::Row),
+            }
         } else {
             None
         }
@@ -288,7 +404,8 @@ impl Drop for Finder {
 
 struct FinderInternalState {
     count: usize,
-    founds: SortedVec<FoundRecord>,
+    found_header: Option<FoundHeader>,
+    founds: SortedVec<FoundRow>,
     done: bool,
     should_terminate: bool,
     elapsed: Option<Duration>,
@@ -304,6 +421,7 @@ impl FinderInternalState {
     ) -> Arc<Mutex<FinderInternalState>> {
         let internal = FinderInternalState {
             count: 0,
+            found_header: None,
             founds: SortedVec::new(),
             done: false,
             should_terminate: false,
@@ -318,7 +436,22 @@ impl FinderInternalState {
         let _handle = thread::spawn(move || {
             let mut bg_reader = config.new_reader().unwrap();
 
-            // note that records() exludes header
+            // search header
+            let mut column_indices = vec![];
+            if let Ok(header) = bg_reader.headers() {
+                for (column_index, field) in header.iter().enumerate() {
+                    if target.is_match(field) {
+                        column_indices.push(column_index);
+                    }
+                }
+            }
+            if !column_indices.is_empty() {
+                let found = FoundHeader { column_indices };
+                let mut m = _m.lock().unwrap();
+                m.found_header = Some(found);
+            }
+
+            // note that records() excludes header
             let records = bg_reader.records();
 
             let start = Instant::now();
@@ -346,7 +479,7 @@ impl FinderInternalState {
                         }
                         _ => row_index,
                     };
-                    let found = FoundRecord {
+                    let found = FoundRow {
                         row_index,
                         row_order,
                         column_indices,
@@ -368,7 +501,7 @@ impl FinderInternalState {
         m_state
     }
 
-    fn found_one(&mut self, found: FoundRecord) {
+    fn found_one(&mut self, found: FoundRow) {
         self.founds.push(found);
         self.count += 1;
     }

@@ -421,22 +421,38 @@ impl<'a> CsvTable<'a> {
             };
 
             let should_highlight_cell = |active: &FinderActiveState, content: &str| {
+                // Only highlight the selected column in column selection mode. But header search is
+                // always across all columns regardless of the selection mode.
                 if let Some((target_column_index, _)) = active.column_index {
-                    if target_column_index != col_index {
+                    if target_column_index != col_index && matches!(row_type, RowType::Record(_)) {
                         return false;
                     }
                 }
-                active.target.is_match(content) && !matches!(row_type, RowType::Header)
+                active.target.is_match(content)
             };
             match &state.finder_state {
                 // TODO: seems like doing a bit too much of heavy lifting of
                 // checking for matches (finder's work)
                 FinderState::FinderActive(active) if should_highlight_cell(active, hname) => {
                     let mut highlight_style = filler_style.style.fg(Color::Rgb(200, 0, 0));
-                    if let Some(hl) = &active.found_record {
-                        if let Some(row_index) = row_index {
-                            if row_index == hl.row_index() && hl.column_index() == col_index {
-                                highlight_style = highlight_style.bg(Color::LightYellow);
+                    if let Some(found_record) = &active.found_record {
+                        match found_record {
+                            find::FoundEntry::Row(entry) => {
+                                if let Some(row_index) = row_index {
+                                    if row_index == entry.row_index()
+                                        && entry.column_index() == col_index
+                                    {
+                                        highlight_style = highlight_style.bg(Color::LightYellow);
+                                    }
+                                }
+                            }
+                            find::FoundEntry::Header(entry) => {
+                                // panic!("Header entry found in record: {:?}", entry);
+                                if matches!(row_type, RowType::Header)
+                                    && entry.column_index() == col_index
+                                {
+                                    highlight_style = highlight_style.bg(Color::LightYellow);
+                                }
                             }
                         }
                     }

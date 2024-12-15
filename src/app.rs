@@ -28,15 +28,22 @@ fn get_offsets_to_make_visible(
     csv_table_state: &CsvTableState,
 ) -> (Option<u64>, Option<u64>) {
     // TODO: row_index() should probably be u64
-    let new_rows_offset = if rows_view.in_view(found_record.row_order() as u64) {
-        None
+    let new_rows_offset = if let find::FoundEntry::Row(entry) = found_record {
+        if rows_view.in_view(entry.row_order() as u64) {
+            None
+        } else {
+            Some(entry.row_order() as u64)
+        }
     } else {
-        Some(found_record.row_order() as u64)
+        None
     };
 
     let cols_offset = csv_table_state.cols_offset;
     let last_rendered_col = cols_offset.saturating_add(csv_table_state.num_cols_rendered);
-    let column_index = found_record.column_index() as u64;
+    let column_index = match found_record {
+        find::FoundEntry::Header(entry) => entry.column_index(),
+        find::FoundEntry::Row(entry) => entry.column_index(),
+    } as u64;
     let new_cols_offset = if column_index >= cols_offset && column_index < last_rendered_col {
         None
     } else {
@@ -639,7 +646,9 @@ impl App {
             .transient_message
             .clone_from(&self.transient_message);
 
-        // self.csv_table_state.debug = format!("{:?}", self.sorter);
+        // if let Some(finder) = &self.finder {
+        //     self.csv_table_state.debug = format!("cursor: {:?}", finder.cursor);
+        // }
 
         Ok(())
     }
