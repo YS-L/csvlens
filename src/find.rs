@@ -10,33 +10,33 @@ use std::thread::{self};
 use std::time::{Duration, Instant};
 
 #[derive(Debug, Clone)]
-pub enum CursorRow {
+pub enum RowPos {
     Header,
     Row(usize),
 }
 
 #[derive(Debug, Clone)]
 pub struct FinderCursor {
-    row: CursorRow,
+    row: RowPos,
     column: usize,
 }
 
 impl FinderCursor {
     fn next_row(&self, total_count: usize) -> FinderCursor {
         match self.row {
-            CursorRow::Header => FinderCursor {
+            RowPos::Header => FinderCursor {
                 row: if total_count > 0 {
-                    CursorRow::Row(0)
+                    RowPos::Row(0)
                 } else {
-                    CursorRow::Header
+                    RowPos::Header
                 },
                 column: 0,
             },
-            CursorRow::Row(n) => FinderCursor {
+            RowPos::Row(n) => FinderCursor {
                 row: if n + 1 < total_count {
-                    CursorRow::Row(n + 1)
+                    RowPos::Row(n + 1)
                 } else {
-                    CursorRow::Row(n)
+                    RowPos::Row(n)
                 },
                 column: 0,
             },
@@ -45,20 +45,20 @@ impl FinderCursor {
 
     fn prev_row(&self, has_header_found: bool) -> FinderCursor {
         match self.row {
-            CursorRow::Header => FinderCursor {
-                row: CursorRow::Header,
+            RowPos::Header => FinderCursor {
+                row: RowPos::Header,
                 column: 0,
             },
-            CursorRow::Row(0) => FinderCursor {
+            RowPos::Row(0) => FinderCursor {
                 row: if has_header_found {
-                    CursorRow::Header
+                    RowPos::Header
                 } else {
-                    CursorRow::Row(0)
+                    RowPos::Row(0)
                 },
                 column: 0,
             },
-            CursorRow::Row(n) => FinderCursor {
-                row: CursorRow::Row(n.saturating_sub(1)),
+            RowPos::Row(n) => FinderCursor {
+                row: RowPos::Row(n.saturating_sub(1)),
                 column: 0,
             },
         }
@@ -66,12 +66,12 @@ impl FinderCursor {
 
     fn next_column(&self) -> FinderCursor {
         match self.row {
-            CursorRow::Header => FinderCursor {
-                row: CursorRow::Header,
+            RowPos::Header => FinderCursor {
+                row: RowPos::Header,
                 column: self.column.saturating_add(1),
             },
-            CursorRow::Row(n) => FinderCursor {
-                row: CursorRow::Row(n),
+            RowPos::Row(n) => FinderCursor {
+                row: RowPos::Row(n),
                 column: self.column.saturating_add(1),
             },
         }
@@ -79,12 +79,12 @@ impl FinderCursor {
 
     fn prev_column(&self) -> FinderCursor {
         match self.row {
-            CursorRow::Header => FinderCursor {
-                row: CursorRow::Header,
+            RowPos::Header => FinderCursor {
+                row: RowPos::Header,
                 column: self.column.saturating_sub(1),
             },
-            CursorRow::Row(n) => FinderCursor {
-                row: CursorRow::Row(n),
+            RowPos::Row(n) => FinderCursor {
+                row: RowPos::Row(n),
                 column: self.column.saturating_sub(1),
             },
         }
@@ -94,7 +94,7 @@ impl FinderCursor {
 pub struct Finder {
     internal: Arc<Mutex<FinderInternalState>>,
     pub cursor: Option<FinderCursor>,
-    row_hint: usize,
+    pub row_hint: RowPos,
     target: Regex,
     column_index: Option<usize>,
     sorter: Option<Arc<sort::Sorter>>,
@@ -226,7 +226,7 @@ impl Finder {
         let finder = Finder {
             internal,
             cursor: None,
-            row_hint: 0,
+            row_hint: RowPos::Header,
             target,
             column_index,
             sorter: sorter.clone(),
@@ -237,6 +237,11 @@ impl Finder {
 
     pub fn count(&self) -> usize {
         (self.internal.lock().unwrap()).count
+    }
+
+    pub fn found_any(&self) -> bool {
+        let g = self.internal.lock().unwrap();
+        g.count > 0 || g.found_header.is_some()
     }
 
     pub fn count_and_max_row_index(&self) -> (usize, Option<u64>) {
@@ -250,7 +255,7 @@ impl Finder {
 
     pub fn cursor(&self) -> Option<usize> {
         if let Some(cursor) = &self.cursor {
-            if let CursorRow::Row(row) = cursor.row {
+            if let RowPos::Row(row) = cursor.row {
                 return Some(row);
             }
         }
@@ -282,7 +287,7 @@ impl Finder {
         self.cursor = None;
     }
 
-    pub fn set_row_hint(&mut self, row_hint: usize) {
+    pub fn set_row_hint(&mut self, row_hint: RowPos) {
         self.row_hint = row_hint;
     }
 
@@ -292,8 +297,8 @@ impl Finder {
         let founds = &m_guard.founds;
         if let Some(cursor) = &self.cursor {
             let column_indices = match cursor.row {
-                CursorRow::Header => m_guard.found_header.as_ref().map(|x| x.column_indices()),
-                CursorRow::Row(n) => founds.get(n).map(|x| x.column_indices()),
+                RowPos::Header => m_guard.found_header.as_ref().map(|x| x.column_indices()),
+                RowPos::Row(n) => founds.get(n).map(|x| x.column_indices()),
             };
             if let Some(column_indices) = column_indices {
                 if cursor.column + 1 < column_indices.len() {
@@ -304,9 +309,20 @@ impl Finder {
                     self.cursor = Some(cursor.next_row(count));
                 }
             }
-        } else if count > 0 {
+        } else if matches!(self.row_hint, RowPos::Header) && m_guard.found_header.is_some() {
             self.cursor = Some(FinderCursor {
-                row: CursorRow::Row(m_guard.next_from(self.row_hint)),
+                row: RowPos::Header,
+                column: 0,
+            });
+        } else if count > 0 {
+            let n = match self.row_hint {
+                // If here, we know there is no matches in header even though row_hint is still
+                // Header. Start from first found row.
+                RowPos::Header => 0,
+                RowPos::Row(n) => n,
+            };
+            self.cursor = Some(FinderCursor {
+                row: RowPos::Row(m_guard.next_from(n)),
                 column: 0,
             });
         }
@@ -323,11 +339,15 @@ impl Finder {
                 // Previous row if available
                 self.cursor = Some(cursor.prev_row(m_guard.found_header.is_some()));
             }
-        } else {
-            let count = m_guard.count;
-            if count > 0 {
+        } else if matches!(self.row_hint, RowPos::Header) && m_guard.found_header.is_some() {
+            self.cursor = Some(FinderCursor {
+                row: RowPos::Header,
+                column: 0,
+            });
+        } else if m_guard.count > 0 {
+            if let RowPos::Row(n) = self.row_hint {
                 self.cursor = Some(FinderCursor {
-                    row: CursorRow::Row(m_guard.prev_from(self.row_hint)),
+                    row: RowPos::Row(m_guard.prev_from(n)),
                     column: 0,
                 });
             }
@@ -346,12 +366,12 @@ impl Finder {
     ) -> Option<FoundEntry> {
         if let Some(cursor) = &self.cursor {
             match cursor.row {
-                CursorRow::Header => m_guard
+                RowPos::Header => m_guard
                     .found_header
                     .as_ref()
                     .and_then(|x| x.get_entry(cursor.column))
                     .map(FoundEntry::Header),
-                CursorRow::Row(n) => m_guard
+                RowPos::Row(n) => m_guard
                     .founds
                     .get(n)
                     .and_then(|x| x.get_entry(cursor.column))

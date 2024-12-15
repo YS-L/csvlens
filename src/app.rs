@@ -579,9 +579,7 @@ impl App {
         if let Some(fdr) = self.finder.as_mut() {
             if !self.rows_view.is_filter() {
                 // scroll to first result once ready
-                if !self.first_found_scrolled && fdr.count() > 0 {
-                    // set row_hint to 0 so that this always scrolls to first result
-                    fdr.set_row_hint(0);
+                if !self.first_found_scrolled && fdr.found_any() {
                     if let Some(found_entry) = fdr.next() {
                         scroll_to_found_entry(
                             found_entry,
@@ -590,16 +588,19 @@ impl App {
                         );
                     }
                     self.first_found_scrolled = true;
-                }
+                } else if self.first_found_scrolled {
+                    // Conditioned on first_found_scrolled to retain the initial Header row hint,
+                    // i.e. matches in the header row will be highlighted first
 
-                // reset cursor if out of view
-                if let Some(cursor_row_order) = fdr.cursor_row_order() {
-                    if !self.rows_view.in_view(cursor_row_order as u64) {
-                        fdr.reset_cursor();
+                    // reset cursor if out of view
+                    if let Some(cursor_row_order) = fdr.cursor_row_order() {
+                        if !self.rows_view.in_view(cursor_row_order as u64) {
+                            fdr.reset_cursor();
+                        }
                     }
-                }
 
-                fdr.set_row_hint(self.rows_view.rows_from() as usize);
+                    fdr.set_row_hint(find::RowPos::Row(self.rows_view.rows_from() as usize));
+                }
             } else {
                 self.rows_view.set_filter(fdr).unwrap();
             }
