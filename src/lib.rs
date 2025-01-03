@@ -2,6 +2,13 @@
 //!
 //! This crate allows you to use csvlens as a library.
 //!
+//! In your `Cargo.toml`, add the following:
+//!
+//! ```toml
+//! [dependencies]
+//! csvlens = { version = "0.11.0", default-features = false, features = ["clipboard"] }    
+//! ```
+//!
 //! ## Example
 //!
 //! ```rust,no_run
