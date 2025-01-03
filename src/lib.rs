@@ -12,6 +12,24 @@
 //!     println!("Selected: {}", selected_cell);
 //! }
 //! ```
+//!
+//! ## Library Usage with options
+//!
+//! ```ignore
+//! use csvlens::{run_csvlens_with_options, CsvlensOptions};
+//!
+//! let options = CsvlensOptions {
+//!     filename: "/path/to/your.csv".to_string(),
+//!     delimiter: Some("|".to_string()),
+//!     ignore_case: true,
+//!     debug: true,
+//!     ..Default::default()
+//! };
+//! let out = run_csvlens_with_options(options).unwrap();
+//! if let Some(selected_cell) = out {
+//!     println!("Selected: {}", selected_cell);
+//! }
+//! ```
 mod app;
 mod common;
 mod csv;
@@ -30,3 +48,7 @@ mod view;
 mod wrap;
 
 pub use runner::run_csvlens;
+#[cfg(not(feature = "cli"))]
+pub use runner::run_csvlens_with_options;
+#[cfg(not(feature = "cli"))]
+pub use runner::CsvlensOptions;
