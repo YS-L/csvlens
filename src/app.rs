@@ -1,5 +1,6 @@
 extern crate csv_sniffer;
 
+use crate::columns_filter::ColumnsFilter;
 use crate::csv;
 use crate::delimiter::{sniff_delimiter, Delimiter};
 use crate::errors::{CsvlensError, CsvlensResult};
@@ -141,6 +142,7 @@ pub struct App {
     num_rows_not_visible: u16,
     shared_config: Arc<csv::CsvConfig>,
     rows_view: view::RowsView,
+    columns_filter: Option<Arc<ColumnsFilter>>,
     csv_table_state: CsvTableState,
     finder: Option<find::Finder>,
     first_found_scrolled: bool,
@@ -222,6 +224,7 @@ impl App {
             num_rows_not_visible,
             shared_config,
             rows_view,
+            columns_filter: None,
             csv_table_state,
             finder,
             first_found_scrolled,
@@ -719,7 +722,9 @@ impl App {
     fn set_columns_filter(&mut self, pat: &str) {
         let re = self.create_regex(pat, false);
         if let Ok(target) = re {
-            self.rows_view.set_columns_filter(target).unwrap();
+            let columns_filter = Arc::new(ColumnsFilter::new(target, self.rows_view.raw_headers()));
+            self.columns_filter = Some(columns_filter.clone());
+            self.rows_view.set_columns_filter(&columns_filter).unwrap();
         } else {
             self.rows_view.reset_columns_filter().unwrap();
             self.transient_message = Some(format!("Invalid regex: {pat}"));

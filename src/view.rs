@@ -5,7 +5,6 @@ use crate::find;
 use crate::input::Control;
 use crate::sort::{SortOrder, Sorter};
 
-use regex::Regex;
 use std::cmp::min;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -203,7 +202,7 @@ pub struct RowsView {
     rows_from: u64,
     cols_offset: u64,
     filter: Option<RowsFilter>,
-    columns_filter: Option<ColumnsFilter>,
+    columns_filter: Option<Arc<ColumnsFilter>>,
     sorter: Option<Arc<Sorter>>,
     sort_order: SortOrder,
     pub selection: Selection,
@@ -346,22 +345,22 @@ impl RowsView {
         self.do_get_rows()
     }
 
-    pub fn columns_filter(&self) -> Option<&ColumnsFilter> {
+    pub fn columns_filter(&self) -> Option<&Arc<ColumnsFilter>> {
         self.columns_filter.as_ref()
     }
 
-    pub fn set_columns_filter(&mut self, target: Regex) -> CsvlensResult<()> {
-        let _columns_filter = ColumnsFilter::new(target, &self.reader.headers);
-        self.headers = _columns_filter
+    pub fn set_columns_filter(&mut self, columns_filter: &Arc<ColumnsFilter>) -> CsvlensResult<()> {
+        let columns_filter = columns_filter.clone();
+        self.headers = columns_filter
             .indices()
             .iter()
-            .zip(_columns_filter.filtered_headers())
+            .zip(columns_filter.filtered_headers())
             .map(|(i, h)| Header {
                 name: h.clone(),
                 origin_index: *i,
             })
             .collect();
-        self.columns_filter = Some(_columns_filter);
+        self.columns_filter = Some(columns_filter);
         self.do_get_rows()
     }
 
