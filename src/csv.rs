@@ -10,7 +10,7 @@ use std::time;
 use crate::errors::CsvlensResult;
 
 fn string_record_to_vec(record: &csv::StringRecord) -> Vec<String> {
-    let mut string_vec = Vec::new();
+    let mut string_vec = Vec::with_capacity(record.len());
     for field in record.iter() {
         string_vec.push(String::from(field));
     }
@@ -198,6 +198,9 @@ impl CsvLensReader {
 
         let mut next_pos = pos_iter.next();
         let mut next_wanted = indices_iter.next();
+
+        let num_fields = self.headers.len();
+
         loop {
             if next_wanted.is_none() {
                 break;
@@ -239,7 +242,7 @@ impl CsvLensReader {
                     if self.config.position_to_record_index(record_position) == wanted.record_index
                     {
                         let string_record = r?;
-                        let mut fields = Vec::new();
+                        let mut fields = Vec::with_capacity(num_fields);
                         for field in string_record.iter() {
                             fields.push(String::from(field));
                         }
