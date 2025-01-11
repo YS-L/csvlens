@@ -125,7 +125,7 @@ impl<'a> CsvTable<'a> {
         }
 
         // If clipping was too aggressive, redistribute the remaining width
-        CsvTable::redistribute_widths_after_clpping(
+        CsvTable::redistribute_widths_after_clipping(
             &mut column_widths,
             area_width,
             clipped_columns,
@@ -134,7 +134,7 @@ impl<'a> CsvTable<'a> {
         column_widths
     }
 
-    fn redistribute_widths_after_clpping(
+    fn redistribute_widths_after_clipping(
         column_widths: &mut [u16],
         area_width: u16,
         mut clipped_columns: Vec<(usize, u16)>,
