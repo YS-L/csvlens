@@ -436,7 +436,7 @@ impl App {
             Control::BufferReset => {
                 self.csv_table_state.reset_buffer();
                 self.reset_filter();
-                self.rows_view.reset_columns_filter().unwrap();
+                self.reset_columns_filter();
             }
             Control::ToggleSelectionType => {
                 self.rows_view.selection.toggle_selection_type();
@@ -516,7 +516,7 @@ impl App {
             Control::Reset => {
                 self.csv_table_state.column_width_overrides.reset();
                 self.reset_filter();
-                self.rows_view.reset_columns_filter().unwrap();
+                self.reset_columns_filter();
                 self.reset_sorter();
             }
             Control::UnknownOption(s) => {
@@ -672,7 +672,7 @@ impl App {
         self.create_finder_with_column_index(
             target,
             is_filter,
-            self.get_global_selected_column_index().map(|x| x as usize),
+            self.get_selected_column_index().map(|x| x as usize),
             sorter,
         );
     }
@@ -690,6 +690,7 @@ impl App {
             column_index,
             sorter,
             self.sort_order,
+            self.columns_filter.clone(),
         )
         .unwrap();
         self.finder = Some(_finder);
@@ -726,11 +727,16 @@ impl App {
             self.columns_filter = Some(columns_filter.clone());
             self.rows_view.set_columns_filter(&columns_filter).unwrap();
         } else {
-            self.rows_view.reset_columns_filter().unwrap();
+            self.reset_columns_filter();
             self.transient_message = Some(format!("Invalid regex: {pat}"));
         }
         self.csv_table_state.reset_buffer();
         self.csv_table_state.set_cols_offset(0);
+    }
+
+    fn reset_columns_filter(&mut self) {
+        self.columns_filter = None;
+        self.rows_view.reset_columns_filter().unwrap();
     }
 
     fn handle_find_or_filter(&mut self, pat: &str, is_filter: bool, escape: bool) {

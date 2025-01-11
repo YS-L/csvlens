@@ -1,3 +1,4 @@
+use crate::columns_filter;
 use crate::csv;
 use crate::errors::CsvlensResult;
 use crate::sort;
@@ -215,6 +216,7 @@ impl Finder {
         column_index: Option<usize>,
         sorter: Option<Arc<sort::Sorter>>,
         sort_order: SortOrder,
+        columns_filter: Option<Arc<columns_filter::ColumnsFilter>>,
     ) -> CsvlensResult<Self> {
         let internal = FinderInternalState::init(
             config,
@@ -222,6 +224,7 @@ impl Finder {
             column_index,
             sorter.clone(),
             sort_order,
+            columns_filter,
         );
         let finder = Finder {
             internal,
@@ -434,9 +437,10 @@ impl FinderInternalState {
     pub fn init(
         config: Arc<csv::CsvConfig>,
         target: Regex,
-        column_index: Option<usize>,
+        target_local_column_index: Option<usize>,
         sorter: Option<Arc<sort::Sorter>>,
         sort_order: SortOrder,
+        columns_filter: Option<Arc<columns_filter::ColumnsFilter>>,
     ) -> Arc<Mutex<FinderInternalState>> {
         let internal = FinderInternalState {
             count: 0,
@@ -458,10 +462,17 @@ impl FinderInternalState {
             // search header
             let mut column_indices = vec![];
             if let Ok(header) = bg_reader.headers() {
+                let mut local_column_index = 0;
                 for (column_index, field) in header.iter().enumerate() {
-                    if target.is_match(field) {
-                        column_indices.push(column_index);
+                    if let Some(columns_filter) = &columns_filter {
+                        if !columns_filter.is_column_filtered(column_index) {
+                            continue;
+                        }
                     }
+                    if target.is_match(field) {
+                        column_indices.push(local_column_index);
+                    }
+                    local_column_index += 1;
                 }
             }
             if !column_indices.is_empty() {
@@ -477,18 +488,23 @@ impl FinderInternalState {
             for (row_index, r) in records.enumerate() {
                 let mut column_indices = vec![];
                 if let Ok(valid_record) = r {
-                    if let Some(column_index) = column_index {
-                        if let Some(field) = valid_record.get(column_index) {
-                            if target.is_match(field) {
-                                column_indices.push(column_index);
+                    let mut local_column_index = 0;
+                    for (column_index, field) in valid_record.iter().enumerate() {
+                        if let Some(columns_filter) = &columns_filter {
+                            if !columns_filter.is_column_filtered(column_index) {
+                                continue;
                             }
                         }
-                    } else {
-                        for (column_index, field) in valid_record.iter().enumerate() {
-                            if target.is_match(field) {
-                                column_indices.push(column_index);
-                            }
+                        let should_check_regex =
+                            if let Some(target_local_column_index) = target_local_column_index {
+                                local_column_index == target_local_column_index
+                            } else {
+                                true
+                            };
+                        if should_check_regex && target.is_match(field) {
+                            column_indices.push(local_column_index);
                         }
+                        local_column_index += 1;
                     }
                 }
                 if !column_indices.is_empty() {

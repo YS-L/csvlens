@@ -945,7 +945,7 @@ impl FinderActiveState {
             target: finder.target(),
             column_index: finder
                 .column_index()
-                .map(|i| (i, rows_view.get_column_name_from_global_index(i))),
+                .map(|i| (i, rows_view.get_column_name_from_local_index(i))),
             found_record: finder.current(),
             selected_offset: rows_view.selected_offset(),
             is_filter: rows_view.is_filter(),
