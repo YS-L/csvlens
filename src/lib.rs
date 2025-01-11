@@ -38,6 +38,7 @@
 //! }
 //! ```
 mod app;
+mod columns_filter;
 mod common;
 mod csv;
 mod delimiter;

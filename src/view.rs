@@ -1,3 +1,4 @@
+use crate::columns_filter::ColumnsFilter;
 use crate::csv::{CsvLensReader, Row};
 use crate::errors::CsvlensResult;
 use crate::find;
@@ -24,67 +25,6 @@ impl RowsFilter {
             total,
             max_index,
         }
-    }
-}
-
-#[derive(Debug)]
-pub struct ColumnsFilter {
-    pattern: Regex,
-    indices: Vec<usize>,
-    filtered_headers: Vec<String>,
-    num_columns_before_filter: usize,
-    disabled_because_no_match: bool,
-}
-
-impl ColumnsFilter {
-    fn new(pattern: Regex, headers: &[String]) -> Self {
-        let mut indices = vec![];
-        let mut filtered_headers: Vec<String> = vec![];
-        for (i, header) in headers.iter().enumerate() {
-            if pattern.is_match(header) {
-                indices.push(i);
-                filtered_headers.push(header.clone());
-            }
-        }
-        let disabled_because_no_match;
-        if indices.is_empty() {
-            indices = (0..headers.len()).collect();
-            filtered_headers = headers.into();
-            disabled_because_no_match = true;
-        } else {
-            disabled_because_no_match = false;
-        }
-        Self {
-            pattern,
-            indices,
-            filtered_headers,
-            num_columns_before_filter: headers.len(),
-            disabled_because_no_match,
-        }
-    }
-
-    fn filtered_headers(&self) -> &Vec<String> {
-        &self.filtered_headers
-    }
-
-    fn indices(&self) -> &Vec<usize> {
-        &self.indices
-    }
-
-    pub fn pattern(&self) -> Regex {
-        self.pattern.to_owned()
-    }
-
-    pub fn num_filtered(&self) -> usize {
-        self.indices.len()
-    }
-
-    pub fn num_original(&self) -> usize {
-        self.num_columns_before_filter
-    }
-
-    pub fn disabled_because_no_match(&self) -> bool {
-        self.disabled_because_no_match
     }
 }
 
