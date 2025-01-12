@@ -56,7 +56,5 @@ mod view;
 mod wrap;
 
 pub use runner::run_csvlens;
-#[cfg(not(feature = "cli"))]
 pub use runner::run_csvlens_with_options;
-#[cfg(not(feature = "cli"))]
 pub use runner::CsvlensOptions;
