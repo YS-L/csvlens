@@ -60,9 +60,26 @@ struct Args {
     debug: bool,
 }
 
+#[cfg(feature = "cli")]
+impl From<Args> for CsvlensOptions {
+    fn from(args: Args) -> Self {
+        Self {
+            filename: args.filename,
+            delimiter: args.delimiter,
+            tab_separated: args.tab_separated,
+            no_headers: args.no_headers,
+            columns: args.columns,
+            filter: args.filter,
+            find: args.find,
+            ignore_case: args.ignore_case,
+            echo_column: args.echo_column,
+            debug: args.debug,
+        }
+    }
+}
+
 // Struct for library usage without clap directives
-#[cfg(not(feature = "cli"))]
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct CsvlensOptions {
     pub filename: Option<String>,
     pub delimiter: Option<String>,
@@ -74,24 +91,6 @@ pub struct CsvlensOptions {
     pub ignore_case: bool,
     pub echo_column: Option<String>,
     pub debug: bool,
-}
-
-#[cfg(not(feature = "cli"))]
-impl Default for CsvlensOptions {
-    fn default() -> Self {
-        Self {
-            filename: None,
-            delimiter: None,
-            tab_separated: false,
-            no_headers: false,
-            columns: None,
-            filter: None,
-            find: None,
-            ignore_case: false,
-            echo_column: None,
-            debug: false,
-        }
-    }
 }
 
 struct AppRunner {
@@ -137,8 +136,7 @@ impl Drop for AppRunner {
     }
 }
 
-/// Run csvlens with a list of arguments. The accepted arguments are the same as the command line
-/// arguments for the csvlens binary.
+/// Run csvlens with options provided in a `CsvlensOptions` struct.
 ///
 /// On success, the result contains an optional string that is the value of the selected cell if
 /// any. If csvlens exits without selecting a cell, the result is None.
@@ -146,52 +144,18 @@ impl Drop for AppRunner {
 /// Example:
 ///
 /// ```
-/// use csvlens::run_csvlens;
+/// use csvlens::{run_csvlens_with_options, CsvlensOptions};
 ///
-/// match run_csvlens(&["/path/to/your.csv", "--delimiter", "\t"]) {
+/// let options = CsvlensOptions {
+///     filename: Some("/path/to/your.csv".to_string()),
+///     ..Default::default()
+/// };
+/// match run_csvlens_with_options(options) {
 ///     Ok(Some(selected_cell)) => println!("Selected: {}", selected_cell),
 ///     Ok(None) => {},
 ///     Err(e) => eprintln!("Error: {:?}", e),
 /// }
 /// ```
-#[cfg(feature = "cli")]
-pub fn run_csvlens<I, T>(args: I) -> CsvlensResult<Option<String>>
-where
-    I: IntoIterator<Item = T>,
-    T: Into<OsString> + Clone,
-{
-    {
-        let mut args_items = vec![OsString::from("csvlens")];
-        for item in args {
-            args_items.push(item.into());
-        }
-        let args = Args::parse_from(args_items);
-
-        let show_stats = args.debug;
-        let delimiter = Delimiter::from_arg(&args.delimiter, args.tab_separated)?;
-
-        let file = SeekableFile::new(&args.filename)?;
-        let filename = file.filename();
-
-        let app = App::new(
-            filename,
-            delimiter,
-            args.filename,
-            show_stats,
-            args.echo_column,
-            args.ignore_case,
-            args.no_headers,
-            args.columns,
-            args.filter,
-            args.find,
-        )?;
-
-        let mut app_runner = AppRunner::new(app);
-        app_runner.run()
-    }
-}
-
-#[cfg(not(feature = "cli"))]
 pub fn run_csvlens_with_options(options: CsvlensOptions) -> CsvlensResult<Option<String>> {
     let show_stats = options.debug;
     let delimiter = Delimiter::from_arg(&options.delimiter, options.tab_separated)?;
@@ -216,18 +180,43 @@ pub fn run_csvlens_with_options(options: CsvlensOptions) -> CsvlensResult<Option
     app_runner.run()
 }
 
-#[cfg(not(feature = "cli"))]
+/// Run csvlens with a list of arguments. The accepted arguments are the same as the command line
+/// arguments for the csvlens binary.
+///
+/// On success, the result contains an optional string that is the value of the selected cell if
+/// any. If csvlens exits without selecting a cell, the result is None.
+///
+/// Example:
+///
+/// ```
+/// use csvlens::run_csvlens;
+///
+/// match run_csvlens(&["/path/to/your.csv", "--delimiter", "\t"]) {
+///     Ok(Some(selected_cell)) => println!("Selected: {}", selected_cell),
+///     Ok(None) => {},
+///     Err(e) => eprintln!("Error: {:?}", e),
+/// }
+/// ```
+#[cfg(feature = "cli")]
 pub fn run_csvlens<I, T>(args: I) -> CsvlensResult<Option<String>>
 where
     I: IntoIterator<Item = T>,
     T: Into<OsString> + Clone,
 {
-    let args_vec: Vec<OsString> = args.into_iter().map(|x| x.into()).collect();
+    let mut args_items = vec![OsString::from("csvlens")];
+    for item in args {
+        args_items.push(item.into());
+    }
+    let args = Args::parse_from(args_items);
+    run_csvlens_with_options(args.into())
+}
 
-    let options = CsvlensOptions {
-        filename: args_vec.get(0).map(|s| s.to_string_lossy().into_owned()),
-        ..Default::default()
-    };
-
-    run_csvlens_with_options(options)
+#[cfg(not(feature = "cli"))]
+pub fn run_csvlens<I, T>(_args: I) -> CsvlensResult<Option<String>>
+where
+    I: IntoIterator<Item = T>,
+    T: Into<OsString> + Clone,
+{
+    eprintln!("Error: CLI is not enabled. Compile with the 'cli' feature to use this binary.");
+    std::process::exit(1);
 }
