@@ -2273,4 +2273,50 @@ mod tests {
             panic!("Expected error");
         }
     }
+
+    #[test]
+    fn test_irregular_columns_scrolling() {
+        let mut app = AppBuilder::new("tests/data/irregular_last_row.csv")
+            .no_headers(true)
+            .build()
+            .unwrap();
+        till_app_ready(&app);
+
+        let backend = TestBackend::new(50, 10);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        step_and_draw(&mut app, &mut terminal, Control::Nothing);
+        let expected = vec![
+            "──────────────────────────────────────────────────",
+            "      1            2            3            4    ",
+            "───┬──────────────────────────────────────────────",
+            "1  │  AAAAAAAA…    BBBBBBBB…    AAAAAAAA…    …    ",
+            "2  │  AAAAAAAA…    BBBBBBBB…    AAAAAAAA…    …    ",
+            "3  │  A                                           ",
+            "   │                                              ",
+            "   │                                              ",
+            "───┴──────────────────────────────────────────────",
+            "stdin [Row 1/3, Col 1/10]                         ",
+        ];
+        let actual_buffer = terminal.backend().buffer().clone();
+        let lines = to_lines(&actual_buffer);
+        assert_eq!(lines, expected);
+
+        step_and_draw(&mut app, &mut terminal, Control::ScrollRight);
+        let expected = vec![
+            "──────────────────────────────────────────────────",
+            "      2            3            4            5    ",
+            "───┬──────────────────────────────────────────────",
+            "1  │  BBBBBBBB…    AAAAAAAA…    BBBBBBBB…    …    ",
+            "2  │  BBBBBBBB…    AAAAAAAA…    BBBBBBBB…    …    ",
+            "3  │                                              ",
+            "   │                                              ",
+            "   │                                              ",
+            "───┴──────────────────────────────────────────────",
+            "stdin [Row 1/3, Col 2/10]                         ",
+        ];
+        let actual_buffer = terminal.backend().buffer().clone();
+        let lines = to_lines(&actual_buffer);
+        assert_eq!(lines, expected);
+    }
 }

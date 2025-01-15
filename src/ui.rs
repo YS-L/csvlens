@@ -499,7 +499,7 @@ impl<'a> CsvTable<'a> {
             remaining_width = remaining_width.saturating_sub(hlen);
         }
         state.num_cols_rendered = max(state.num_cols_rendered, num_cols_rendered);
-        state.set_more_cols_to_show(has_more_cols_to_show);
+        state.update_more_cols_to_show(has_more_cols_to_show);
         state.col_ending_pos_x = max(state.col_ending_pos_x, col_ending_pos_x);
         row_height
     }
@@ -805,6 +805,7 @@ impl StatefulWidget for CsvTable<'_> {
         self.render_row_numbers(buf, state, rows_area, self.rows, &layout);
         let row_num_section_width = layout.row_number_layout.width_with_spaces;
 
+        state.reset_more_cols_to_show();
         self.render_row(
             buf,
             state,
@@ -1147,7 +1148,7 @@ pub struct CsvTableState {
     pub rows_offset: u64,
     pub cols_offset: u64,
     pub num_cols_rendered: u64,
-    pub more_cols_to_show: bool,
+    pub more_cols_to_show: Option<bool>,
     filename: Option<String>,
     total_line_number: Option<(usize, bool)>,
     total_cols: usize,
@@ -1182,7 +1183,7 @@ impl CsvTableState {
             rows_offset: 0,
             cols_offset: 0,
             num_cols_rendered: 0,
-            more_cols_to_show: true,
+            more_cols_to_show: None,
             filename,
             total_line_number: None,
             total_cols,
@@ -1214,12 +1215,21 @@ impl CsvTableState {
         self.cols_offset = offset;
     }
 
-    fn set_more_cols_to_show(&mut self, value: bool) {
-        self.more_cols_to_show = value;
+    fn reset_more_cols_to_show(&mut self) {
+        self.more_cols_to_show = None;
+    }
+
+    fn update_more_cols_to_show(&mut self, value: bool) {
+        // If any rows have more columns to show, keep it that way
+        if let Some(current) = self.more_cols_to_show {
+            self.more_cols_to_show = Some(current || value);
+        } else {
+            self.more_cols_to_show = Some(value);
+        }
     }
 
     pub fn has_more_cols_to_show(&self) -> bool {
-        self.more_cols_to_show
+        self.more_cols_to_show.map_or(true, |v| v)
     }
 
     pub fn set_total_line_number(&mut self, n: usize, is_approx: bool) {
