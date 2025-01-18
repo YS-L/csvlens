@@ -67,6 +67,6 @@ impl ColumnsFilter {
     }
 
     pub fn is_column_filtered(&self, index: usize) -> bool {
-        self.filtered_flags[index]
+        self.filtered_flags.get(index).cloned().unwrap_or(false)
     }
 }

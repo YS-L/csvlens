@@ -2319,4 +2319,45 @@ mod tests {
         let lines = to_lines(&actual_buffer);
         assert_eq!(lines, expected);
     }
+
+    #[test]
+    fn test_irregular_filter_columns_then_rows() {
+        let mut app = AppBuilder::new("tests/data/irregular_more_fields.csv")
+            .build()
+            .unwrap();
+        till_app_ready(&app);
+
+        let backend = TestBackend::new(50, 10);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        step_and_draw(&mut app, &mut terminal, Control::Nothing);
+        step_and_draw(
+            &mut app,
+            &mut terminal,
+            Control::FilterColumns("COL1".into()),
+        );
+        step_and_draw(&mut app, &mut terminal, Control::Filter("x1".into()));
+        // Toggle to cell selection
+        step_and_draw(&mut app, &mut terminal, Control::ToggleSelectionType);
+        step_and_draw(&mut app, &mut terminal, Control::ToggleSelectionType);
+
+        let expected = vec![
+            "──────────────────────────────────────────────────",
+            "      COL1                                        ",
+            "───┬──────────┬───────────────────────────────────",
+            "1  │  x1      │                                   ",
+            "   │          │                                   ",
+            "   │          │                                   ",
+            "   │          │                                   ",
+            "   │          │                                   ",
+            "───┴──────────┴───────────────────────────────────",
+            "stdin [Row 1/2, Col 1/1] [Filter \"x1\": 1/1] [Filte",
+        ];
+        let actual_buffer = terminal.backend().buffer().clone();
+        let lines = to_lines(&actual_buffer);
+        assert_eq!(lines, expected);
+
+        let selection = app.get_selection();
+        assert_eq!(selection, Some("x1".to_string()));
+    }
 }
