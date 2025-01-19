@@ -9,7 +9,7 @@ use crate::help;
 use crate::input::{Control, InputHandler};
 use crate::sort::{self, SortOrder, SorterStatus};
 use crate::ui::{CsvTable, CsvTableState, FilterColumnsState, FinderState};
-use crate::view;
+use crate::view::{self, ColumnsOffset};
 
 #[cfg(feature = "clipboard")]
 use arboard::Clipboard;
@@ -39,19 +39,31 @@ fn get_offsets_to_make_visible(
         None
     };
 
-    let cols_offset = csv_table_state.cols_offset;
-    let last_rendered_col = cols_offset.saturating_add(csv_table_state.num_cols_rendered);
+    // let cols_offset = csv_table_state.cols_offset;
+    // let last_rendered_col = cols_offset.saturating_add(csv_table_state.num_cols_rendered);
+    // let column_index = match found_record {
+    //     find::FoundEntry::Header(entry) => entry.column_index(),
+    //     find::FoundEntry::Row(entry) => entry.column_index(),
+    // } as u64;
+    // let new_cols_offset = if column_index >= cols_offset && column_index < last_rendered_col {
+    //     None
+    // } else {
+    //     Some(column_index)
+    // };
     let column_index = match found_record {
         find::FoundEntry::Header(entry) => entry.column_index(),
         find::FoundEntry::Row(entry) => entry.column_index(),
     } as u64;
-    let new_cols_offset = if column_index >= cols_offset && column_index < last_rendered_col {
+    let cols_offset = rows_view.cols_offset();
+    let new_cols_offset_num_skip = if cols_offset
+        .is_filtered_column_index_visible(column_index, csv_table_state.num_cols_rendered)
+    {
         None
     } else {
-        Some(column_index)
+        Some(cols_offset.get_num_skip_to_make_visible(column_index))
     };
 
-    (new_rows_offset, new_cols_offset)
+    (new_rows_offset, new_cols_offset_num_skip)
 }
 
 fn scroll_to_found_entry(
@@ -59,7 +71,7 @@ fn scroll_to_found_entry(
     rows_view: &mut view::RowsView,
     csv_table_state: &mut CsvTableState,
 ) {
-    let (new_rows_offset, new_cols_offset) =
+    let (new_rows_offset, new_cols_offset_num_skip) =
         get_offsets_to_make_visible(&found_entry, rows_view, csv_table_state);
 
     // csv_table_state.debug = format!("{:?} {:?}", new_rows_offset, new_cols_offset);
@@ -69,14 +81,14 @@ fn scroll_to_found_entry(
         csv_table_state.set_rows_offset(rows_offset);
     }
 
-    if let Some(cols_offset) = new_cols_offset {
-        rows_view.set_cols_offset(cols_offset);
-        csv_table_state.set_cols_offset(cols_offset);
+    if let Some(cols_offset_num_skip) = new_cols_offset_num_skip {
+        rows_view.set_cols_offset_num_skip(cols_offset_num_skip);
+        csv_table_state.set_cols_offset(rows_view.cols_offset());
     }
 }
 
 /// Returns the offset of the first column that can be shown in the current frame, while keeping the
-/// column corresopnding to right_most_cols_offset in view.
+/// column corresponding to right_most_cols_offset in view.
 fn get_cols_offset_to_fill_frame_width(
     frame_width: u16,
     right_most_cols_offset: u64,
@@ -344,46 +356,47 @@ impl App {
                 let new_cols_offset = match self.frame_width {
                     Some(frame_width) => get_cols_offset_to_fill_frame_width(
                         frame_width,
-                        self.csv_table_state.cols_offset.saturating_sub(1),
+                        self.csv_table_state.cols_offset.num_skip.saturating_sub(1),
                         &self.csv_table_state,
                     ),
                     _ => Some(0),
                 };
                 if let Some(new_cols_offset) = new_cols_offset {
-                    self.rows_view.set_cols_offset(new_cols_offset);
+                    self.rows_view.set_cols_offset_num_skip(new_cols_offset);
                 }
             }
             Control::ScrollPageRight => {
                 if self.csv_table_state.has_more_cols_to_show() {
                     // num_cols_rendered includes the last truncated column
-                    let mut new_cols_offset = self
-                        .csv_table_state
-                        .cols_offset
-                        .saturating_add(self.csv_table_state.num_cols_rendered.saturating_sub(1));
-                    new_cols_offset = min(
-                        new_cols_offset,
-                        self.rows_view.headers().len().saturating_sub(1) as u64,
+                    let mut new_cols_offset_num_skip =
+                        self.csv_table_state.cols_offset.num_skip.saturating_add(
+                            self.csv_table_state.num_cols_rendered.saturating_sub(1),
+                        );
+                    new_cols_offset_num_skip = min(
+                        new_cols_offset_num_skip,
+                        self.rows_view.max_cols_offset_num_skip(),
                     );
-                    if new_cols_offset != self.csv_table_state.cols_offset {
-                        self.rows_view.set_cols_offset(new_cols_offset);
+                    if new_cols_offset_num_skip != self.csv_table_state.cols_offset.num_skip {
+                        self.rows_view
+                            .set_cols_offset_num_skip(new_cols_offset_num_skip);
                     }
                 }
             }
             Control::ScrollLeftMost => {
-                self.rows_view.set_cols_offset(0);
+                self.rows_view.set_cols_offset_num_skip(0);
             }
             Control::ScrollRightMost => {
                 if self.csv_table_state.has_more_cols_to_show() {
                     let new_cols_offset = match self.frame_width {
                         Some(frame_width) => get_cols_offset_to_fill_frame_width(
                             frame_width,
-                            self.rows_view.headers().len().saturating_sub(1) as u64,
+                            self.rows_view.max_cols_offset_num_skip(),
                             &self.csv_table_state,
                         ),
                         _ => Some(0),
                     };
                     if let Some(new_cols_offset) = new_cols_offset {
-                        self.rows_view.set_cols_offset(new_cols_offset);
+                        self.rows_view.set_cols_offset_num_skip(new_cols_offset);
                     }
                 }
             }
@@ -653,6 +666,7 @@ impl App {
         // if let Some(finder) = &self.finder {
         //     self.csv_table_state.debug = format!("cursor: {:?}", finder.cursor);
         // }
+        // self.csv_table_state.debug = format!("cols_offset: {:?}", self.rows_view.cols_offset());
 
         Ok(())
     }
@@ -731,7 +745,8 @@ impl App {
             self.transient_message = Some(format!("Invalid regex: {pat}"));
         }
         self.csv_table_state.reset_buffer();
-        self.csv_table_state.set_cols_offset(0);
+        self.csv_table_state
+            .set_cols_offset(ColumnsOffset::default());
     }
 
     fn reset_columns_filter(&mut self) {
@@ -762,14 +777,15 @@ impl App {
 
     fn increase_cols_offset(&mut self) {
         if self.csv_table_state.has_more_cols_to_show() {
-            let new_cols_offset = self.rows_view.cols_offset().saturating_add(1);
-            self.rows_view.set_cols_offset(new_cols_offset);
+            // TODO: should this be a &mut method in RowsView that modifies cols_offset directly?
+            let new_cols_offset = self.rows_view.cols_offset().num_skip.saturating_add(1);
+            self.rows_view.set_cols_offset_num_skip(new_cols_offset);
         }
     }
 
     fn decrease_cols_offset(&mut self) {
-        let new_cols_offset = self.rows_view.cols_offset().saturating_sub(1);
-        self.rows_view.set_cols_offset(new_cols_offset);
+        let new_cols_offset = self.rows_view.cols_offset().num_skip.saturating_sub(1);
+        self.rows_view.set_cols_offset_num_skip(new_cols_offset);
     }
 
     fn adjust_column_width(&mut self, delta: i16) {
@@ -793,7 +809,12 @@ impl App {
     fn get_selected_column_index(&self) -> Option<u64> {
         // local index as in local to the view port
         if let Some(local_column_index) = self.rows_view.selection.column.index() {
-            return Some(local_column_index.saturating_add(self.csv_table_state.cols_offset));
+            // return Some(local_column_index.saturating_add(self.csv_table_state.cols_offset));
+            return Some(
+                self.csv_table_state
+                    .cols_offset
+                    .get_filtered_column_index(local_column_index),
+            );
         }
         None
     }

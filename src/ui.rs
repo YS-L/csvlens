@@ -371,7 +371,6 @@ impl<'a> CsvTable<'a> {
     ) -> u16 {
         let mut x_offset_header = x;
         let mut remaining_width = area.width.saturating_sub(x);
-        let cols_offset = state.cols_offset as usize;
         // TODO: seems strange that these have to be set every row
         let mut has_more_cols_to_show = false;
         let mut col_ending_pos_x = 0;
@@ -384,7 +383,13 @@ impl<'a> CsvTable<'a> {
             },
         };
         for (col_index, (hname, &hlen)) in row.iter().zip(column_widths).enumerate() {
-            if col_index < cols_offset {
+            // if col_index < cols_offset {
+            //     continue;
+            // }
+            if !state
+                .cols_offset
+                .should_filtered_column_index_be_rendered(col_index as u64)
+            {
                 continue;
             }
             let effective_width = min(remaining_width, hlen);
@@ -693,7 +698,7 @@ impl<'a> CsvTable<'a> {
                 " [Row {}/{}, Col {}/{}]",
                 row_num,
                 total_str,
-                state.cols_offset + 1,
+                state.cols_offset.num_skip + 1,
                 state.total_cols,
             )
             .as_str();
@@ -1146,7 +1151,7 @@ impl DebugStats {
 pub struct CsvTableState {
     // TODO: types appropriate?
     pub rows_offset: u64,
-    pub cols_offset: u64,
+    pub cols_offset: view::ColumnsOffset,
     pub num_cols_rendered: u64,
     pub more_cols_to_show: Option<bool>,
     filename: Option<String>,
@@ -1181,7 +1186,7 @@ impl CsvTableState {
     ) -> Self {
         Self {
             rows_offset: 0,
-            cols_offset: 0,
+            cols_offset: view::ColumnsOffset::default(),
             num_cols_rendered: 0,
             more_cols_to_show: None,
             filename,
@@ -1211,7 +1216,7 @@ impl CsvTableState {
         self.rows_offset = offset;
     }
 
-    pub fn set_cols_offset(&mut self, offset: u64) {
+    pub fn set_cols_offset(&mut self, offset: view::ColumnsOffset) {
         self.cols_offset = offset;
     }
 

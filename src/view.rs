@@ -193,6 +193,63 @@ pub struct PerfStats {
     pub reader_stats: crate::csv::GetRowsStats,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct ColumnsOffset {
+    /// Number of columns that are frozen on the left side (always visible)
+    pub num_freeze: u64,
+
+    /// Number of columns that are skipped after the frozen columns (not visible)
+    pub num_skip: u64,
+}
+
+impl Default for ColumnsOffset {
+    fn default() -> Self {
+        Self {
+            num_freeze: 2,
+            num_skip: 0,
+        }
+    }
+}
+
+impl ColumnsOffset {
+    /// Get the index of the column in the filtered data given the view port column index
+    pub fn get_filtered_column_index(&self, view_port_column_index: u64) -> u64 {
+        if view_port_column_index < self.num_freeze {
+            return view_port_column_index;
+        }
+        view_port_column_index.saturating_add(self.num_skip)
+    }
+
+    pub fn should_filtered_column_index_be_rendered(&self, filtered_column_index: u64) -> bool {
+        if filtered_column_index < self.num_freeze {
+            return true;
+        }
+        filtered_column_index >= self.num_freeze.saturating_add(self.num_skip)
+    }
+
+    pub fn is_filtered_column_index_visible(
+        &self,
+        filtered_column_index: u64,
+        num_cols_rendered: u64,
+    ) -> bool {
+        if filtered_column_index < self.num_freeze {
+            return true;
+        }
+        let rendered_start_index = self.num_freeze.saturating_add(self.num_skip);
+        let num_non_frozen_cols_rendered = num_cols_rendered.saturating_sub(self.num_freeze);
+        let rendered_end_index = rendered_start_index.saturating_add(num_non_frozen_cols_rendered);
+        filtered_column_index >= rendered_start_index && filtered_column_index < rendered_end_index
+    }
+
+    pub fn get_num_skip_to_make_visible(&self, filtered_column_index: u64) -> u64 {
+        if filtered_column_index < self.num_freeze {
+            0
+        } else {
+            filtered_column_index.saturating_sub(self.num_freeze)
+        }
+    }
+}
+
 pub struct RowsView {
     reader: CsvLensReader,
     rows: Vec<Row>,
@@ -200,7 +257,7 @@ pub struct RowsView {
     num_rows: u64,
     num_rows_rendered: u64,
     rows_from: u64,
-    cols_offset: u64,
+    cols_offset: ColumnsOffset,
     filter: Option<RowsFilter>,
     columns_filter: Option<Arc<ColumnsFilter>>,
     sorter: Option<Arc<Sorter>>,
@@ -221,7 +278,7 @@ impl RowsView {
             num_rows,
             num_rows_rendered: num_rows,
             rows_from,
-            cols_offset: 0,
+            cols_offset: ColumnsOffset::default(),
             filter: None,
             columns_filter: None,
             sorter: None,
@@ -286,7 +343,7 @@ impl RowsView {
                 .get(row_index as usize)
                 .and_then(|row| {
                     row.fields
-                        .get(column_index.saturating_add(self.cols_offset()) as usize)
+                        .get(self.cols_offset.get_filtered_column_index(column_index) as usize)
                 })
                 .cloned();
         }
@@ -435,12 +492,18 @@ impl RowsView {
 
     /// Offset of the first column to show. All columns are still read into Row
     /// (per ColumnsFilter if any).
-    pub fn cols_offset(&self) -> u64 {
+    pub fn cols_offset(&self) -> ColumnsOffset {
         self.cols_offset
     }
 
-    pub fn set_cols_offset(&mut self, cols_offset: u64) {
-        self.cols_offset = min(cols_offset, self.headers().len() as u64);
+    pub fn set_cols_offset_num_skip(&mut self, cols_offset: u64) {
+        self.cols_offset.num_skip = min(cols_offset, self.max_cols_offset_num_skip());
+    }
+
+    pub fn max_cols_offset_num_skip(&self) -> u64 {
+        (self.headers().len() as u64)
+            .saturating_sub(self.cols_offset.num_freeze)
+            .saturating_sub(1)
     }
 
     pub fn selected_offset(&self) -> Option<u64> {
