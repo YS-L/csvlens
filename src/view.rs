@@ -212,7 +212,12 @@ impl Default for ColumnsOffset {
 }
 
 impl ColumnsOffset {
-    /// Get the index of the column in the filtered data given the view port column index
+    /// Check if the column is frozen
+    pub fn is_frozen(&self, filtered_columns_index: u64) -> bool {
+        filtered_columns_index < self.num_freeze
+    }
+
+    /// Get the index of the column in the columns-filtered data given the view port column index
     pub fn get_filtered_column_index(&self, view_port_column_index: u64) -> u64 {
         if view_port_column_index < self.num_freeze {
             return view_port_column_index;
