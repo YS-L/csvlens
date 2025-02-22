@@ -251,15 +251,6 @@ impl InputHandler {
                     control = Control::Filter(input.value().to_string());
                 } else if self.mode == InputMode::FilterColumns {
                     control = Control::FilterColumns(input.value().to_string());
-                } else if self.mode == InputMode::FreezeColumns {
-                    if let Ok(n) = input.value().parse::<usize>() {
-                        control = Control::FreezeColumns(n);
-                    } else {
-                        control = Control::UserError(format!(
-                            "Invalid column number to freeze: {}",
-                            input.value()
-                        ));
-                    }
                 } else {
                     control = Control::BufferReset;
                 }
@@ -275,7 +266,19 @@ impl InputHandler {
             }
             _ => {
                 if input.handle_event(&Event::Key(key_event)).is_some() {
-                    return Control::BufferContent(input.clone());
+                    // Parse immediately for FreezeColumns since it should just be a number
+                    let control = if self.mode == InputMode::FreezeColumns {
+                        let control = if let Ok(n) = input.value().parse::<usize>() {
+                            Control::FreezeColumns(n)
+                        } else {
+                            Control::UserError(format!("Invalid number: {}", input.value()))
+                        };
+                        self.reset_buffer();
+                        control
+                    } else {
+                        Control::BufferContent(input.clone())
+                    };
+                    return control;
                 }
                 Control::Nothing
             }
