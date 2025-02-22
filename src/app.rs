@@ -2389,4 +2389,36 @@ mod tests {
         let selection = app.get_selection();
         assert_eq!(selection, Some("x1".to_string()));
     }
+
+    #[test]
+    fn test_freeze_columns() {
+        let mut app = AppBuilder::new("tests/data/cities.csv").build().unwrap();
+        till_app_ready(&app);
+
+        let backend = TestBackend::new(50, 10);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        step_and_draw(&mut app, &mut terminal, Control::Nothing);
+        step_and_draw(&mut app, &mut terminal, Control::FreezeColumns(2));
+        step_and_draw(&mut app, &mut terminal, Control::ScrollRight);
+        step_and_draw(&mut app, &mut terminal, Control::ScrollRight);
+        step_and_draw(&mut app, &mut terminal, Control::ScrollRight);
+        step_and_draw(&mut app, &mut terminal, Control::ScrollRight);
+        step_and_draw(&mut app, &mut terminal, Control::ScrollRight);
+        let actual_buffer = terminal.backend().buffer().clone();
+        let lines = to_lines(&actual_buffer);
+        let expected = vec![
+            "──────────────────────────────────────────────────",
+            "      LatD    LatM    EW    City         State    ",
+            "───┬────────────────╥─────────────────────────────",
+            "1  │  41      5     ║ W     Youngsto…    OH       ",
+            "2  │  42      52    ║       Yankton      SD       ",
+            "3  │  46      35    ║ W     Yakima       WA       ",
+            "4  │  42      16    ║ W     Worcester    MA       ",
+            "5  │  43      37    ║ W     Wisconsi…    WI       ",
+            "───┴────────────────╨─────────────────────────────",
+            "stdin [Row 1/128, Col 6/10]                       ",
+        ];
+        assert_eq!(lines, expected);
+    }
 }
