@@ -39,17 +39,6 @@ fn get_offsets_to_make_visible(
         None
     };
 
-    // let cols_offset = csv_table_state.cols_offset;
-    // let last_rendered_col = cols_offset.saturating_add(csv_table_state.num_cols_rendered);
-    // let column_index = match found_record {
-    //     find::FoundEntry::Header(entry) => entry.column_index(),
-    //     find::FoundEntry::Row(entry) => entry.column_index(),
-    // } as u64;
-    // let new_cols_offset = if column_index >= cols_offset && column_index < last_rendered_col {
-    //     None
-    // } else {
-    //     Some(column_index)
-    // };
     let column_index = match found_record {
         find::FoundEntry::Header(entry) => entry.column_index(),
         find::FoundEntry::Row(entry) => entry.column_index(),

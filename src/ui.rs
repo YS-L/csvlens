@@ -346,31 +346,33 @@ impl<'a> CsvTable<'a> {
         // Freeze separator
         if let Some(x_freeze_separator) = borders_state.x_freeze_separator {
             // Clear highlight style made by render_row before rendering the separator
-            let x_freeze_separator_area =
-                Rect::new(x_freeze_separator, y_first_record, 1, area.height);
-            Clear.render(x_freeze_separator_area, buf);
+            if x_freeze_separator < area.right() {
+                let x_freeze_separator_area =
+                    Rect::new(x_freeze_separator, y_first_record, 1, area.height);
+                Clear.render(x_freeze_separator_area, buf);
 
-            if let Some(cell) = buf.cell_mut(Position::new(
-                x_freeze_separator,
-                y_first_record.saturating_sub(1),
-            )) {
-                cell.set_style(Style::default().fg(Color::Rgb(64, 64, 64)))
-                    .set_symbol("╥");
-            }
-
-            for y in y_first_record..y_first_record + area.height {
-                if let Some(cell) = buf.cell_mut(Position::new(x_freeze_separator, y)) {
+                if let Some(cell) = buf.cell_mut(Position::new(
+                    x_freeze_separator,
+                    y_first_record.saturating_sub(1),
+                )) {
                     cell.set_style(Style::default().fg(Color::Rgb(64, 64, 64)))
-                        .set_symbol(line::DOUBLE_VERTICAL);
+                        .set_symbol("╥");
                 }
-            }
 
-            if let Some(cell) = buf.cell_mut(Position::new(
-                x_freeze_separator,
-                y_first_record + area.height,
-            )) {
-                cell.set_style(Style::default().fg(Color::Rgb(64, 64, 64)))
-                    .set_symbol("╨");
+                for y in y_first_record..y_first_record + area.height {
+                    if let Some(cell) = buf.cell_mut(Position::new(x_freeze_separator, y)) {
+                        cell.set_style(Style::default().fg(Color::Rgb(64, 64, 64)))
+                            .set_symbol(line::DOUBLE_VERTICAL);
+                    }
+                }
+
+                if let Some(cell) = buf.cell_mut(Position::new(
+                    x_freeze_separator,
+                    y_first_record + area.height,
+                )) {
+                    cell.set_style(Style::default().fg(Color::Rgb(64, 64, 64)))
+                        .set_symbol("╨");
+                }
             }
         }
     }
