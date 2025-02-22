@@ -680,6 +680,7 @@ impl<'a> CsvTable<'a> {
                     InputMode::Filter => "Filter",
                     InputMode::FilterColumns => "Columns regex",
                     InputMode::Option => "Option",
+                    InputMode::FreezeColumns => "Number of columns to freeze",
                     _ => "",
                 };
                 if prefix.is_empty() {

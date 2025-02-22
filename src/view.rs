@@ -193,22 +193,13 @@ pub struct PerfStats {
     pub reader_stats: crate::csv::GetRowsStats,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct ColumnsOffset {
     /// Number of columns that are frozen on the left side (always visible)
     pub num_freeze: u64,
 
     /// Number of columns that are skipped after the frozen columns (not visible)
     pub num_skip: u64,
-}
-
-impl Default for ColumnsOffset {
-    fn default() -> Self {
-        Self {
-            num_freeze: 2,
-            num_skip: 0,
-        }
-    }
 }
 
 impl ColumnsOffset {
@@ -503,6 +494,10 @@ impl RowsView {
 
     pub fn set_cols_offset_num_skip(&mut self, cols_offset: u64) {
         self.cols_offset.num_skip = min(cols_offset, self.max_cols_offset_num_skip());
+    }
+
+    pub fn set_cols_offset_num_freeze(&mut self, num_freeze: u64) {
+        self.cols_offset.num_freeze = min(num_freeze, self.headers().len() as u64);
     }
 
     pub fn max_cols_offset_num_skip(&self) -> u64 {

@@ -30,6 +30,7 @@ pub enum Control {
     Filter(String),
     FilterColumns(String),
     FilterLikeCell,
+    FreezeColumns(usize),
     Quit,
     BufferContent(Input),
     BufferReset,
@@ -41,6 +42,7 @@ pub enum Control {
     Reset,
     Help,
     UnknownOption(String),
+    UserError(String),
     Nothing,
 }
 
@@ -150,6 +152,10 @@ impl InputHandler {
                     self.init_buffer(InputMode::Option);
                     Control::empty_buffer()
                 }
+                KeyCode::Char('f') => {
+                    self.init_buffer(InputMode::FreezeColumns);
+                    Control::empty_buffer()
+                }
                 KeyCode::Enter => Control::Select,
                 KeyCode::Tab => Control::ToggleSelectionType,
                 KeyCode::Char('>') => Control::IncreaseWidth,
@@ -245,6 +251,15 @@ impl InputHandler {
                     control = Control::Filter(input.value().to_string());
                 } else if self.mode == InputMode::FilterColumns {
                     control = Control::FilterColumns(input.value().to_string());
+                } else if self.mode == InputMode::FreezeColumns {
+                    if let Ok(n) = input.value().parse::<usize>() {
+                        control = Control::FreezeColumns(n);
+                    } else {
+                        control = Control::UserError(format!(
+                            "Invalid column number to freeze: {}",
+                            input.value()
+                        ));
+                    }
                 } else {
                     control = Control::BufferReset;
                 }

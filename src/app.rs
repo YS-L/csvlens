@@ -442,6 +442,10 @@ impl App {
             Control::FilterColumns(pat) => {
                 self.set_columns_filter(pat);
             }
+            Control::FreezeColumns(num_cols) => {
+                self.rows_view.set_cols_offset_num_freeze(*num_cols as u64);
+                self.csv_table_state.reset_buffer();
+            }
             Control::BufferContent(input) => {
                 self.csv_table_state
                     .set_buffer(self.input_handler.mode(), input.clone());
@@ -536,6 +540,10 @@ impl App {
                 self.csv_table_state.reset_buffer();
                 self.transient_message
                     .replace(format!("Unknown option: {s}"));
+            }
+            Control::UserError(s) => {
+                self.csv_table_state.reset_buffer();
+                self.transient_message.replace(s.clone());
             }
             _ => {}
         }
