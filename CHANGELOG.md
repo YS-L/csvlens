@@ -1,3 +1,11 @@
+# v0.12.0
+
+* Freeze first `n` columns when scrolling via `f<n>` (#62, #117)
+* Support searching in header row (#102)
+* Support moving find mode cursor horizontally via `n` / `N`
+* Support library usage without clap dependency (#118 by @jqnatividad)
+* Fix columns scrolling for CSV with irregular last row (#99)
+
 # v0.11.0
 
 * Support copying a row to the clipboard (#97 by @mendelmaleh)
