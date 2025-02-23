@@ -497,7 +497,8 @@ impl RowsView {
     }
 
     pub fn set_cols_offset_num_freeze(&mut self, num_freeze: u64) {
-        self.cols_offset.num_freeze = min(num_freeze, self.headers().len() as u64);
+        self.cols_offset.num_freeze =
+            min(num_freeze, self.headers().len().saturating_sub(1) as u64);
     }
 
     pub fn max_cols_offset_num_skip(&self) -> u64 {
