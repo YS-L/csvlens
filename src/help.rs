@@ -49,6 +49,7 @@ Enter (in Cell mode)    : Print the selected cell to stdout and exit
 
 -S                      : Toggle line wrapping
 -W                      : Toggle line wrapping by words
+f<n>                    : Freeze this number of columns from the left
 r                       : Reset to default view (clear all filters and custom column widths)
 H (or ?)                : Display this help
 q                       : Exit";
