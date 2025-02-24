@@ -136,3 +136,47 @@ Or, build and install from source after cloning this repo:
 ```
 cargo install --path $(pwd)
 ```
+
+## Library Usage
+
+This crate allows you to use csvlens as a library.
+
+In your `Cargo.toml`, add the following:
+
+```toml
+[dependencies]
+csvlens = { version = "0.12.0", default-features = false, features = ["clipboard"] }
+```
+
+### Example
+
+Here's a simple example of how to use `csvlens` as a library ([Documentation](https://docs.rs/csvlens/0.12.0/csvlens/index.html)):
+
+```rust
+use csvlens::run_csvlens;
+
+let out = run_csvlens(&["/path/to/your.csv"]).unwrap();
+if let Some(selected_cell) = out {
+    println!("Selected: {}", selected_cell);
+}
+```
+
+For more advanced usage, you can use `CsvlensOptions` to customize the behavior:
+
+```rust
+use csvlens::{run_csvlens_with_options, CsvlensOptions};
+
+let options = CsvlensOptions {
+    filename: "/path/to/your.csv".to_string(),
+    delimiter: Some("|".to_string()),
+    ignore_case: true,
+    debug: true,
+    ..Default::default()
+};
+let out = run_csvlens_with_options(options).unwrap();
+if let Some(selected_cell) = out {
+    println!("Selected: {}", selected_cell);
+}
+```
+
+See how [qsv](https://github.com/dathere/qsv/tree/master?tab=readme-ov-file#qsv-blazing-fast-data-wrangling-toolkit) uses `csvlens` as a library [here](https://github.com/dathere/qsv/blob/master/src/cmd/lens.rs#L2).
