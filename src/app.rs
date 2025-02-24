@@ -173,6 +173,7 @@ impl App {
         columns_regex: Option<String>,
         filter_regex: Option<String>,
         find_regex: Option<String>,
+        freeze_cols_offset: Option<u64>,
     ) -> CsvlensResult<Self> {
         let input_handler = InputHandler::new();
 
@@ -192,7 +193,12 @@ impl App {
         let shared_config = Arc::new(config);
 
         let csvlens_reader = csv::CsvLensReader::new(shared_config.clone())?;
-        let rows_view = view::RowsView::new(csvlens_reader, num_rows as u64)?;
+        let mut rows_view = view::RowsView::new(csvlens_reader, num_rows as u64)?;
+
+        // Set the number of columns to freeze
+        if let Some(freeze_cols_offset) = freeze_cols_offset {
+            rows_view.set_cols_offset_num_freeze(freeze_cols_offset);
+        }
 
         if let Some(column_name) = &echo_column {
             if !rows_view.headers().iter().any(|h| h.name == *column_name) {
@@ -922,6 +928,7 @@ mod tests {
                 self.columns_regex,
                 self.filter_regex,
                 self.find_regex,
+                None,
             )
         }
 
