@@ -1285,7 +1285,7 @@ impl CsvTableState {
     }
 
     pub fn has_more_cols_to_show(&self) -> bool {
-        self.more_cols_to_show.map_or(true, |v| v)
+        self.more_cols_to_show.is_none_or(|v| v)
     }
 
     pub fn set_total_line_number(&mut self, n: usize, is_approx: bool) {
