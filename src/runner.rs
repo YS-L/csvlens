@@ -74,6 +74,7 @@ impl From<Args> for CsvlensOptions {
             ignore_case: args.ignore_case,
             echo_column: args.echo_column,
             debug: args.debug,
+            freeze_cols_offset: None,
         }
     }
 }
@@ -91,6 +92,7 @@ pub struct CsvlensOptions {
     pub ignore_case: bool,
     pub echo_column: Option<String>,
     pub debug: bool,
+    pub freeze_cols_offset: Option<u64>,
 }
 
 struct AppRunner {
@@ -174,6 +176,7 @@ pub fn run_csvlens_with_options(options: CsvlensOptions) -> CsvlensResult<Option
         options.columns,
         options.filter,
         options.find,
+        options.freeze_cols_offset,
     )?;
 
     let mut app_runner = AppRunner::new(app);
