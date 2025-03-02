@@ -2361,7 +2361,9 @@ mod tests {
             &mut terminal,
             Control::FilterColumns("COL1".into()),
         );
+        till_app_ready(&app);
         step_and_draw(&mut app, &mut terminal, Control::Filter("x1".into()));
+        till_app_ready(&app);
         // Toggle to cell selection
         step_and_draw(&mut app, &mut terminal, Control::ToggleSelectionType);
         step_and_draw(&mut app, &mut terminal, Control::ToggleSelectionType);
