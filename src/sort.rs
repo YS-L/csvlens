@@ -210,11 +210,14 @@ impl SorterInternalState {
             let sort_result = run(_m.clone(), config, column_index);
 
             let mut m = _m.lock().unwrap();
-            if let Ok(sort_result) = sort_result {
-                m.sort_result = Some(sort_result);
-                m.status = SorterStatus::Finished;
-            } else {
-                m.status = SorterStatus::Error(sort_result.err().unwrap().to_string());
+            match sort_result {
+                Ok(sort_result) => {
+                    m.sort_result = Some(sort_result);
+                    m.status = SorterStatus::Finished;
+                }
+                _ => {
+                    m.status = SorterStatus::Error(sort_result.err().unwrap().to_string());
+                }
             }
             m.done = true;
         });

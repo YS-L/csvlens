@@ -41,11 +41,12 @@ impl SeekableFile {
     }
 
     pub fn filename(&self) -> &str {
-        if let Some(f) = &self.inner_file {
-            f.path().to_str().unwrap()
-        } else {
-            // If data is from stdin, then inner_file must be there
-            self.filename.as_ref().unwrap()
+        match &self.inner_file {
+            Some(f) => f.path().to_str().unwrap(),
+            _ => {
+                // If data is from stdin, then inner_file must be there
+                self.filename.as_ref().unwrap()
+            }
         }
     }
 

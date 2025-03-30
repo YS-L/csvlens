@@ -266,10 +266,9 @@ impl Finder {
 
     pub fn cursor_row_order(&self) -> Option<usize> {
         let m_guard = self.internal.lock().unwrap();
-        if let Some(FoundEntry::Row(entry)) = self.get_found_record_at_cursor(&m_guard) {
-            Some(entry.row_order())
-        } else {
-            None
+        match self.get_found_record_at_cursor(&m_guard) {
+            Some(FoundEntry::Row(entry)) => Some(entry.row_order()),
+            _ => None,
         }
     }
 
@@ -551,11 +550,7 @@ impl FinderInternalState {
 
     fn prev_from(&self, row_hint: usize) -> usize {
         let next = self.next_from(row_hint);
-        if next > 0 {
-            next - 1
-        } else {
-            next
-        }
+        if next > 0 { next - 1 } else { next }
     }
 
     fn terminate(&mut self) {

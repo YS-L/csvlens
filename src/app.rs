@@ -2,7 +2,7 @@ extern crate csv_sniffer;
 
 use crate::columns_filter::ColumnsFilter;
 use crate::csv;
-use crate::delimiter::{sniff_delimiter, Delimiter};
+use crate::delimiter::{Delimiter, sniff_delimiter};
 use crate::errors::{CsvlensError, CsvlensResult};
 use crate::find;
 use crate::help;
@@ -325,28 +325,30 @@ impl App {
             Control::ScrollTo(_) => {
                 self.csv_table_state.reset_buffer();
             }
-            Control::ScrollLeft => {
-                if let Some(i) = self.rows_view.selection.column.index() {
+            Control::ScrollLeft => match self.rows_view.selection.column.index() {
+                Some(i) => {
                     if i == 0 {
                         self.decrease_cols_offset();
                     } else {
                         self.rows_view.selection.column.select_previous();
                     }
-                } else {
+                }
+                _ => {
                     self.decrease_cols_offset();
                 }
-            }
-            Control::ScrollRight => {
-                if let Some(i) = self.rows_view.selection.column.index() {
+            },
+            Control::ScrollRight => match self.rows_view.selection.column.index() {
+                Some(i) => {
                     if i == self.csv_table_state.num_cols_rendered - 1 {
                         self.increase_cols_offset();
                     } else {
                         self.rows_view.selection.column.select_next();
                     }
-                } else {
+                }
+                _ => {
                     self.increase_cols_offset();
                 }
-            }
+            },
             Control::ScrollPageLeft => {
                 let new_cols_offset = match self.frame_width {
                     Some(frame_width) => get_cols_offset_to_fill_frame_width(
@@ -421,17 +423,20 @@ impl App {
                 self.handle_find_or_filter(s, matches!(control, Control::Filter(_)), false);
             }
             Control::FindLikeCell | Control::FilterLikeCell => {
-                if let Some(value) = self.rows_view.get_cell_value_from_selection() {
-                    self.handle_find_or_filter(
-                        value.as_str(),
-                        matches!(control, Control::FilterLikeCell),
-                        true,
-                    );
-                } else {
-                    self.transient_message.replace(
-                        "Select a cell first before finding (#) or filtering (@) rows like it"
-                            .to_string(),
-                    );
+                match self.rows_view.get_cell_value_from_selection() {
+                    Some(value) => {
+                        self.handle_find_or_filter(
+                            value.as_str(),
+                            matches!(control, Control::FilterLikeCell),
+                            true,
+                        );
+                    }
+                    _ => {
+                        self.transient_message.replace(
+                            "Select a cell first before finding (#) or filtering (@) rows like it"
+                                .to_string(),
+                        );
+                    }
                 }
             }
             Control::FilterColumns(pat) => {
@@ -464,22 +469,25 @@ impl App {
             Control::ToggleSort => {
                 if let Some(selected_column_index) = self.get_global_selected_column_index() {
                     let mut should_create_new_sorter = false;
-                    if let Some(column_index) = self.sorter.as_ref().map(|s| s.column_index) {
-                        if selected_column_index as usize != column_index {
-                            should_create_new_sorter = true;
-                        } else {
-                            match self.sort_order {
-                                SortOrder::Ascending => {
-                                    self.sort_order = SortOrder::Descending;
+                    match self.sorter.as_ref().map(|s| s.column_index) {
+                        Some(column_index) => {
+                            if selected_column_index as usize != column_index {
+                                should_create_new_sorter = true;
+                            } else {
+                                match self.sort_order {
+                                    SortOrder::Ascending => {
+                                        self.sort_order = SortOrder::Descending;
+                                    }
+                                    SortOrder::Descending => {
+                                        self.sort_order = SortOrder::Ascending;
+                                    }
                                 }
-                                SortOrder::Descending => {
-                                    self.sort_order = SortOrder::Ascending;
-                                }
+                                self.rows_view.set_sort_order(self.sort_order)?;
                             }
-                            self.rows_view.set_sort_order(self.sort_order)?;
                         }
-                    } else {
-                        should_create_new_sorter = true;
+                        _ => {
+                            should_create_new_sorter = true;
+                        }
                     }
                     if should_create_new_sorter {
                         let column_name = self
@@ -504,8 +512,8 @@ impl App {
                 self.adjust_column_width(-4);
             }
             #[cfg(feature = "clipboard")]
-            Control::CopySelection => {
-                if let Some(selected) = self.rows_view.get_cell_value_from_selection() {
+            Control::CopySelection => match self.rows_view.get_cell_value_from_selection() {
+                Some(selected) => {
                     match self.clipboard.as_mut().map(|c| c.set_text(&selected)) {
                         Ok(_) => self
                             .transient_message
@@ -514,17 +522,20 @@ impl App {
                             .transient_message
                             .replace(format!("Failed to copy to clipboard: {e}")),
                     };
-                } else if let Some((index, row)) = self.rows_view.get_row_value() {
-                    match self.clipboard.as_mut().map(|c| c.set_text(&row)) {
-                        Ok(_) => self
-                            .transient_message
-                            .replace(format!("Copied row {} to clipboard", index)),
-                        Err(e) => self
-                            .transient_message
-                            .replace(format!("Failed to copy to clipboard: {e}")),
-                    };
                 }
-            }
+                _ => {
+                    if let Some((index, row)) = self.rows_view.get_row_value() {
+                        match self.clipboard.as_mut().map(|c| c.set_text(&row)) {
+                            Ok(_) => self
+                                .transient_message
+                                .replace(format!("Copied row {} to clipboard", index)),
+                            Err(e) => self
+                                .transient_message
+                                .replace(format!("Failed to copy to clipboard: {e}")),
+                        };
+                    }
+                }
+            },
             Control::Reset => {
                 self.csv_table_state.column_width_overrides.reset();
                 self.reset_filter();
@@ -547,13 +558,16 @@ impl App {
             // Update rows_view sorter if outdated
             let mut should_set_rows_view_sorter = false;
             if sorter.status() == SorterStatus::Finished {
-                if let Some(rows_view_sorter) = self.rows_view.sorter() {
-                    // Sorter can be reused by rows view even if sort order is different.
-                    if rows_view_sorter.column_index != sorter.column_index {
+                match self.rows_view.sorter() {
+                    Some(rows_view_sorter) => {
+                        // Sorter can be reused by rows view even if sort order is different.
+                        if rows_view_sorter.column_index != sorter.column_index {
+                            should_set_rows_view_sorter = true;
+                        }
+                    }
+                    _ => {
                         should_set_rows_view_sorter = true;
                     }
-                } else {
-                    should_set_rows_view_sorter = true;
                 }
             }
             if should_set_rows_view_sorter {
@@ -580,17 +594,20 @@ impl App {
             if should_create_new_finder {
                 let target = self.finder.as_ref().unwrap().target();
                 let sorter = self.sorter.clone();
-                if let Some(finder) = &self.finder {
-                    // Inherit previous finder's column index if any, instead of using the current
-                    // selected column intended for sorter
-                    self.create_finder_with_column_index(
-                        target,
-                        self.rows_view.is_filter(),
-                        finder.column_index(),
-                        sorter,
-                    );
-                } else {
-                    self.create_finder(target, self.rows_view.is_filter(), sorter);
+                match &self.finder {
+                    Some(finder) => {
+                        // Inherit previous finder's column index if any, instead of using the current
+                        // selected column intended for sorter
+                        self.create_finder_with_column_index(
+                            target,
+                            self.rows_view.is_filter(),
+                            finder.column_index(),
+                            sorter,
+                        );
+                    }
+                    _ => {
+                        self.create_finder(target, self.rows_view.is_filter(), sorter);
+                    }
                 }
             }
         }
@@ -629,12 +646,15 @@ impl App {
         self.csv_table_state
             .debug_stats
             .rows_view_perf(self.rows_view.perf_stats());
-        if let Some(fdr) = &self.finder {
-            self.csv_table_state
-                .debug_stats
-                .finder_elapsed(fdr.elapsed());
-        } else {
-            self.csv_table_state.debug_stats.finder_elapsed(None);
+        match &self.finder {
+            Some(fdr) => {
+                self.csv_table_state
+                    .debug_stats
+                    .finder_elapsed(fdr.elapsed());
+            }
+            _ => {
+                self.csv_table_state.debug_stats.finder_elapsed(None);
+            }
         }
 
         // TODO: is this update too late?
@@ -644,10 +664,15 @@ impl App {
             .set_cols_offset(self.rows_view.cols_offset());
         self.csv_table_state.selection = Some(self.rows_view.selection.clone());
 
-        if let Some(n) = self.rows_view.get_total_line_numbers() {
-            self.csv_table_state.set_total_line_number(n, false);
-        } else if let Some(n) = self.rows_view.get_total_line_numbers_approx() {
-            self.csv_table_state.set_total_line_number(n, true);
+        match self.rows_view.get_total_line_numbers() {
+            Some(n) => {
+                self.csv_table_state.set_total_line_number(n, false);
+            }
+            _ => {
+                if let Some(n) = self.rows_view.get_total_line_numbers_approx() {
+                    self.csv_table_state.set_total_line_number(n, true);
+                }
+            }
         }
         self.csv_table_state
             .set_total_cols(self.rows_view.headers().len());
@@ -675,11 +700,16 @@ impl App {
     }
 
     fn get_selection(&self) -> Option<String> {
-        if let Some(result) = self.rows_view.get_cell_value_from_selection() {
-            return Some(result);
-        } else if let Some(column_name) = &self.echo_column {
-            if let Some(result) = self.rows_view.get_cell_value(column_name) {
+        match self.rows_view.get_cell_value_from_selection() {
+            Some(result) => {
                 return Some(result);
+            }
+            _ => {
+                if let Some(column_name) = &self.echo_column {
+                    if let Some(result) = self.rows_view.get_cell_value(column_name) {
+                        return Some(result);
+                    }
+                }
             }
         };
         None
@@ -739,13 +769,17 @@ impl App {
 
     fn set_columns_filter(&mut self, pat: &str) {
         let re = self.create_regex(pat, false);
-        if let Ok(target) = re {
-            let columns_filter = Arc::new(ColumnsFilter::new(target, self.rows_view.raw_headers()));
-            self.columns_filter = Some(columns_filter.clone());
-            self.rows_view.set_columns_filter(&columns_filter).unwrap();
-        } else {
-            self.reset_columns_filter();
-            self.transient_message = Some(format!("Invalid regex: {pat}"));
+        match re {
+            Ok(target) => {
+                let columns_filter =
+                    Arc::new(ColumnsFilter::new(target, self.rows_view.raw_headers()));
+                self.columns_filter = Some(columns_filter.clone());
+                self.rows_view.set_columns_filter(&columns_filter).unwrap();
+            }
+            _ => {
+                self.reset_columns_filter();
+                self.transient_message = Some(format!("Invalid regex: {pat}"));
+            }
         }
         self.csv_table_state.reset_buffer();
         self.csv_table_state
@@ -759,21 +793,25 @@ impl App {
 
     fn handle_find_or_filter(&mut self, pat: &str, is_filter: bool, escape: bool) {
         let re = self.create_regex(pat, escape);
-        if let Ok(target) = re {
-            let _sorter = if let Some(s) = &self.sorter {
-                if s.status() == SorterStatus::Finished {
-                    Some(s.clone())
-                } else {
-                    None
-                }
-            } else {
-                None
-            };
-            self.create_finder(target, is_filter, _sorter);
-        } else {
-            self.finder = None;
-            // TODO: how to show multi-line error
-            self.transient_message = Some(format!("Invalid regex: {pat}"));
+        match re {
+            Ok(target) => {
+                let _sorter = match &self.sorter {
+                    Some(s) => {
+                        if s.status() == SorterStatus::Finished {
+                            Some(s.clone())
+                        } else {
+                            None
+                        }
+                    }
+                    _ => None,
+                };
+                self.create_finder(target, is_filter, _sorter);
+            }
+            _ => {
+                self.finder = None;
+                // TODO: how to show multi-line error
+                self.transient_message = Some(format!("Invalid regex: {pat}"));
+            }
         }
         self.csv_table_state.reset_buffer();
     }
@@ -1704,7 +1742,8 @@ mod tests {
             "    │                    │                                                                                              ",
             "    │                    │                                                                                              ",
             "────┴────────────────────┴──────────────────────────────────────────────────────────────────────────────────────────────",
-            "stdin [Row 97/128, Col 1/1] [Filter \"Salt Lake City\": 1/1] [Filter \"City\": 1/10 cols]                                   "];
+            "stdin [Row 97/128, Col 1/1] [Filter \"Salt Lake City\": 1/1] [Filter \"City\": 1/10 cols]                                   ",
+        ];
         let actual_buffer = terminal.backend().buffer().clone();
         let lines = to_lines(&actual_buffer);
         assert_eq!(lines, expected);
@@ -2292,10 +2331,13 @@ mod tests {
         let app = AppBuilder::new("tests/data/cities.csv")
             .echo_column("Cityz")
             .build();
-        if let Err(e) = app {
-            assert_eq!(e.to_string(), "Column name not found: Cityz");
-        } else {
-            panic!("Expected error");
+        match app {
+            Err(e) => {
+                assert_eq!(e.to_string(), "Column name not found: Cityz");
+            }
+            _ => {
+                panic!("Expected error");
+            }
         }
     }
 

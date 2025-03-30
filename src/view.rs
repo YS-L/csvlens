@@ -656,16 +656,19 @@ impl RowsView {
         let (mut rows, reader_stats) = if let Some(filter) = &self.filter {
             let indices = &filter.indices;
             self.reader.get_rows_for_indices(indices)?
-        } else if let Some(sorter) = &self.sorter {
-            if let Some(sorted_indices) =
-                sorter.get_sorted_indices(self.rows_from, self.num_rows, self.sort_order)
-            {
-                self.reader.get_rows_for_indices(&sorted_indices)?
-            } else {
-                self.reader.get_rows(self.rows_from, self.num_rows)?
-            }
         } else {
-            self.reader.get_rows(self.rows_from, self.num_rows)?
+            match &self.sorter {
+                Some(sorter) => {
+                    if let Some(sorted_indices) =
+                        sorter.get_sorted_indices(self.rows_from, self.num_rows, self.sort_order)
+                    {
+                        self.reader.get_rows_for_indices(&sorted_indices)?
+                    } else {
+                        self.reader.get_rows(self.rows_from, self.num_rows)?
+                    }
+                }
+                _ => self.reader.get_rows(self.rows_from, self.num_rows)?,
+            }
         };
         let elapsed = start.elapsed();
         if let Some(columns_filter) = &self.columns_filter {
