@@ -1180,8 +1180,7 @@ impl DebugStats {
                     .reader_stats
                     .pos_table_elapsed
                     .as_ref()
-                    .map(|e| e.as_micros())
-                    .unwrap_or(0),
+                    .map_or(0, |e| e.as_micros()),
                 stats.reader_stats.pos_table_entry,
                 stats.reader_stats.num_seek,
                 stats.reader_stats.num_parsed_record
