@@ -514,17 +514,15 @@ impl App {
                             .transient_message
                             .replace(format!("Failed to copy to clipboard: {e}")),
                     };
-                } else {
-                    if let Some((index, row)) = self.rows_view.get_row_value() {
-                        match self.clipboard.as_mut().map(|c| c.set_text(&row)) {
-                            Ok(_) => self
-                                .transient_message
-                                .replace(format!("Copied row {} to clipboard", index)),
-                            Err(e) => self
-                                .transient_message
-                                .replace(format!("Failed to copy to clipboard: {e}")),
-                        };
-                    }
+                } else if let Some((index, row)) = self.rows_view.get_row_value() {
+                    match self.clipboard.as_mut().map(|c| c.set_text(&row)) {
+                        Ok(_) => self
+                            .transient_message
+                            .replace(format!("Copied row {} to clipboard", index)),
+                        Err(e) => self
+                            .transient_message
+                            .replace(format!("Failed to copy to clipboard: {e}")),
+                    };
                 }
             }
             Control::Reset => {
@@ -648,11 +646,10 @@ impl App {
 
         if let Some(n) = self.rows_view.get_total_line_numbers() {
             self.csv_table_state.set_total_line_number(n, false);
-        } else {
-            if let Some(n) = self.rows_view.get_total_line_numbers_approx() {
-                self.csv_table_state.set_total_line_number(n, true);
-            }
+        } else if let Some(n) = self.rows_view.get_total_line_numbers_approx() {
+            self.csv_table_state.set_total_line_number(n, true);
         }
+
         self.csv_table_state
             .set_total_cols(self.rows_view.headers().len());
 
@@ -681,11 +678,9 @@ impl App {
     fn get_selection(&self) -> Option<String> {
         if let Some(result) = self.rows_view.get_cell_value_from_selection() {
             return Some(result);
-        } else {
-            if let Some(column_name) = &self.echo_column {
-                if let Some(result) = self.rows_view.get_cell_value(column_name) {
-                    return Some(result);
-                }
+        } else if let Some(column_name) = &self.echo_column {
+            if let Some(result) = self.rows_view.get_cell_value(column_name) {
+                return Some(result);
             }
         };
         None
