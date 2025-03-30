@@ -92,7 +92,7 @@ impl<'a> CsvTable<'a> {
 
         let overriden_indices = overrides.overriden_indices();
 
-        for row in self.rows.iter() {
+        for row in self.rows {
             for (i, value) in row.fields.iter().enumerate() {
                 if i >= column_widths.len() {
                     continue;
