@@ -1306,8 +1306,7 @@ impl CsvTableState {
     pub fn line_number_and_spaces_width(&self) -> u16 {
         self.borders_state
             .as_ref()
-            .map(|bs| bs.x_row_separator)
-            .unwrap_or(0)
+            .map_or(0, |bs| bs.x_row_separator)
             + NUM_SPACES_AFTER_LINE_NUMBER
     }
 
