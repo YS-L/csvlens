@@ -266,9 +266,10 @@ impl Finder {
 
     pub fn cursor_row_order(&self) -> Option<usize> {
         let m_guard = self.internal.lock().unwrap();
-        match self.get_found_record_at_cursor(&m_guard) {
-            Some(FoundEntry::Row(entry)) => Some(entry.row_order()),
-            _ => None,
+        if let Some(FoundEntry::Row(entry)) = self.get_found_record_at_cursor(&m_guard) {
+            Some(entry.row_order())
+        } else {
+            None
         }
     }
 
