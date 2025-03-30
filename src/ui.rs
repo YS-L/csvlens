@@ -51,7 +51,7 @@ impl ColumnWidthOverrides {
 
     /// Returns the list of origin column indices that have width overrides
     pub fn overriden_indices(&self) -> Vec<usize> {
-        self.overrides.keys().cloned().collect()
+        self.overrides.keys().copied().collect()
     }
 
     pub fn reset(&mut self) {
