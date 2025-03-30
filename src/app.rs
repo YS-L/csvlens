@@ -766,15 +766,14 @@ impl App {
     fn handle_find_or_filter(&mut self, pat: &str, is_filter: bool, escape: bool) {
         let re = self.create_regex(pat, escape);
         if let Ok(target) = re {
-            let _sorter = match &self.sorter {
-                Some(s) => {
-                    if s.status() == SorterStatus::Finished {
-                        Some(s.clone())
-                    } else {
-                        None
-                    }
+            let _sorter = if let Some(s) = &self.sorter {
+                if s.status() == SorterStatus::Finished {
+                    Some(s.clone())
+                } else {
+                    None
                 }
-                _ => None,
+            } else {
+                None
             };
             self.create_finder(target, is_filter, _sorter);
         } else {
