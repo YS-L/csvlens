@@ -286,24 +286,20 @@ impl CsvLensReader {
     }
 
     pub fn get_total_line_numbers(&self) -> Option<usize> {
-        let res = self.internal.lock().unwrap().total_line_number;
-        res
+        self.internal.lock().unwrap().total_line_number
     }
 
     pub fn get_last_indexed_line_number(&self) -> Option<usize> {
-        let res = self
-            .internal
+        self.internal
             .lock()
             .unwrap()
             .pos_table
             .last()
-            .map(|x| x.record() as usize);
-        res
+            .map(|x| x.record() as usize)
     }
 
     pub fn get_pos_table(&self) -> Vec<Position> {
-        let res = self.internal.lock().unwrap().pos_table.clone();
-        res
+        self.internal.lock().unwrap().pos_table.clone()
     }
 
     #[cfg(test)]

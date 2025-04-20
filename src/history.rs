@@ -1,6 +1,6 @@
 use crate::common::InputMode;
-use std::collections::hash_map::Entry::{Occupied, Vacant};
 use std::collections::HashMap;
+use std::collections::hash_map::Entry::{Occupied, Vacant};
 
 pub struct BufferHistory {
     buffers: Vec<String>,

@@ -51,7 +51,7 @@ impl ColumnWidthOverrides {
 
     /// Returns the list of origin column indices that have width overrides
     pub fn overriden_indices(&self) -> Vec<usize> {
-        self.overrides.keys().cloned().collect()
+        self.overrides.keys().copied().collect()
     }
 
     pub fn reset(&mut self) {
@@ -92,7 +92,7 @@ impl<'a> CsvTable<'a> {
 
         let overriden_indices = overrides.overriden_indices();
 
-        for row in self.rows.iter() {
+        for row in self.rows {
             for (i, value) in row.fields.iter().enumerate() {
                 if i >= column_widths.len() {
                     continue;
@@ -1180,8 +1180,7 @@ impl DebugStats {
                     .reader_stats
                     .pos_table_elapsed
                     .as_ref()
-                    .map(|e| e.as_micros())
-                    .unwrap_or(0),
+                    .map_or(0, |e| e.as_micros()),
                 stats.reader_stats.pos_table_entry,
                 stats.reader_stats.num_seek,
                 stats.reader_stats.num_parsed_record
@@ -1307,8 +1306,7 @@ impl CsvTableState {
     pub fn line_number_and_spaces_width(&self) -> u16 {
         self.borders_state
             .as_ref()
-            .map(|bs| bs.x_row_separator)
-            .unwrap_or(0)
+            .map_or(0, |bs| bs.x_row_separator)
             + NUM_SPACES_AFTER_LINE_NUMBER
     }
 

@@ -2,7 +2,7 @@ extern crate csv_sniffer;
 
 use crate::columns_filter::ColumnsFilter;
 use crate::csv;
-use crate::delimiter::{sniff_delimiter, Delimiter};
+use crate::delimiter::{Delimiter, sniff_delimiter};
 use crate::errors::{CsvlensError, CsvlensResult};
 use crate::find;
 use crate::help;
@@ -649,6 +649,7 @@ impl App {
         } else if let Some(n) = self.rows_view.get_total_line_numbers_approx() {
             self.csv_table_state.set_total_line_number(n, true);
         }
+
         self.csv_table_state
             .set_total_cols(self.rows_view.headers().len());
 
@@ -1704,7 +1705,8 @@ mod tests {
             "    │                    │                                                                                              ",
             "    │                    │                                                                                              ",
             "────┴────────────────────┴──────────────────────────────────────────────────────────────────────────────────────────────",
-            "stdin [Row 97/128, Col 1/1] [Filter \"Salt Lake City\": 1/1] [Filter \"City\": 1/10 cols]                                   "];
+            "stdin [Row 97/128, Col 1/1] [Filter \"Salt Lake City\": 1/1] [Filter \"City\": 1/10 cols]                                   ",
+        ];
         let actual_buffer = terminal.backend().buffer().clone();
         let lines = to_lines(&actual_buffer);
         assert_eq!(lines, expected);

@@ -4,13 +4,13 @@ use crate::errors::CsvlensResult;
 use crate::io::SeekableFile;
 
 #[cfg(feature = "cli")]
-use clap::{command, Parser};
+use clap::{Parser, command};
 use crossterm::execute;
 use crossterm::terminal::{
-    disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
+    EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode,
 };
-use ratatui::backend::CrosstermBackend;
 use ratatui::Terminal;
+use ratatui::backend::CrosstermBackend;
 use std::ffi::OsString;
 use std::io::LineWriter;
 use std::panic;

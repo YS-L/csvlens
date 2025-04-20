@@ -9,7 +9,7 @@ homepage = "https://github.com/YS-L/csvlens"
 repository = "https://github.com/YS-L/csvlens"
 exclude = [".github/*", "tests/*"]
 keywords = ["cli", "csv", "viewer", "pager", "tui"]
-edition = "2021"
+edition = "2024"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -25,7 +25,7 @@ csv-sniffer = "0.3.1"
 tui-input = { version = "0.11", features = ["crossterm"] }
 arrow = {version = "54", default-features = false, features = ["csv"]}
 sorted-vec = "0.8"
-arboard = { version = "3.4", default-features = false, features = ["wayland-data-control"], optional = true }
+arboard = { version = "3.5", default-features = false, features = ["wayland-data-control"], optional = true }
 thiserror = "2"
 
 [target.'cfg(windows)'.dependencies]

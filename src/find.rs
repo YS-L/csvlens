@@ -551,11 +551,7 @@ impl FinderInternalState {
 
     fn prev_from(&self, row_hint: usize) -> usize {
         let next = self.next_from(row_hint);
-        if next > 0 {
-            next - 1
-        } else {
-            next
-        }
+        if next > 0 { next - 1 } else { next }
     }
 
     fn terminate(&mut self) {
