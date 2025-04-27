@@ -3,13 +3,14 @@ use crate::csv::Row;
 use crate::find;
 use crate::sort;
 use crate::sort::SortOrder;
+use crate::theme::Theme;
 use crate::view;
 use crate::view::Header;
 use crate::wrap;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::prelude::Position;
-use ratatui::style::{Color, Modifier, Style};
+use ratatui::style::{Modifier, Style};
 use ratatui::symbols::line;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::Clear;
@@ -239,7 +240,7 @@ impl<'a> CsvTable<'a> {
         let mut y = area.y;
         for (i, row) in rows.iter().enumerate() {
             let row_num_formatted = row.record_num.to_string();
-            let mut style = Style::default().fg(Color::Rgb(64, 64, 64));
+            let mut style = Style::default().fg(state.theme.row_number);
             if let Some(selection) = &state.selection {
                 if selection.row.is_selected(i) {
                     style = style
@@ -262,10 +263,10 @@ impl<'a> CsvTable<'a> {
         });
     }
 
-    fn render_header_borders(&self, buf: &mut Buffer, area: Rect) -> (u16, u16) {
+    fn render_header_borders(&self, buf: &mut Buffer, area: Rect, theme: &Theme) -> (u16, u16) {
         let block = Block::default()
             .borders(Borders::TOP | Borders::BOTTOM)
-            .border_style(Style::default().fg(Color::Rgb(64, 64, 64)));
+            .border_style(Style::default().fg(theme.border));
         let height = 3;
         let area = Rect::new(0, 0, area.width, height);
         block.render(area, buf);
@@ -288,10 +289,12 @@ impl<'a> CsvTable<'a> {
             return;
         }
 
+        let border_style = Style::default().fg(state.theme.border);
+
         // Line number separator
         let line_number_block = Block::default()
             .borders(Borders::RIGHT)
-            .border_style(Style::default().fg(Color::Rgb(64, 64, 64)));
+            .border_style(border_style);
         let line_number_area = Rect::new(0, y_first_record, section_width, area.height);
         line_number_block.render(line_number_area, buf);
 
@@ -303,7 +306,7 @@ impl<'a> CsvTable<'a> {
         // Status separator at the bottom (rendered here first for the interesection)
         let block = Block::default()
             .borders(Borders::TOP)
-            .border_style(Style::default().fg(Color::Rgb(64, 64, 64)));
+            .border_style(border_style);
         let status_separator_area = Rect::new(0, y_first_record + area.height, area.width, 1);
         block.render(status_separator_area, buf);
 
@@ -323,14 +326,13 @@ impl<'a> CsvTable<'a> {
                 col_ending_pos_x,
                 y_first_record.saturating_sub(1),
             )) {
-                cell.set_style(Style::default().fg(Color::Rgb(64, 64, 64)))
+                cell.set_style(border_style)
                     .set_symbol(line::HORIZONTAL_DOWN);
             }
 
             for y in y_first_record..y_first_record + area.height {
                 if let Some(cell) = buf.cell_mut(Position::new(col_ending_pos_x, y)) {
-                    cell.set_style(Style::default().fg(Color::Rgb(64, 64, 64)))
-                        .set_symbol(line::VERTICAL);
+                    cell.set_style(border_style).set_symbol(line::VERTICAL);
                 }
             }
 
@@ -338,8 +340,7 @@ impl<'a> CsvTable<'a> {
                 col_ending_pos_x,
                 y_first_record + area.height,
             )) {
-                cell.set_style(Style::default().fg(Color::Rgb(64, 64, 64)))
-                    .set_symbol(line::HORIZONTAL_UP);
+                cell.set_style(border_style).set_symbol(line::HORIZONTAL_UP);
             }
         }
 
@@ -355,13 +356,12 @@ impl<'a> CsvTable<'a> {
                     x_freeze_separator,
                     y_first_record.saturating_sub(1),
                 )) {
-                    cell.set_style(Style::default().fg(Color::Rgb(64, 64, 64)))
-                        .set_symbol("╥");
+                    cell.set_style(border_style).set_symbol("╥");
                 }
 
                 for y in y_first_record..y_first_record + area.height {
                     if let Some(cell) = buf.cell_mut(Position::new(x_freeze_separator, y)) {
-                        cell.set_style(Style::default().fg(Color::Rgb(64, 64, 64)))
+                        cell.set_style(border_style)
                             .set_symbol(line::DOUBLE_VERTICAL);
                     }
                 }
@@ -370,8 +370,7 @@ impl<'a> CsvTable<'a> {
                     x_freeze_separator,
                     y_first_record + area.height,
                 )) {
-                    cell.set_style(Style::default().fg(Color::Rgb(64, 64, 64)))
-                        .set_symbol("╨");
+                    cell.set_style(border_style).set_symbol("╨");
                 }
             }
         }
@@ -443,8 +442,8 @@ impl<'a> CsvTable<'a> {
             let mut filler_style = Style::default();
             if is_selected {
                 let selected_style = Style::default()
-                    .fg(Color::Rgb(192, 192, 192))
-                    .bg(Color::Rgb(64, 64, 64))
+                    .fg(state.theme.selected_fg)
+                    .bg(state.theme.selected_bg)
                     .add_modifier(Modifier::BOLD);
                 filler_style = filler_style.patch(selected_style);
                 content_style = content_style.patch(selected_style);
@@ -475,7 +474,7 @@ impl<'a> CsvTable<'a> {
                 // TODO: seems like doing a bit too much of heavy lifting of
                 // checking for matches (finder's work)
                 FinderState::FinderActive(active) if should_highlight_cell(active, hname) => {
-                    let mut highlight_style = filler_style.style.fg(Color::Rgb(200, 0, 0));
+                    let mut highlight_style = filler_style.style.fg(state.theme.found);
                     if let Some(found_record) = &active.found_record {
                         match found_record {
                             find::FoundEntry::Row(entry) => {
@@ -483,7 +482,8 @@ impl<'a> CsvTable<'a> {
                                     if row_index == entry.row_index()
                                         && entry.column_index() == col_index
                                     {
-                                        highlight_style = highlight_style.bg(Color::LightYellow);
+                                        highlight_style =
+                                            highlight_style.bg(state.theme.found_selected_bg);
                                     }
                                 }
                             }
@@ -491,7 +491,8 @@ impl<'a> CsvTable<'a> {
                                 if matches!(row_type, RowType::Header)
                                     && entry.column_index() == col_index
                                 {
-                                    highlight_style = highlight_style.bg(Color::LightYellow);
+                                    highlight_style =
+                                        highlight_style.bg(state.theme.found_selected_bg);
                                 }
                             }
                         }
@@ -669,7 +670,7 @@ impl<'a> CsvTable<'a> {
 
     fn render_status(&self, area: Rect, buf: &mut Buffer, state: &mut CsvTableState) {
         // Content of status line (separator already plotted elsewhere)
-        let style = Style::default().fg(Color::Rgb(128, 128, 128));
+        let style = Style::default().fg(state.theme.status);
         let mut content: String;
         state.cursor_xy = None;
         if let Some(msg) = &state.transient_message {
@@ -844,7 +845,7 @@ impl StatefulWidget for CsvTable<'_> {
         let layout = self.get_view_layout(area, state, self.rows);
         state.view_layout = Some(layout.clone());
 
-        let (y_header, y_first_record) = self.render_header_borders(buf, area);
+        let (y_header, y_first_record) = self.render_header_borders(buf, area, &state.theme);
 
         // row area: including row numbers and row content
         let rows_area = Rect::new(
@@ -1224,6 +1225,7 @@ pub struct CsvTableState {
     pub is_word_wrap: bool,
     pub column_width_overrides: ColumnWidthOverrides,
     pub cursor_xy: Option<(u16, u16)>,
+    pub theme: Theme,
     pub debug: String,
 }
 
@@ -1258,6 +1260,7 @@ impl CsvTableState {
             is_word_wrap: false,
             column_width_overrides: ColumnWidthOverrides::new(),
             cursor_xy: None,
+            theme: Theme::default(),
             debug: "".into(),
         }
     }

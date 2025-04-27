@@ -50,6 +50,7 @@ mod input;
 mod io;
 mod runner;
 mod sort;
+mod theme;
 mod ui;
 mod util;
 mod view;
