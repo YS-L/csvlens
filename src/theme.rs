@@ -30,7 +30,7 @@ impl Theme {
             selected_bg: Color::Rgb(62, 61, 50),
             found: Color::Rgb(200, 0, 0),
             found_selected_bg: Color::LightYellow,
-            status: Color::Rgb(128, 128, 128),
+            status: gutter,
             column_colors: [
                 Color::Rgb(253, 151, 31),
                 Color::Rgb(102, 217, 239),
@@ -50,7 +50,7 @@ impl Theme {
             selected_bg: Color::Rgb(230, 227, 196),
             found: Color::Rgb(200, 0, 0),
             found_selected_bg: Color::LightYellow,
-            status: Color::Rgb(128, 128, 128),
+            status: gutter,
             column_colors: [
                 Color::Rgb(207, 112, 0),
                 Color::Rgb(0, 137, 179),
