@@ -446,8 +446,8 @@ impl<'a> CsvTable<'a> {
             let mut filler_style = Style::default();
             if is_selected {
                 let selected_style = Style::default()
-                    .fg(state.theme.selected_fg)
-                    .bg(state.theme.selected_bg)
+                    .fg(state.theme.selected_foreground)
+                    .bg(state.theme.selected_background)
                     .add_modifier(Modifier::BOLD);
                 filler_style = filler_style.patch(selected_style);
                 content_style = content_style.patch(selected_style);
@@ -486,8 +486,8 @@ impl<'a> CsvTable<'a> {
                                     if row_index == entry.row_index()
                                         && entry.column_index() == col_index
                                     {
-                                        highlight_style =
-                                            highlight_style.bg(state.theme.found_selected_bg);
+                                        highlight_style = highlight_style
+                                            .bg(state.theme.found_selected_background);
                                     }
                                 }
                             }
@@ -496,7 +496,7 @@ impl<'a> CsvTable<'a> {
                                     && entry.column_index() == col_index
                                 {
                                     highlight_style =
-                                        highlight_style.bg(state.theme.found_selected_bg);
+                                        highlight_style.bg(state.theme.found_selected_background);
                                 }
                             }
                         }
