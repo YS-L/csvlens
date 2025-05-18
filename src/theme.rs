@@ -13,14 +13,15 @@ pub struct Theme {
 
 impl Theme {
     pub fn default() -> Self {
+        let gutter = Color::Rgb(128, 128, 128);
         Theme {
-            row_number: Color::Rgb(64, 64, 64),
-            border: Color::Rgb(64, 64, 64),
+            row_number: gutter,
+            border: gutter,
             selected_fg: Color::Rgb(192, 192, 192),
             selected_bg: Color::Rgb(64, 64, 64),
             found: Color::Rgb(200, 0, 0),
             found_selected_bg: Color::LightYellow,
-            status: Color::Rgb(128, 128, 128),
+            status: gutter,
             column_colors: [
                 Color::Rgb(253, 151, 31),
                 Color::Rgb(102, 217, 239),
