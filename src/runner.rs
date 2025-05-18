@@ -55,6 +55,10 @@ struct Args {
     #[arg(long, value_name = "column_name")]
     echo_column: Option<String>,
 
+    /// Whether to display each column in a different color
+    #[arg(long, alias = "colorful", visible_alias = "colorful")]
+    color_columns: bool,
+
     /// Show stats for debugging
     #[clap(long)]
     debug: bool,
@@ -75,6 +79,7 @@ impl From<Args> for CsvlensOptions {
             echo_column: args.echo_column,
             debug: args.debug,
             freeze_cols_offset: None,
+            color_columns: args.color_columns,
         }
     }
 }
@@ -93,6 +98,7 @@ pub struct CsvlensOptions {
     pub echo_column: Option<String>,
     pub debug: bool,
     pub freeze_cols_offset: Option<u64>,
+    pub color_columns: bool,
 }
 
 struct AppRunner {
@@ -177,6 +183,7 @@ pub fn run_csvlens_with_options(options: CsvlensOptions) -> CsvlensResult<Option
         options.filter,
         options.find,
         options.freeze_cols_offset,
+        options.color_columns,
     )?;
 
     let mut app_runner = AppRunner::new(app);

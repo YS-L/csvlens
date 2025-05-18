@@ -8,6 +8,7 @@ pub struct Theme {
     pub found: Color,
     pub found_selected_bg: Color,
     pub status: Color,
+    pub column_colors: [Color; 5],
 }
 
 impl Theme {
@@ -20,6 +21,13 @@ impl Theme {
             found: Color::Rgb(200, 0, 0),
             found_selected_bg: Color::LightYellow,
             status: Color::Rgb(128, 128, 128),
+            column_colors: [
+                Color::Rgb(253, 151, 31),
+                Color::Rgb(102, 217, 239),
+                Color::Rgb(190, 132, 255),
+                Color::Rgb(249, 38, 114),
+                Color::Rgb(230, 219, 116),
+            ],
         }
     }
 }
