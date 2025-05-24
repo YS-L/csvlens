@@ -14,6 +14,6 @@ pub enum InputMode {
 
 impl fmt::Display for InputMode {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?}", self)
+        write!(f, "{self:?}")
     }
 }
