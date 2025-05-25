@@ -259,10 +259,10 @@ impl CsvLensReader {
                         next_wanted = indices_iter.next();
                     }
                     // stop parsing if done scanning whole block between marked positions
-                    if let Some(pos) = next_pos
-                        && record_position >= pos.record()
-                    {
-                        break;
+                    if let Some(pos) = next_pos {
+                        if record_position >= pos.record() {
+                            break;
+                        }
                     }
                 } else {
                     // no more records
