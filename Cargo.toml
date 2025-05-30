@@ -28,6 +28,7 @@ sorted-vec = "0.8"
 arboard = { version = "3.5", default-features = false, features = ["wayland-data-control"], optional = true }
 thiserror = "2"
 terminal-colorsaurus = "0.4.8"
+ansi-to-tui = "7.0.0"
 
 [target.'cfg(windows)'.dependencies]
 crossterm = "0.28"

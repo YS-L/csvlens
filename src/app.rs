@@ -175,6 +175,7 @@ impl App {
         find_regex: Option<String>,
         freeze_cols_offset: Option<u64>,
         color_columns: bool,
+        prompt: Option<String>,
     ) -> CsvlensResult<Self> {
         let input_handler = InputHandler::new();
 
@@ -213,6 +214,7 @@ impl App {
             &echo_column,
             ignore_case,
             color_columns,
+            prompt,
         );
 
         let finder: Option<find::Finder> = None;
@@ -933,6 +935,7 @@ mod tests {
                 self.find_regex,
                 None,
                 false,
+                None,
             )
         }
 
