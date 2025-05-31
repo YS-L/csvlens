@@ -70,12 +70,30 @@ Key | Action
 
 * `--columns <regex>`: Use this regex to select columns to display by default.
 
+  Example: `"column1|column2"` matches `"column1"`, `"column2"`, and also column names like
+  `"column11"`, `"column22"`.
+
 * `--filter <regex>`: Use this regex to filter rows to display by default.
+
+  The regex is matched against each cell in every column.
+
+  Example: `"value1|value2"` filters rows with any cells containing `"value1"`, `"value2"`, or text
+  like `"my_value1"` or `"value234"`.
 
 * `--find <regex>`: Use this regex to find and highlight matches by default.
 
+  The regex is matched against each cell in every column.
+
+  Example: `"value1|value2"` highlights text in any cells containing `"value1"`, `"value2"`, or
+  longer text like `"value1_ok"`.
+
 * `--echo-column <column_name>`: Print the value of this column at the selected
   row to stdout on `Enter` key and then exit.
+
+* `--prompt <prompt>`: Show a custom prompt message in the status bar. Supports ANSI escape codes
+  for colored or styled text.
+
+* `--color-columns` (or `--colorful`): Display each column in a different color.
 
 ## Installation
 
