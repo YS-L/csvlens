@@ -1,3 +1,11 @@
+# v0.13.0
+
+* Add `--color-columns` to display each column in a different color (#39)
+* Add `--prompt` to show a custom prompt message in the status bar (#135)
+* Expose freeze columns option in library usage (#124 by @jqnatividad)
+* Improve visibility of line numbers and borders
+* Add `aarch64` release targets (#55)
+
 # v0.12.0
 
 * Freeze first `n` columns when scrolling via `f<n>` (#62, #117)
