@@ -36,14 +36,27 @@ struct Args {
     no_headers: bool,
 
     /// Use this regex to select columns to display by default
+    ///
+    /// Example: "column1|column2" matches "column1", "column2", and also column names like
+    /// "column11", "column22".
     #[arg(long, value_name = "regex")]
     columns: Option<String>,
 
     /// Use this regex to filter rows to display by default
+    ///
+    /// The regex is matched against each cell in every column.
+    ///
+    /// Example: "value1|value2" filters rows with any cells containing "value1", "value2", or text
+    /// like "my_value1" or "value234".
     #[arg(long, value_name = "regex")]
     filter: Option<String>,
 
     /// Use this regex to find and highlight matches by default
+    ///
+    /// The regex is matched against each cell in every column.
+    ///
+    /// Example: "value1|value2" highlights text in any cells containing "value1", "value2", or
+    /// longer text like "value1_ok".
     #[arg(long, value_name = "regex")]
     find: Option<String>,
 
@@ -59,7 +72,8 @@ struct Args {
     #[arg(long, alias = "colorful", visible_alias = "colorful")]
     color_columns: bool,
 
-    /// Show a custom prompt message in the status bar. Supports ANSI escape codes for colored or styled text.
+    /// Show a custom prompt message in the status bar. Supports ANSI escape codes for colored or
+    /// styled text.
     #[arg(long, value_name = "prompt")]
     prompt: Option<String>,
 
