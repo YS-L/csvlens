@@ -31,6 +31,20 @@ const NUM_SPACES_AFTER_LINE_NUMBER: u16 = 2;
 const NUM_SPACES_BETWEEN_COLUMNS: u16 = 4;
 const MAX_COLUMN_WIDTH_FRACTION: f32 = 0.3;
 
+pub fn set_line_safe(
+    buf: &mut Buffer,
+    x: u16,
+    y: u16,
+    line: &Line<'_>,
+    max_width: u16,
+) -> Option<(u16, u16)> {
+    if y < buf.area.bottom() {
+        Some(buf.set_line(x, y, line, max_width))
+    } else {
+        None
+    }
+}
+
 #[derive(Debug)]
 pub struct ColumnWidthOverrides {
     overrides: HashMap<usize, u16>,
@@ -653,7 +667,7 @@ impl<'a> CsvTable<'a> {
                     line.spans
                         .push(Span::styled(" ".repeat(padding_width), filler_style.style));
                 }
-                buf.set_line(x, y + offset, &line, width);
+                set_line_safe(buf, x, y + offset, &line, width);
             } else {
                 // There are extra vertical spaces that are just empty lines. Fill them with the
                 // correct style.
@@ -670,7 +684,7 @@ impl<'a> CsvTable<'a> {
                     content = format!("{SUFFIX}{}", truncated_content.as_str());
                 }
                 let span = Span::styled(content, filler_style.style);
-                buf.set_line(x, y + offset, &Line::from(vec![span]), width);
+                set_line_safe(buf, x, y + offset, &Line::from(vec![span]), width);
             }
         }
     }

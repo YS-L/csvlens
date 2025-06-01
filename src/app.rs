@@ -2465,4 +2465,97 @@ mod tests {
         ];
         assert_eq!(lines, expected);
     }
+
+    #[test]
+    fn test_degenerate_height_0() {
+        let mut app = AppBuilder::new("tests/data/cities.csv")
+            .prompt("City, city everywhere!")
+            .build()
+            .unwrap();
+        till_app_ready(&app);
+
+        let backend = TestBackend::new(50, 0);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        step_and_draw(&mut app, &mut terminal, Control::Nothing);
+        let actual_buffer = terminal.backend().buffer().clone();
+        let lines = to_lines(&actual_buffer);
+        let expected = vec![""];
+        assert_eq!(lines, expected);
+    }
+
+    #[test]
+    fn test_degenerate_height_1() {
+        let mut app = AppBuilder::new("tests/data/cities.csv")
+            .prompt("City, city everywhere!")
+            .build()
+            .unwrap();
+        till_app_ready(&app);
+
+        let backend = TestBackend::new(50, 1);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        step_and_draw(&mut app, &mut terminal, Control::Nothing);
+        let actual_buffer = terminal.backend().buffer().clone();
+        let lines = to_lines(&actual_buffer);
+        let expected = vec!["──────────────────────────────────────────────────"];
+        assert_eq!(lines, expected);
+    }
+
+    #[test]
+    fn test_degenerate_height_2() {
+        let mut app = AppBuilder::new("tests/data/cities.csv")
+            .prompt("City, city everywhere!")
+            .build()
+            .unwrap();
+        till_app_ready(&app);
+
+        let backend = TestBackend::new(50, 2);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        step_and_draw(&mut app, &mut terminal, Control::Nothing);
+        let actual_buffer = terminal.backend().buffer().clone();
+        let lines = to_lines(&actual_buffer);
+        let expected = vec![
+            "──────────────────────────────────────────────────",
+            "City, city everywhere! [Row -/128, Col 1/10]L…    ",
+        ];
+        assert_eq!(lines, expected);
+    }
+
+    #[test]
+    fn test_degenerate_width_0() {
+        let mut app = AppBuilder::new("tests/data/cities.csv")
+            .prompt("City, city everywhere!")
+            .build()
+            .unwrap();
+        till_app_ready(&app);
+
+        let backend = TestBackend::new(0, 10);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        step_and_draw(&mut app, &mut terminal, Control::Nothing);
+        let actual_buffer = terminal.backend().buffer().clone();
+        let lines = to_lines(&actual_buffer);
+        let expected = vec!["", "", "", "", "", "", "", "", "", ""];
+        assert_eq!(lines, expected);
+    }
+
+    #[test]
+    fn test_degenerate_width_1() {
+        let mut app = AppBuilder::new("tests/data/cities.csv")
+            .prompt("City, city everywhere!")
+            .build()
+            .unwrap();
+        till_app_ready(&app);
+
+        let backend = TestBackend::new(1, 10);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        step_and_draw(&mut app, &mut terminal, Control::Nothing);
+        let actual_buffer = terminal.backend().buffer().clone();
+        let lines = to_lines(&actual_buffer);
+        let expected = vec!["─", " ", "─", "1", "2", "3", "4", "5", " ", "C"];
+        assert_eq!(lines, expected);
+    }
 }
