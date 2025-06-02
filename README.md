@@ -93,6 +93,11 @@ Key | Action
 * `--prompt <prompt>`: Show a custom prompt message in the status bar. Supports ANSI escape codes
   for colored or styled text.
 
+  Example:
+  ```bash
+  csvlens Pokemon.csv --prompt $'\e[1m\e[32mSelect a Pokémon!\e[0m'
+  ```
+
 * `--color-columns` (or `--colorful`): Display each column in a different color.
 
 ## Installation
