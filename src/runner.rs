@@ -4,6 +4,8 @@ use crate::errors::CsvlensResult;
 use crate::io::SeekableFile;
 
 #[cfg(feature = "cli")]
+use clap::ValueEnum;
+#[cfg(feature = "cli")]
 use clap::{Parser, command};
 use crossterm::execute;
 use crossterm::terminal::{
@@ -15,6 +17,24 @@ use std::ffi::OsString;
 use std::io::LineWriter;
 use std::panic;
 use std::thread::panicking;
+
+#[cfg(feature = "cli")]
+#[derive(Debug, Clone, ValueEnum)]
+#[clap(rename_all = "lower")]
+pub enum ClapWrapMode {
+    Chars,
+    Words,
+}
+
+#[cfg(feature = "cli")]
+impl From<ClapWrapMode> for WrapMode {
+    fn from(mode: ClapWrapMode) -> Self {
+        match mode {
+            ClapWrapMode::Chars => WrapMode::Chars,
+            ClapWrapMode::Words => WrapMode::Words,
+        }
+    }
+}
 
 #[cfg(feature = "cli")]
 #[derive(Parser, Debug)]
@@ -80,6 +100,10 @@ struct Args {
     /// Show stats for debugging
     #[clap(long)]
     debug: bool,
+
+    /// Set wrapping mode
+    #[arg(long, value_enum, value_name="mode")]
+    pub wrap: Option<ClapWrapMode>,
 }
 
 #[cfg(feature = "cli")]
@@ -99,7 +123,7 @@ impl From<Args> for CsvlensOptions {
             freeze_cols_offset: None,
             color_columns: args.color_columns,
             prompt: args.prompt,
-            wrap_mode: None,
+            wrap_mode: args.wrap.map(From::from),
         }
     }
 }
