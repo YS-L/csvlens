@@ -4,6 +4,8 @@ use crate::errors::CsvlensResult;
 use crate::io::SeekableFile;
 
 #[cfg(feature = "cli")]
+use clap::ArgGroup;
+#[cfg(feature = "cli")]
 use clap::ValueEnum;
 #[cfg(feature = "cli")]
 use clap::{Parser, command};
@@ -27,18 +29,9 @@ pub enum ClapWrapMode {
 }
 
 #[cfg(feature = "cli")]
-impl From<ClapWrapMode> for WrapMode {
-    fn from(mode: ClapWrapMode) -> Self {
-        match mode {
-            ClapWrapMode::Chars => WrapMode::Chars,
-            ClapWrapMode::Words => WrapMode::Words,
-        }
-    }
-}
-
-#[cfg(feature = "cli")]
 #[derive(Parser, Debug)]
 #[command(version)]
+#[command(group(ArgGroup::new("wrap_flags").conflicts_with("wrap")))]
 struct Args {
     /// CSV filename
     filename: Option<String>,
@@ -102,28 +95,56 @@ struct Args {
     debug: bool,
 
     /// Set wrapping mode
-    #[arg(long, value_enum, value_name="mode")]
+    #[arg(long, value_enum, value_name = "mode")]
     pub wrap: Option<ClapWrapMode>,
+
+    /// Shortcut for --wrap=chars (wrap by character count)
+    #[arg(short = 'S', group = "wrap_flags")]
+    pub wrap_chars: bool,
+
+    /// Shortcut for --wrap=words (wrap by word boundaries)
+    #[arg(short = 'W', group = "wrap_flags")]
+    pub wrap_words: bool,
+}
+
+#[cfg(feature = "cli")]
+impl From<&Args> for Option<WrapMode> {
+    fn from(args: &Args) -> Self {
+        if let Some(mode) = &args.wrap {
+            return match mode {
+                ClapWrapMode::Chars => Some(WrapMode::Chars),
+                ClapWrapMode::Words => Some(WrapMode::Words),
+            };
+        } else {
+            if args.wrap_chars {
+                return Some(WrapMode::Chars);
+            }
+            if args.wrap_words {
+                return Some(WrapMode::Words);
+            }
+        }
+        None
+    }
 }
 
 #[cfg(feature = "cli")]
 impl From<Args> for CsvlensOptions {
     fn from(args: Args) -> Self {
         Self {
-            filename: args.filename,
-            delimiter: args.delimiter,
+            filename: args.filename.clone(),
+            delimiter: args.delimiter.clone(),
             tab_separated: args.tab_separated,
             no_headers: args.no_headers,
-            columns: args.columns,
-            filter: args.filter,
-            find: args.find,
+            columns: args.columns.clone(),
+            filter: args.filter.clone(),
+            find: args.find.clone(),
             ignore_case: args.ignore_case,
-            echo_column: args.echo_column,
+            echo_column: args.echo_column.clone(),
             debug: args.debug,
             freeze_cols_offset: None,
             color_columns: args.color_columns,
-            prompt: args.prompt,
-            wrap_mode: args.wrap.map(From::from),
+            prompt: args.prompt.clone(),
+            wrap_mode: (&args).into(),
         }
     }
 }
