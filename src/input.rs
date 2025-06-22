@@ -1,3 +1,4 @@
+use crate::app::WrapMode;
 use crate::common::InputMode;
 use crate::history::BufferHistoryContainer;
 use crate::util::events::{CsvlensEvent, CsvlensEvents};
@@ -37,7 +38,7 @@ pub enum Control {
     Select,
     CopySelection,
     ToggleSelectionType,
-    ToggleLineWrap(bool),
+    ToggleLineWrap(WrapMode),
     ToggleSort,
     Reset,
     Help,
@@ -293,11 +294,11 @@ impl InputHandler {
             }
             KeyCode::Char('S') => {
                 self.reset_buffer();
-                Control::ToggleLineWrap(false)
+                Control::ToggleLineWrap(WrapMode::Chars)
             }
             KeyCode::Char('W') | KeyCode::Char('w') => {
                 self.reset_buffer();
-                Control::ToggleLineWrap(true)
+                Control::ToggleLineWrap(WrapMode::Words)
             }
             KeyCode::Char(x) => {
                 self.reset_buffer();

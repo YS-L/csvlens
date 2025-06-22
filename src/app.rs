@@ -106,28 +106,38 @@ fn get_cols_offset_to_fill_frame_width(
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WrapMode {
+    Chars,
+    Words,
+}
+
 #[derive(Default)]
-pub struct LineWrapState {
-    pub enable_line_wrap: bool,
-    pub is_word_wrap: bool,
+pub enum LineWrapState {
+    LineWrapEnabled(WrapMode),
+    #[default]
+    LineWrapDisabled,
 }
 
 impl LineWrapState {
-    pub fn toggle(&mut self, is_word_wrap: bool) {
-        // Just switch between line wrap and word wrap if already enabled
-        if self.enable_line_wrap && self.is_word_wrap != is_word_wrap {
-            self.is_word_wrap = is_word_wrap;
-            return;
+    pub fn toggle(&mut self, mode: WrapMode) {
+        if let LineWrapState::LineWrapEnabled(current) = self {
+            if *current != mode {
+                // Just switch between line wrap and word wrap if already enabled
+                *self = LineWrapState::LineWrapEnabled(mode);
+            } else {
+                // Toggling the same mode disables line wrap
+                *self = LineWrapState::LineWrapDisabled;
+            }
+        } else {
+            // If currently disabled, just enable it with the specified mode
+            *self = LineWrapState::LineWrapEnabled(mode);
         }
-
-        // Toggle enabling or disabling wrapping
-        self.enable_line_wrap = !self.enable_line_wrap;
-        self.is_word_wrap = is_word_wrap
     }
 
     pub fn transient_message(&self) -> String {
-        if self.enable_line_wrap {
-            if self.is_word_wrap {
+        if let LineWrapState::LineWrapEnabled(mode) = self {
+            if *mode == WrapMode::Words {
                 "Word wrap enabled".to_string()
             } else {
                 "Line wrap enabled".to_string()
@@ -135,6 +145,14 @@ impl LineWrapState {
         } else {
             "Line wrap disabled".to_string()
         }
+    }
+
+    pub fn is_enabled(&self) -> bool {
+        matches!(self, LineWrapState::LineWrapEnabled(_))
+    }
+
+    pub fn is_word_wrap(&self) -> bool {
+        matches!(self, LineWrapState::LineWrapEnabled(WrapMode::Words))
     }
 }
 
@@ -460,8 +478,8 @@ impl App {
             Control::ToggleLineWrap(word_wrap) => {
                 self.csv_table_state.reset_buffer();
                 self.line_wrap_state.toggle(*word_wrap);
-                self.csv_table_state.enable_line_wrap = self.line_wrap_state.enable_line_wrap;
-                self.csv_table_state.is_word_wrap = self.line_wrap_state.is_word_wrap;
+                self.csv_table_state.enable_line_wrap = self.line_wrap_state.is_enabled();
+                self.csv_table_state.is_word_wrap = self.line_wrap_state.is_word_wrap();
                 self.transient_message
                     .replace(self.line_wrap_state.transient_message());
             }
@@ -1362,7 +1380,7 @@ mod tests {
         let lines = to_lines(&actual_buffer);
         assert_eq!(lines, expected);
 
-        step_and_draw(&mut app, &mut terminal, Control::ToggleLineWrap(false));
+        step_and_draw(&mut app, &mut terminal, Control::ToggleLineWrap(WrapMode::Chars));
         let expected = vec![
             "──────────────────────────────────────────────────",
             "      a    b                      c               ",
@@ -1399,7 +1417,7 @@ mod tests {
         let lines = to_lines(&actual_buffer);
         assert_eq!(lines, expected);
 
-        step_and_draw(&mut app, &mut terminal, Control::ToggleLineWrap(true));
+        step_and_draw(&mut app, &mut terminal, Control::ToggleLineWrap(WrapMode::Words));
         let expected = vec![
             "──────────────────────────────────────────────────",
             "      a    b                      c               ",
@@ -1450,7 +1468,7 @@ mod tests {
         step_and_draw(&mut app, &mut terminal, Control::Nothing);
         step_and_draw(&mut app, &mut terminal, Control::ToggleSelectionType);
         step_and_draw(&mut app, &mut terminal, Control::ScrollRight);
-        step_and_draw(&mut app, &mut terminal, Control::ToggleLineWrap(false));
+        step_and_draw(&mut app, &mut terminal, Control::ToggleLineWrap(WrapMode::Chars));
         step_and_draw(&mut app, &mut terminal, Control::DecreaseWidth);
         step_and_draw(&mut app, &mut terminal, Control::DecreaseWidth);
         step_and_draw(&mut app, &mut terminal, Control::DecreaseWidth);
@@ -1505,7 +1523,7 @@ mod tests {
         let mut terminal = Terminal::new(backend).unwrap();
 
         step_and_draw(&mut app, &mut terminal, Control::Nothing);
-        step_and_draw(&mut app, &mut terminal, Control::ToggleLineWrap(true));
+        step_and_draw(&mut app, &mut terminal, Control::ToggleLineWrap(WrapMode::Words));
         let expected = vec![
             "──────────────────────────────────────────────────",
             "      a    b                      c               ",
@@ -1569,7 +1587,7 @@ mod tests {
         let mut terminal = Terminal::new(backend).unwrap();
 
         step_and_draw(&mut app, &mut terminal, Control::Nothing);
-        step_and_draw(&mut app, &mut terminal, Control::ToggleLineWrap(true));
+        step_and_draw(&mut app, &mut terminal, Control::ToggleLineWrap(WrapMode::Words));
         let expected = vec![
             "──────────────────────────────────────────────────",
             "      a    b                      c               ",
@@ -1659,7 +1677,7 @@ mod tests {
         let lines = to_lines(&actual_buffer);
         assert_eq!(lines, expected);
 
-        step_and_draw(&mut app, &mut terminal, Control::ToggleLineWrap(true));
+        step_and_draw(&mut app, &mut terminal, Control::ToggleLineWrap(WrapMode::Words));
         let expected = vec![
             "──────────────────────────────────────────────────",
             "      a    b                      c               ",
