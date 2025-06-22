@@ -1,4 +1,4 @@
-use crate::app::App;
+use crate::app::{App, WrapMode};
 use crate::delimiter::Delimiter;
 use crate::errors::CsvlensResult;
 use crate::io::SeekableFile;
@@ -99,6 +99,7 @@ impl From<Args> for CsvlensOptions {
             freeze_cols_offset: None,
             color_columns: args.color_columns,
             prompt: args.prompt,
+            wrap_mode: None,
         }
     }
 }
@@ -119,6 +120,7 @@ pub struct CsvlensOptions {
     pub freeze_cols_offset: Option<u64>,
     pub color_columns: bool,
     pub prompt: Option<String>,
+    pub wrap_mode: Option<WrapMode>,
 }
 
 struct AppRunner {
@@ -205,6 +207,7 @@ pub fn run_csvlens_with_options(options: CsvlensOptions) -> CsvlensResult<Option
         options.freeze_cols_offset,
         options.color_columns,
         options.prompt,
+        options.wrap_mode,
     )?;
 
     let mut app_runner = AppRunner::new(app);
