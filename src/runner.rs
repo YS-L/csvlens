@@ -90,10 +90,6 @@ struct Args {
     #[arg(long, value_name = "prompt")]
     prompt: Option<String>,
 
-    /// Show stats for debugging
-    #[clap(long)]
-    debug: bool,
-
     /// Set wrapping mode
     #[arg(long, value_enum, value_name = "mode")]
     pub wrap: Option<ClapWrapMode>,
@@ -105,6 +101,10 @@ struct Args {
     /// Shortcut for --wrap=words (wrap by word boundaries)
     #[arg(short = 'W', group = "wrap_flags")]
     pub wrap_words: bool,
+
+    /// Show stats for debugging
+    #[clap(long)]
+    debug: bool,
 }
 
 #[cfg(feature = "cli")]
