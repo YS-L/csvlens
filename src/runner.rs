@@ -108,18 +108,22 @@ struct Args {
 }
 
 #[cfg(feature = "cli")]
-impl From<&Args> for Option<WrapMode> {
-    fn from(args: &Args) -> Self {
-        if let Some(mode) = &args.wrap {
+impl Args {
+    fn get_wrap_mode(
+        wrap: Option<ClapWrapMode>,
+        wrap_chars: bool,
+        wrap_words: bool,
+    ) -> Option<WrapMode> {
+        if let Some(mode) = wrap {
             return match mode {
                 ClapWrapMode::Chars => Some(WrapMode::Chars),
                 ClapWrapMode::Words => Some(WrapMode::Words),
             };
         } else {
-            if args.wrap_chars {
+            if wrap_chars {
                 return Some(WrapMode::Chars);
             }
-            if args.wrap_words {
+            if wrap_words {
                 return Some(WrapMode::Words);
             }
         }
@@ -131,20 +135,20 @@ impl From<&Args> for Option<WrapMode> {
 impl From<Args> for CsvlensOptions {
     fn from(args: Args) -> Self {
         Self {
-            filename: args.filename.clone(),
-            delimiter: args.delimiter.clone(),
+            filename: args.filename,
+            delimiter: args.delimiter,
             tab_separated: args.tab_separated,
             no_headers: args.no_headers,
-            columns: args.columns.clone(),
-            filter: args.filter.clone(),
-            find: args.find.clone(),
+            columns: args.columns,
+            filter: args.filter,
+            find: args.find,
             ignore_case: args.ignore_case,
-            echo_column: args.echo_column.clone(),
+            echo_column: args.echo_column,
             debug: args.debug,
             freeze_cols_offset: None,
             color_columns: args.color_columns,
-            prompt: args.prompt.clone(),
-            wrap_mode: (&args).into(),
+            prompt: args.prompt,
+            wrap_mode: Args::get_wrap_mode(args.wrap, args.wrap_chars, args.wrap_words),
         }
     }
 }
