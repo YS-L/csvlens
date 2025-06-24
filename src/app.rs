@@ -106,62 +106,44 @@ fn get_cols_offset_to_fill_frame_width(
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum WrapMode {
     Chars,
     Words,
-}
-
-#[derive(Default)]
-pub enum LineWrapState {
-    LineWrapEnabled(WrapMode),
     #[default]
-    LineWrapDisabled,
+    Disabled,
 }
 
-impl LineWrapState {
+impl WrapMode {
     pub fn toggle(&mut self, mode: WrapMode) {
-        if let LineWrapState::LineWrapEnabled(current) = self {
-            if *current != mode {
-                // Just switch between line wrap and word wrap if already enabled
-                *self = LineWrapState::LineWrapEnabled(mode);
-            } else {
+        if self.is_enabled() {
+            if *self == mode {
                 // Toggling the same mode disables line wrap
-                *self = LineWrapState::LineWrapDisabled;
+                *self = WrapMode::Disabled;
+            } else {
+                // Just switch between line wrap and word wrap if already enabled
+                *self = mode;
             }
         } else {
             // If currently disabled, just enable it with the specified mode
-            *self = LineWrapState::LineWrapEnabled(mode);
+            *self = mode;
         }
     }
 
     pub fn transient_message(&self) -> String {
-        if let LineWrapState::LineWrapEnabled(mode) = self {
-            if *mode == WrapMode::Words {
-                "Word wrap enabled".to_string()
-            } else {
-                "Line wrap enabled".to_string()
-            }
-        } else {
-            "Line wrap disabled".to_string()
+        match self {
+            WrapMode::Chars => "Line wrap enabled".to_string(),
+            WrapMode::Words => "Word wrap enabled".to_string(),
+            WrapMode::Disabled => "Line wrap disabled".to_string(),
         }
     }
 
     pub fn is_enabled(&self) -> bool {
-        matches!(self, LineWrapState::LineWrapEnabled(_))
+        !matches!(self, WrapMode::Disabled)
     }
 
     pub fn is_word_wrap(&self) -> bool {
-        matches!(self, LineWrapState::LineWrapEnabled(WrapMode::Words))
-    }
-}
-
-impl From<Option<WrapMode>> for LineWrapState {
-    fn from(mode: Option<WrapMode>) -> Self {
-        match mode {
-            Some(m) => LineWrapState::LineWrapEnabled(m),
-            None => LineWrapState::LineWrapDisabled,
-        }
+        matches!(self, WrapMode::Words)
     }
 }
 
@@ -182,7 +164,7 @@ pub struct App {
     help_page_state: help::HelpPageState,
     sorter: Option<Arc<sort::Sorter>>,
     sort_order: SortOrder,
-    line_wrap_state: LineWrapState,
+    wrap_mode: WrapMode,
     #[cfg(feature = "clipboard")]
     clipboard: Result<Clipboard>,
 }
@@ -275,7 +257,7 @@ impl App {
             help_page_state,
             sorter: None,
             sort_order: SortOrder::Ascending,
-            line_wrap_state: LineWrapState::default(),
+            wrap_mode: WrapMode::default(),
             #[cfg(feature = "clipboard")]
             clipboard,
         };
@@ -875,13 +857,13 @@ impl App {
     }
 
     fn handle_line_wrap_toggle(&mut self, mode: WrapMode, with_message: bool) {
-        self.line_wrap_state.toggle(mode);
-        self.csv_table_state.enable_line_wrap = self.line_wrap_state.is_enabled();
-        self.csv_table_state.is_word_wrap = self.line_wrap_state.is_word_wrap();
+        self.wrap_mode.toggle(mode);
+        self.csv_table_state.enable_line_wrap = self.wrap_mode.is_enabled();
+        self.csv_table_state.is_word_wrap = self.wrap_mode.is_word_wrap();
         if with_message {
             self.csv_table_state.reset_buffer();
             self.transient_message
-                .replace(self.line_wrap_state.transient_message());
+                .replace(self.wrap_mode.transient_message());
         }
     }
 
