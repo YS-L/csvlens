@@ -59,3 +59,4 @@ mod wrap;
 pub use runner::CsvlensOptions;
 pub use runner::run_csvlens;
 pub use runner::run_csvlens_with_options;
+pub use app::WrapMode;
