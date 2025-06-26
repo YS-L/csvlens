@@ -39,7 +39,8 @@ N (in Find mode)        : Jump to previous result
 TAB                     : Toggle between row, column or cell selection modes
 >                       : Increase selected column's width
 <                       : Decrease selected column's width
-Shift + ↓ (or J)        : Sort rows by the selected column
+Shift + ↓ (or J)        : Sort rows by the selected column (lexicographic)
+Ctrl + J                : Sort rows by the selected column (natural)
 # (in Cell mode)        : Find and highlight rows like the selected cell
 @ (in Cell mode)        : Filter rows like the selected cell
 y                       : Copy the selected row or cell to clipboard
