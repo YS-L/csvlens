@@ -180,6 +180,10 @@ impl Sorter {
         self.column_name.as_str()
     }
 
+    pub fn sort_type(&self) -> SortType {
+        self.sort_type
+    }
+
     pub fn terminate(&self) {
         let mut m = self.internal.lock().unwrap();
         m.terminate();

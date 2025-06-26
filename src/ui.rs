@@ -1140,6 +1140,7 @@ impl SorterState {
             status: sorter.status(),
             column_name: sorter.column_name().to_string(),
             order: sort_order,
+            sort_type: sorter.sort_type(),
         })
     }
 }
@@ -1148,11 +1149,16 @@ struct SorterInfo {
     status: sort::SorterStatus,
     column_name: String,
     order: SortOrder,
+    sort_type: sort::SortType,
 }
 
 impl SorterInfo {
     fn status_line(&self) -> String {
-        let prefix = format!("[Sorting by {}", self.column_name);
+        let sort_type_str = match self.sort_type {
+            sort::SortType::Natural => "Natural",
+            sort::SortType::Lexicographic => "Lexicographic",
+        };
+        let prefix = format!("[{} sort by {}", sort_type_str, self.column_name);
         match &self.status {
             sort::SorterStatus::Running => format!("{prefix}...]").to_string(),
             sort::SorterStatus::Error(error_msg) => {
@@ -1359,5 +1365,34 @@ impl CsvTableState {
         } else {
             self.sorter_state = SorterState::Disabled;
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::sort::{SortType, SorterStatus};
+
+    #[test]
+    fn test_sorter_info_status_line() {
+        let info = SorterInfo {
+            status: SorterStatus::Running,
+            column_name: "test_column".to_string(),
+            order: SortOrder::Ascending,
+            sort_type: SortType::Natural,
+        };
+
+        let status_line = info.status_line();
+        assert!(status_line.contains("Natural sort by test_column"));
+
+        let info_lex = SorterInfo {
+            status: SorterStatus::Running,
+            column_name: "test_column".to_string(),
+            order: SortOrder::Ascending,
+            sort_type: SortType::Lexicographic,
+        };
+
+        let status_line_lex = info_lex.status_line();
+        assert!(status_line_lex.contains("Lexicographic sort by test_column"));
     }
 }
