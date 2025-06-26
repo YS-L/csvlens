@@ -40,10 +40,10 @@ fn natural_cmp(a: &str, b: &str) -> Ordering {
 
     loop {
         // Skip leading whitespace
-        while a_chars.peek().map_or(false, |c| c.is_whitespace()) {
+        while a_chars.peek().is_some_and(|c| c.is_whitespace()) {
             a_chars.next();
         }
-        while b_chars.peek().map_or(false, |c| c.is_whitespace()) {
+        while b_chars.peek().is_some_and(|c| c.is_whitespace()) {
             b_chars.next();
         }
 
@@ -60,8 +60,8 @@ fn natural_cmp(a: &str, b: &str) -> Ordering {
         }
 
         // Check if both characters are digits
-        let a_is_digit = a_chars.peek().map_or(false, |c| c.is_ascii_digit());
-        let b_is_digit = b_chars.peek().map_or(false, |c| c.is_ascii_digit());
+        let a_is_digit = a_chars.peek().is_some_and(|c| c.is_ascii_digit());
+        let b_is_digit = b_chars.peek().is_some_and(|c| c.is_ascii_digit());
 
         if a_is_digit && b_is_digit {
             // Both are digits, compare numerically
