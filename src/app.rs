@@ -107,35 +107,44 @@ fn get_cols_offset_to_fill_frame_width(
     }
 }
 
-#[derive(Default)]
-pub struct LineWrapState {
-    pub enable_line_wrap: bool,
-    pub is_word_wrap: bool,
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum WrapMode {
+    Chars,
+    Words,
+    #[default]
+    Disabled,
 }
 
-impl LineWrapState {
-    pub fn toggle(&mut self, is_word_wrap: bool) {
-        // Just switch between line wrap and word wrap if already enabled
-        if self.enable_line_wrap && self.is_word_wrap != is_word_wrap {
-            self.is_word_wrap = is_word_wrap;
-            return;
+impl WrapMode {
+    pub fn toggle(&mut self, mode: WrapMode) {
+        if self.is_enabled() {
+            if *self == mode {
+                // Toggling the same mode disables line wrap
+                *self = WrapMode::Disabled;
+            } else {
+                // Just switch between line wrap and word wrap if already enabled
+                *self = mode;
+            }
+        } else {
+            // If currently disabled, just enable it with the specified mode
+            *self = mode;
         }
-
-        // Toggle enabling or disabling wrapping
-        self.enable_line_wrap = !self.enable_line_wrap;
-        self.is_word_wrap = is_word_wrap
     }
 
     pub fn transient_message(&self) -> String {
-        if self.enable_line_wrap {
-            if self.is_word_wrap {
-                "Word wrap enabled".to_string()
-            } else {
-                "Line wrap enabled".to_string()
-            }
-        } else {
-            "Line wrap disabled".to_string()
+        match self {
+            WrapMode::Chars => "Line wrap enabled".to_string(),
+            WrapMode::Words => "Word wrap enabled".to_string(),
+            WrapMode::Disabled => "Line wrap disabled".to_string(),
         }
+    }
+
+    pub fn is_enabled(&self) -> bool {
+        !matches!(self, WrapMode::Disabled)
+    }
+
+    pub fn is_word_wrap(&self) -> bool {
+        matches!(self, WrapMode::Words)
     }
 }
 
@@ -156,7 +165,7 @@ pub struct App {
     help_page_state: help::HelpPageState,
     sorter: Option<Arc<sort::Sorter>>,
     sort_order: SortOrder,
-    line_wrap_state: LineWrapState,
+    wrap_mode: WrapMode,
     #[cfg(feature = "clipboard")]
     clipboard: Result<Clipboard>,
     // Value picker state
@@ -182,6 +191,7 @@ impl App {
         freeze_cols_offset: Option<u64>,
         color_columns: bool,
         prompt: Option<String>,
+        wrap_mode: Option<WrapMode>,
     ) -> CsvlensResult<Self> {
         let input_handler = InputHandler::new();
 
@@ -253,7 +263,7 @@ impl App {
             help_page_state,
             sorter: None,
             sort_order: SortOrder::Ascending,
-            line_wrap_state: LineWrapState::default(),
+            wrap_mode: WrapMode::default(),
             #[cfg(feature = "clipboard")]
             clipboard,
             // Value picker state
@@ -275,6 +285,10 @@ impl App {
 
         app.rows_view.set_sort_order(app.sort_order)?;
         app.csv_table_state.debug_stats.show_stats(app.show_stats);
+
+        if let Some(mode) = wrap_mode {
+            app.handle_line_wrap_toggle(mode, false);
+        }
 
         Ok(app)
     }
@@ -513,12 +527,7 @@ impl App {
                 self.rows_view.selection.toggle_selection_type();
             }
             Control::ToggleLineWrap(word_wrap) => {
-                self.csv_table_state.reset_buffer();
-                self.line_wrap_state.toggle(*word_wrap);
-                self.csv_table_state.enable_line_wrap = self.line_wrap_state.enable_line_wrap;
-                self.csv_table_state.is_word_wrap = self.line_wrap_state.is_word_wrap;
-                self.transient_message
-                    .replace(self.line_wrap_state.transient_message());
+                self.handle_line_wrap_toggle(*word_wrap, true);
             }
             Control::ToggleSort => {
                 if let Some(selected_column_index) = self.get_global_selected_column_index() {
@@ -924,6 +933,17 @@ impl App {
         self.rows_view.reset_sorter().unwrap();
     }
 
+    fn handle_line_wrap_toggle(&mut self, mode: WrapMode, with_message: bool) {
+        self.wrap_mode.toggle(mode);
+        self.csv_table_state.enable_line_wrap = self.wrap_mode.is_enabled();
+        self.csv_table_state.is_word_wrap = self.wrap_mode.is_word_wrap();
+        if with_message {
+            self.csv_table_state.reset_buffer();
+            self.transient_message
+                .replace(self.wrap_mode.transient_message());
+        }
+    }
+
     fn render_frame(&mut self, f: &mut Frame) {
         let size = f.area();
 
@@ -1015,6 +1035,7 @@ mod tests {
         filter_regex: Option<String>,
         find_regex: Option<String>,
         prompt: Option<String>,
+        wrap_mode: Option<WrapMode>,
     }
 
     impl AppBuilder {
@@ -1031,6 +1052,7 @@ mod tests {
                 filter_regex: None,
                 find_regex: None,
                 prompt: None,
+                wrap_mode: None,
             }
         }
 
@@ -1049,6 +1071,7 @@ mod tests {
                 None,
                 false,
                 self.prompt,
+                self.wrap_mode,
             )
         }
 
@@ -1084,6 +1107,11 @@ mod tests {
 
         fn prompt(mut self, prompt: &str) -> Self {
             self.prompt = Some(prompt.to_owned());
+            self
+        }
+
+        fn wrap_mode(mut self, wrap_mode: Option<WrapMode>) -> Self {
+            self.wrap_mode = wrap_mode;
             self
         }
     }
@@ -1473,7 +1501,11 @@ mod tests {
         let lines = to_lines(&actual_buffer);
         assert_eq!(lines, expected);
 
-        step_and_draw(&mut app, &mut terminal, Control::ToggleLineWrap(false));
+        step_and_draw(
+            &mut app,
+            &mut terminal,
+            Control::ToggleLineWrap(WrapMode::Chars),
+        );
         let expected = vec![
             "──────────────────────────────────────────────────",
             "      a    b                      c               ",
@@ -1510,7 +1542,11 @@ mod tests {
         let lines = to_lines(&actual_buffer);
         assert_eq!(lines, expected);
 
-        step_and_draw(&mut app, &mut terminal, Control::ToggleLineWrap(true));
+        step_and_draw(
+            &mut app,
+            &mut terminal,
+            Control::ToggleLineWrap(WrapMode::Words),
+        );
         let expected = vec![
             "──────────────────────────────────────────────────",
             "      a    b                      c               ",
@@ -1561,7 +1597,11 @@ mod tests {
         step_and_draw(&mut app, &mut terminal, Control::Nothing);
         step_and_draw(&mut app, &mut terminal, Control::ToggleSelectionType);
         step_and_draw(&mut app, &mut terminal, Control::ScrollRight);
-        step_and_draw(&mut app, &mut terminal, Control::ToggleLineWrap(false));
+        step_and_draw(
+            &mut app,
+            &mut terminal,
+            Control::ToggleLineWrap(WrapMode::Chars),
+        );
         step_and_draw(&mut app, &mut terminal, Control::DecreaseWidth);
         step_and_draw(&mut app, &mut terminal, Control::DecreaseWidth);
         step_and_draw(&mut app, &mut terminal, Control::DecreaseWidth);
@@ -1614,7 +1654,11 @@ mod tests {
         let mut terminal = Terminal::new(backend).unwrap();
 
         step_and_draw(&mut app, &mut terminal, Control::Nothing);
-        step_and_draw(&mut app, &mut terminal, Control::ToggleLineWrap(true));
+        step_and_draw(
+            &mut app,
+            &mut terminal,
+            Control::ToggleLineWrap(WrapMode::Words),
+        );
         let expected = vec![
             "──────────────────────────────────────────────────",
             "      a    b                      c               ",
@@ -1678,7 +1722,11 @@ mod tests {
         let mut terminal = Terminal::new(backend).unwrap();
 
         step_and_draw(&mut app, &mut terminal, Control::Nothing);
-        step_and_draw(&mut app, &mut terminal, Control::ToggleLineWrap(true));
+        step_and_draw(
+            &mut app,
+            &mut terminal,
+            Control::ToggleLineWrap(WrapMode::Words),
+        );
         let expected = vec![
             "──────────────────────────────────────────────────",
             "      a    b                      c               ",
@@ -1768,7 +1816,11 @@ mod tests {
         let lines = to_lines(&actual_buffer);
         assert_eq!(lines, expected);
 
-        step_and_draw(&mut app, &mut terminal, Control::ToggleLineWrap(true));
+        step_and_draw(
+            &mut app,
+            &mut terminal,
+            Control::ToggleLineWrap(WrapMode::Words),
+        );
         let expected = vec![
             "──────────────────────────────────────────────────",
             "      a    b                      c               ",
@@ -1790,6 +1842,35 @@ mod tests {
             "   │                                             │",
             "───┴─────────────────────────────────────────────┴",
             "Word wrap enabled                                 ",
+        ];
+        let actual_buffer = terminal.backend().buffer().clone();
+        let lines = to_lines(&actual_buffer);
+        assert_eq!(lines, expected);
+    }
+
+    #[test]
+    fn test_specify_wrap_mode() {
+        let mut app = AppBuilder::new("tests/data/multi_lines.csv")
+            .wrap_mode(Some(WrapMode::Words))
+            .build()
+            .unwrap();
+        till_app_ready(&app);
+
+        let backend = TestBackend::new(50, 10);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        step_and_draw(&mut app, &mut terminal, Control::Nothing);
+        let expected = vec![
+            "──────────────────────────────────────────────────",
+            "      a    b                      c               ",
+            "───┬─────────────────────────────────────────────┬",
+            "1  │  1    this is a very         12345          │",
+            "   │       long text that                        │",
+            "   │       surely will not                       │",
+            "   │       fit in your small                     │",
+            "   │       screen                                │",
+            "───┴─────────────────────────────────────────────┴",
+            "stdin [Row 1/3, Col 1/3]                          ",
         ];
         let actual_buffer = terminal.backend().buffer().clone();
         let lines = to_lines(&actual_buffer);

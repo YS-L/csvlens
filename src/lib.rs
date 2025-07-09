@@ -56,6 +56,7 @@ mod util;
 mod view;
 mod wrap;
 
+pub use app::WrapMode;
 pub use runner::CsvlensOptions;
 pub use runner::run_csvlens;
 pub use runner::run_csvlens_with_options;

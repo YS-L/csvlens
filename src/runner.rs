@@ -1,8 +1,12 @@
-use crate::app::App;
+use crate::app::{App, WrapMode};
 use crate::delimiter::Delimiter;
 use crate::errors::CsvlensResult;
 use crate::io::SeekableFile;
 
+#[cfg(feature = "cli")]
+use clap::ArgGroup;
+#[cfg(feature = "cli")]
+use clap::ValueEnum;
 #[cfg(feature = "cli")]
 use clap::{Parser, command};
 use crossterm::execute;
@@ -17,8 +21,17 @@ use std::panic;
 use std::thread::panicking;
 
 #[cfg(feature = "cli")]
+#[derive(Debug, Clone, ValueEnum)]
+#[clap(rename_all = "lower")]
+pub enum ClapWrapMode {
+    Chars,
+    Words,
+}
+
+#[cfg(feature = "cli")]
 #[derive(Parser, Debug)]
 #[command(version)]
+#[command(group(ArgGroup::new("wrap_flags").conflicts_with("wrap")))]
 struct Args {
     /// CSV filename
     filename: Option<String>,
@@ -77,9 +90,45 @@ struct Args {
     #[arg(long, value_name = "prompt")]
     prompt: Option<String>,
 
+    /// Set wrapping mode
+    #[arg(long, value_enum, value_name = "mode")]
+    pub wrap: Option<ClapWrapMode>,
+
+    /// Shortcut for --wrap=chars (wrap by character count)
+    #[arg(short = 'S', group = "wrap_flags")]
+    pub wrap_chars: bool,
+
+    /// Shortcut for --wrap=words (wrap by word boundaries)
+    #[arg(short = 'W', group = "wrap_flags")]
+    pub wrap_words: bool,
+
     /// Show stats for debugging
     #[clap(long)]
     debug: bool,
+}
+
+#[cfg(feature = "cli")]
+impl Args {
+    fn get_wrap_mode(
+        wrap: Option<ClapWrapMode>,
+        wrap_chars: bool,
+        wrap_words: bool,
+    ) -> Option<WrapMode> {
+        if let Some(mode) = wrap {
+            return match mode {
+                ClapWrapMode::Chars => Some(WrapMode::Chars),
+                ClapWrapMode::Words => Some(WrapMode::Words),
+            };
+        } else {
+            if wrap_chars {
+                return Some(WrapMode::Chars);
+            }
+            if wrap_words {
+                return Some(WrapMode::Words);
+            }
+        }
+        None
+    }
 }
 
 #[cfg(feature = "cli")]
@@ -99,6 +148,7 @@ impl From<Args> for CsvlensOptions {
             freeze_cols_offset: None,
             color_columns: args.color_columns,
             prompt: args.prompt,
+            wrap_mode: Args::get_wrap_mode(args.wrap, args.wrap_chars, args.wrap_words),
         }
     }
 }
@@ -119,6 +169,7 @@ pub struct CsvlensOptions {
     pub freeze_cols_offset: Option<u64>,
     pub color_columns: bool,
     pub prompt: Option<String>,
+    pub wrap_mode: Option<WrapMode>,
 }
 
 struct AppRunner {
@@ -205,6 +256,7 @@ pub fn run_csvlens_with_options(options: CsvlensOptions) -> CsvlensResult<Option
         options.freeze_cols_offset,
         options.color_columns,
         options.prompt,
+        options.wrap_mode,
     )?;
 
     let mut app_runner = AppRunner::new(app);
