@@ -953,6 +953,15 @@ impl App {
             return;
         }
 
+        // Render value picker; if so exit early.
+        if self.input_handler.mode() == InputMode::PickValue {
+            if let Some(col) = self.value_picker_column {
+                let col_name = self.rows_view.get_column_name_from_local_index(col);
+                render_value_picker(size, f.buffer_mut(), &self.value_picker_values, self.value_picker_selected, &col_name);
+                return;
+            }
+        }
+
         // Render table
         // TODO: check type of num_rows too big?
         let num_rows_adjusted = size.height.saturating_sub(self.num_rows_not_visible) as u64;
@@ -969,15 +978,6 @@ impl App {
         f.render_stateful_widget(csv_table, size, &mut self.csv_table_state);
         if let Some((x, y)) = self.csv_table_state.cursor_xy {
             f.set_cursor_position(Position::new(x, y));
-        }
-
-        // If in PickValue mode, show the value picker
-        if self.input_handler.mode() == InputMode::PickValue {
-            if let Some(col) = self.value_picker_column {
-                let col_name = self.rows_view.get_column_name_from_local_index(col);
-                render_value_picker(size, f.buffer_mut(), &self.value_picker_values, self.value_picker_selected, &col_name);
-                return;
-            }
         }
     }
 
