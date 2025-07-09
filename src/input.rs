@@ -64,6 +64,7 @@ pub struct InputHandler {
     mode: InputMode,
     buffer_state: BufferState,
     buffer_history_container: BufferHistoryContainer,
+    last_key_event: Option<KeyEvent>,
 }
 
 impl InputHandler {
@@ -73,15 +74,12 @@ impl InputHandler {
             mode: InputMode::Default,
             buffer_state: BufferState::Inactive,
             buffer_history_container: BufferHistoryContainer::new(),
+            last_key_event: None,
         }
     }
 
     pub fn peek_last_key_event(&self) -> Option<KeyEvent> {
-        if let CsvlensEvent::Input(event) = self.events.next().ok()? {
-            Some(event)
-        } else {
-            None
-        }
+        self.last_key_event
     }
 
     pub fn next(&mut self) -> Control {
@@ -114,11 +112,15 @@ impl InputHandler {
             } else {
                 key.modifiers.remove(KeyModifiers::SHIFT);
             }
+            
             if self.is_help_mode() {
+                self.last_key_event = Some(key);
                 return self.handler_help(key);
             } else if self.is_input_buffering() {
+                self.last_key_event = Some(key);
                 return self.handler_buffering(key);
             } else {
+                self.last_key_event = Some(key);
                 return self.handler_default(key);
             }
         }
@@ -214,9 +216,21 @@ impl InputHandler {
         if self.mode == InputMode::PickValue {
             // Up/down/enter for value picker
             match key_event.code {
-                KeyCode::Up => Control::BufferContent(input.clone()), // App will update selection
-                KeyCode::Down => Control::BufferContent(input.clone()),
-                KeyCode::Enter => Control::BufferContent(input.clone()), // App will handle enter
+                KeyCode::Up => {
+                    // Store the key event so the app can access it via peek_last_key_event()
+                    self.last_key_event = Some(key_event);
+                    Control::BufferContent(input.clone())
+                }
+                KeyCode::Down => {
+                    // Store the key event so the app can access it via peek_last_key_event()
+                    self.last_key_event = Some(key_event);
+                    Control::BufferContent(input.clone())
+                }
+                KeyCode::Enter => {
+                    // Store the key event so the app can access it via peek_last_key_event()
+                    self.last_key_event = Some(key_event);
+                    Control::BufferContent(input.clone())
+                }
                 KeyCode::Esc => {
                     self.reset_buffer();
                     Control::BufferReset
@@ -357,6 +371,7 @@ impl InputHandler {
         self.buffer_state = BufferState::Inactive;
         self.buffer_history_container.reset_cursors();
         self.mode = InputMode::Default;
+        self.last_key_event = None;
     }
 
     pub fn mode(&self) -> InputMode {
