@@ -8,6 +8,7 @@ use crate::sort::{SortOrder, Sorter};
 use std::cmp::min;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
+use std::collections::BTreeSet;
 
 struct RowsFilter {
     indices: Vec<u64>,
@@ -684,5 +685,16 @@ impl RowsView {
     #[cfg(test)]
     pub fn wait_internal(&self) {
         self.reader.wait_internal()
+    }
+
+    /// Returns a sorted Vec of unique values for the given local column index
+    pub fn unique_values_for_column(&self, column_index: usize) -> Vec<String> {
+        let mut set = BTreeSet::new();
+        for row in &self.rows {
+            if let Some(val) = row.fields.get(column_index) {
+                set.insert(val.clone());
+            }
+        }
+        set.into_iter().collect()
     }
 }

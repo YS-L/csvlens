@@ -31,6 +31,7 @@ pub enum Control {
     Filter(String),
     FilterColumns(String),
     FilterLikeCell,
+    FilterByValue(usize, String),
     FreezeColumns(usize),
     Quit,
     BufferContent(Input),
@@ -63,6 +64,7 @@ pub struct InputHandler {
     mode: InputMode,
     buffer_state: BufferState,
     buffer_history_container: BufferHistoryContainer,
+    last_key_event: Option<KeyEvent>,
 }
 
 impl InputHandler {
@@ -72,7 +74,12 @@ impl InputHandler {
             mode: InputMode::Default,
             buffer_state: BufferState::Inactive,
             buffer_history_container: BufferHistoryContainer::new(),
+            last_key_event: None,
         }
+    }
+
+    pub fn peek_last_key_event(&self) -> Option<KeyEvent> {
+        self.last_key_event
     }
 
     pub fn next(&mut self) -> Control {
@@ -105,11 +112,15 @@ impl InputHandler {
             } else {
                 key.modifiers.remove(KeyModifiers::SHIFT);
             }
+            
             if self.is_help_mode() {
+                self.last_key_event = Some(key);
                 return self.handler_help(key);
             } else if self.is_input_buffering() {
+                self.last_key_event = Some(key);
                 return self.handler_buffering(key);
             } else {
+                self.last_key_event = Some(key);
                 return self.handler_default(key);
             }
         }
@@ -166,6 +177,10 @@ impl InputHandler {
                 KeyCode::Char('#') => Control::FindLikeCell,
                 KeyCode::Char('@') => Control::FilterLikeCell,
                 KeyCode::Char('y') => Control::CopySelection,
+                KeyCode::Char('v') => {
+                    self.init_buffer(crate::common::InputMode::PickValue);
+                    Control::empty_buffer()
+                }
                 _ => Control::Nothing,
             },
             KeyModifiers::SHIFT => match key_event.code {
@@ -198,90 +213,116 @@ impl InputHandler {
         if self.mode == InputMode::Option {
             return self.handler_buffering_option_mode(key_event);
         }
-        match key_event.code {
-            KeyCode::Esc => {
-                self.reset_buffer();
-                Control::BufferReset
-            }
-            KeyCode::Char('g' | 'G') | KeyCode::Enter if self.mode == InputMode::GotoLine => {
-                self.buffer_history_container.set(self.mode, input.value());
-                let goto_line = match &self.buffer_state {
-                    BufferState::Active(input) => input.value().parse::<usize>().ok(),
-                    BufferState::Inactive => None,
-                };
-                let res = if let Some(n) = goto_line {
-                    Control::ScrollTo(n)
-                } else {
+        if self.mode == InputMode::PickValue {
+            // Up/down/enter for value picker
+            match key_event.code {
+                KeyCode::Up => {
+                    // Store the key event so the app can access it via peek_last_key_event()
+                    self.last_key_event = Some(key_event);
+                    Control::BufferContent(input.clone())
+                }
+                KeyCode::Down => {
+                    // Store the key event so the app can access it via peek_last_key_event()
+                    self.last_key_event = Some(key_event);
+                    Control::BufferContent(input.clone())
+                }
+                KeyCode::Enter => {
+                    // Store the key event so the app can access it via peek_last_key_event()
+                    self.last_key_event = Some(key_event);
+                    Control::BufferContent(input.clone())
+                }
+                KeyCode::Esc => {
+                    self.reset_buffer();
                     Control::BufferReset
-                };
-                self.reset_buffer();
-                res
+                }
+                _ => Control::Nothing,
             }
-            KeyCode::Up => {
-                let mode = match self.mode {
-                    InputMode::Filter => InputMode::Find,
-                    _ => self.mode,
-                };
-                if let Some(buf) = self.buffer_history_container.prev(mode) {
-                    self.buffer_state = BufferState::Active(Input::new(buf.clone()));
-                    Control::BufferContent(Input::new(buf))
-                } else {
+        } else {
+            match key_event.code {
+                KeyCode::Esc => {
+                    self.reset_buffer();
+                    Control::BufferReset
+                }
+                KeyCode::Char('g' | 'G') | KeyCode::Enter if self.mode == InputMode::GotoLine => {
+                    self.buffer_history_container.set(self.mode, input.value());
+                    let goto_line = match &self.buffer_state {
+                        BufferState::Active(input) => input.value().parse::<usize>().ok(),
+                        BufferState::Inactive => None,
+                    };
+                    let res = if let Some(n) = goto_line {
+                        Control::ScrollTo(n)
+                    } else {
+                        Control::BufferReset
+                    };
+                    self.reset_buffer();
+                    res
+                }
+                KeyCode::Up => {
+                    let mode = match self.mode {
+                        InputMode::Filter => InputMode::Find,
+                        _ => self.mode,
+                    };
+                    if let Some(buf) = self.buffer_history_container.prev(mode) {
+                        self.buffer_state = BufferState::Active(Input::new(buf.clone()));
+                        Control::BufferContent(Input::new(buf))
+                    } else {
+                        Control::Nothing
+                    }
+                }
+                KeyCode::Down => {
+                    let mode = match self.mode {
+                        InputMode::Filter => InputMode::Find,
+                        _ => self.mode,
+                    };
+                    if let Some(buf) = self.buffer_history_container.next(mode) {
+                        self.buffer_state = BufferState::Active(Input::new(buf.clone()));
+                        Control::BufferContent(Input::new(buf))
+                    } else {
+                        self.buffer_state = BufferState::Active(Input::default());
+                        Control::BufferContent(Input::default())
+                    }
+                }
+                KeyCode::Enter => {
+                    let control;
+                    if input.value().is_empty() {
+                        control = Control::BufferReset;
+                    } else if self.mode == InputMode::Find {
+                        control = Control::Find(input.value().to_string());
+                    } else if self.mode == InputMode::Filter {
+                        control = Control::Filter(input.value().to_string());
+                    } else if self.mode == InputMode::FilterColumns {
+                        control = Control::FilterColumns(input.value().to_string());
+                    } else {
+                        control = Control::BufferReset;
+                    }
+                    if self.mode == InputMode::Filter {
+                        // Share buffer history between Find and Filter, see also KeyCode::Up
+                        self.buffer_history_container
+                            .set(InputMode::Find, input.value());
+                    } else {
+                        self.buffer_history_container.set(self.mode, input.value());
+                    }
+                    self.reset_buffer();
+                    control
+                }
+                _ => {
+                    if input.handle_event(&Event::Key(key_event)).is_some() {
+                        // Parse immediately for FreezeColumns since it should just be a number
+                        let control = if self.mode == InputMode::FreezeColumns {
+                            let control = if let Ok(n) = input.value().parse::<usize>() {
+                                Control::FreezeColumns(n)
+                            } else {
+                                Control::UserError(format!("Invalid number: {}", input.value()))
+                            };
+                            self.reset_buffer();
+                            control
+                        } else {
+                            Control::BufferContent(input.clone())
+                        };
+                        return control;
+                    }
                     Control::Nothing
                 }
-            }
-            KeyCode::Down => {
-                let mode = match self.mode {
-                    InputMode::Filter => InputMode::Find,
-                    _ => self.mode,
-                };
-                if let Some(buf) = self.buffer_history_container.next(mode) {
-                    self.buffer_state = BufferState::Active(Input::new(buf.clone()));
-                    Control::BufferContent(Input::new(buf))
-                } else {
-                    self.buffer_state = BufferState::Active(Input::default());
-                    Control::BufferContent(Input::default())
-                }
-            }
-            KeyCode::Enter => {
-                let control;
-                if input.value().is_empty() {
-                    control = Control::BufferReset;
-                } else if self.mode == InputMode::Find {
-                    control = Control::Find(input.value().to_string());
-                } else if self.mode == InputMode::Filter {
-                    control = Control::Filter(input.value().to_string());
-                } else if self.mode == InputMode::FilterColumns {
-                    control = Control::FilterColumns(input.value().to_string());
-                } else {
-                    control = Control::BufferReset;
-                }
-                if self.mode == InputMode::Filter {
-                    // Share buffer history between Find and Filter, see also KeyCode::Up
-                    self.buffer_history_container
-                        .set(InputMode::Find, input.value());
-                } else {
-                    self.buffer_history_container.set(self.mode, input.value());
-                }
-                self.reset_buffer();
-                control
-            }
-            _ => {
-                if input.handle_event(&Event::Key(key_event)).is_some() {
-                    // Parse immediately for FreezeColumns since it should just be a number
-                    let control = if self.mode == InputMode::FreezeColumns {
-                        let control = if let Ok(n) = input.value().parse::<usize>() {
-                            Control::FreezeColumns(n)
-                        } else {
-                            Control::UserError(format!("Invalid number: {}", input.value()))
-                        };
-                        self.reset_buffer();
-                        control
-                    } else {
-                        Control::BufferContent(input.clone())
-                    };
-                    return control;
-                }
-                Control::Nothing
             }
         }
     }
@@ -326,10 +367,11 @@ impl InputHandler {
         self.mode = mode;
     }
 
-    fn reset_buffer(&mut self) {
+    pub fn reset_buffer(&mut self) {
         self.buffer_state = BufferState::Inactive;
         self.buffer_history_container.reset_cursors();
         self.mode = InputMode::Default;
+        self.last_key_event = None;
     }
 
     pub fn mode(&self) -> InputMode {

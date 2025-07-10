@@ -42,8 +42,15 @@ TAB                     : Toggle between row, column or cell selection modes
 Shift + ↓ (or J)        : Sort rows by the selected column
 # (in Cell mode)        : Find and highlight rows like the selected cell
 @ (in Cell mode)        : Filter rows like the selected cell
+v                       : Open value picker for selected column (shows unique values)
 y                       : Copy the selected row or cell to clipboard
 Enter (in Cell mode)    : Print the selected cell to stdout and exit
+
+# Value picker
+
+↑ ↓                     : Navigate through unique values in the selected column
+Enter                   : Filter rows to show only those with the selected value
+Esc                     : Exit value picker without selecting
 
 # Other options
 
