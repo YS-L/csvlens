@@ -347,10 +347,10 @@ impl RowsView {
     }
 
     pub fn get_row_value(&self) -> Option<(usize, String)> {
-        if let Some(row_index) = self.selection.row.index() {
-            if let Some(row) = self.rows().get(row_index as usize) {
-                return Some((row.record_num, row.fields.join("\t")));
-            }
+        if let Some(row_index) = self.selection.row.index()
+            && let Some(row) = self.rows().get(row_index as usize)
+        {
+            return Some((row.record_num, row.fields.join("\t")));
         }
         None
     }
@@ -378,10 +378,10 @@ impl RowsView {
         let filter = RowsFilter::new(finder, self.rows_from, self.num_rows);
         // only need to reload rows if the currently shown indices changed
         let mut needs_reload = true;
-        if let Some(cur_filter) = &self.filter {
-            if cur_filter.indices == filter.indices {
-                needs_reload = false;
-            }
+        if let Some(cur_filter) = &self.filter
+            && cur_filter.indices == filter.indices
+        {
+            needs_reload = false;
         }
         // but always need to update filter because it holds other states such
         // as total count

@@ -258,12 +258,12 @@ impl<'a> CsvTable<'a> {
         for (i, row) in rows.iter().enumerate() {
             let row_num_formatted = row.record_num.to_string();
             let mut style = Style::default().fg(state.theme.row_number);
-            if let Some(selection) = &state.selection {
-                if selection.row.is_selected(i) {
-                    style = style
-                        .add_modifier(Modifier::BOLD)
-                        .add_modifier(Modifier::UNDERLINED);
-                }
+            if let Some(selection) = &state.selection
+                && selection.row.is_selected(i)
+            {
+                style = style
+                    .add_modifier(Modifier::BOLD)
+                    .add_modifier(Modifier::UNDERLINED);
             }
             let span = Span::styled(row_num_formatted, style);
             buf.set_span(0, y, &span, view_layout.row_number_layout.max_length);
@@ -394,14 +394,15 @@ impl<'a> CsvTable<'a> {
     }
 
     fn get_effective_column_name(&self, column_name: &str, sorter_state: &SorterState) -> String {
-        if let SorterState::Enabled(info) = sorter_state {
-            if info.status == sort::SorterStatus::Finished && info.column_name == column_name {
-                let indicator = match info.order {
-                    SortOrder::Ascending => "▴",
-                    SortOrder::Descending => "▾",
-                };
-                return format!("{} [{}]", column_name, indicator);
-            }
+        if let SorterState::Enabled(info) = sorter_state
+            && info.status == sort::SorterStatus::Finished
+            && info.column_name == column_name
+        {
+            let indicator = match info.order {
+                SortOrder::Ascending => "▴",
+                SortOrder::Descending => "▾",
+            };
+            return format!("{} [{}]", column_name, indicator);
         }
         column_name.to_string()
     }
@@ -449,10 +450,10 @@ impl<'a> CsvTable<'a> {
             }
             if let RowType::Header = row_type {
                 content_style = content_style.add_modifier(Modifier::BOLD);
-                if let Some(selection) = &state.selection {
-                    if selection.column.is_selected(num_cols_rendered as usize) {
-                        content_style = content_style.add_modifier(Modifier::UNDERLINED);
-                    }
+                if let Some(selection) = &state.selection
+                    && selection.column.is_selected(num_cols_rendered as usize)
+                {
+                    content_style = content_style.add_modifier(Modifier::UNDERLINED);
                 }
             }
             let is_selected = if let Some(selection) = &state.selection {
@@ -481,10 +482,11 @@ impl<'a> CsvTable<'a> {
             let should_highlight_cell = |active: &FinderActiveState, content: &str| {
                 // Only highlight the selected column in column selection mode. But header search is
                 // always across all columns regardless of the selection mode.
-                if let Some((target_column_index, _)) = active.column_index {
-                    if target_column_index != col_index && matches!(row_type, RowType::Record(_)) {
-                        return false;
-                    }
+                if let Some((target_column_index, _)) = active.column_index
+                    && target_column_index != col_index
+                    && matches!(row_type, RowType::Record(_))
+                {
+                    return false;
                 }
                 if active.is_filter && matches!(row_type, RowType::Header) {
                     return false;
@@ -499,13 +501,12 @@ impl<'a> CsvTable<'a> {
                     if let Some(found_record) = &active.found_record {
                         match found_record {
                             find::FoundEntry::Row(entry) => {
-                                if let Some(row_index) = row_index {
-                                    if row_index == entry.row_index()
-                                        && entry.column_index() == col_index
-                                    {
-                                        highlight_style = highlight_style
-                                            .bg(state.theme.found_selected_background);
-                                    }
+                                if let Some(row_index) = row_index
+                                    && row_index == entry.row_index()
+                                    && entry.column_index() == col_index
+                                {
+                                    highlight_style =
+                                        highlight_style.bg(state.theme.found_selected_background);
                                 }
                             }
                             find::FoundEntry::Header(entry) => {
@@ -649,15 +650,16 @@ impl<'a> CsvTable<'a> {
             if let Some(mut line) = line_wrapper.next() {
                 // There is some content to render. Truncate with ... if there is no more vertical
                 // space available.
-                if offset == height - 1 && !line_wrapper.finished() {
-                    if let Some(last_span) = line.spans.pop() {
-                        let truncate_length = last_span.width().saturating_sub(SUFFIX_LEN as usize);
-                        let truncated_content: String =
-                            last_span.content.chars().take(truncate_length).collect();
-                        let truncated_span = Span::styled(truncated_content, last_span.style);
-                        line.spans.push(truncated_span);
-                        line.spans.push(Span::styled(SUFFIX, last_span.style));
-                    }
+                if offset == height - 1
+                    && !line_wrapper.finished()
+                    && let Some(last_span) = line.spans.pop()
+                {
+                    let truncate_length = last_span.width().saturating_sub(SUFFIX_LEN as usize);
+                    let truncated_content: String =
+                        last_span.content.chars().take(truncate_length).collect();
+                    let truncated_span = Span::styled(truncated_content, last_span.style);
+                    line.spans.push(truncated_span);
+                    line.spans.push(Span::styled(SUFFIX, last_span.style));
                 }
                 let padding_width = min(
                     (effective_width as usize + buffer_space).saturating_sub(line.width()),

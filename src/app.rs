@@ -212,10 +212,10 @@ impl App {
             rows_view.set_cols_offset_num_freeze(freeze_cols_offset);
         }
 
-        if let Some(column_name) = &echo_column {
-            if !rows_view.headers().iter().any(|h| h.name == *column_name) {
-                return Err(CsvlensError::ColumnNameNotFound(column_name.clone()));
-            }
+        if let Some(column_name) = &echo_column
+            && !rows_view.headers().iter().any(|h| h.name == *column_name)
+        {
+            return Err(CsvlensError::ColumnNameNotFound(column_name.clone()));
         }
 
         let csv_table_state = CsvTableState::new(
@@ -296,10 +296,10 @@ impl App {
                     return Ok(None);
                 }
             }
-            if matches!(control, Control::Select) {
-                if let Some(result) = self.get_selection() {
-                    return Ok(Some(result));
-                }
+            if matches!(control, Control::Select)
+                && let Some(result) = self.get_selection()
+            {
+                return Ok(Some(result));
             }
             if matches!(control, Control::Help) {
                 self.help_page_state.activate();
@@ -414,25 +414,25 @@ impl App {
                 }
             }
             Control::ScrollToNextFound if !self.rows_view.is_filter() => {
-                if let Some(fdr) = self.finder.as_mut() {
-                    if let Some(found_entry) = fdr.next() {
-                        scroll_to_found_entry(
-                            found_entry,
-                            &mut self.rows_view,
-                            &mut self.csv_table_state,
-                        );
-                    }
+                if let Some(fdr) = self.finder.as_mut()
+                    && let Some(found_entry) = fdr.next()
+                {
+                    scroll_to_found_entry(
+                        found_entry,
+                        &mut self.rows_view,
+                        &mut self.csv_table_state,
+                    );
                 }
             }
             Control::ScrollToPrevFound if !self.rows_view.is_filter() => {
-                if let Some(fdr) = self.finder.as_mut() {
-                    if let Some(found_entry) = fdr.prev() {
-                        scroll_to_found_entry(
-                            found_entry,
-                            &mut self.rows_view,
-                            &mut self.csv_table_state,
-                        );
-                    }
+                if let Some(fdr) = self.finder.as_mut()
+                    && let Some(found_entry) = fdr.prev()
+                {
+                    scroll_to_found_entry(
+                        found_entry,
+                        &mut self.rows_view,
+                        &mut self.csv_table_state,
+                    );
                 }
             }
             Control::Find(s) | Control::Filter(s) => {
@@ -576,19 +576,19 @@ impl App {
 
             // Update finder if sorter outdated
             let mut should_create_new_finder = false;
-            if sorter.status() == SorterStatus::Finished {
-                if let Some(finder) = &self.finder {
-                    if let Some(finder_sorter) = finder.sorter() {
-                        // Internal state of finder needs to be rebuilt if sorter is different,
-                        // including sort order.
-                        if finder_sorter.column_index != sorter.column_index
-                            || finder.sort_order != self.sort_order
-                        {
-                            should_create_new_finder = true;
-                        }
-                    } else {
+            if sorter.status() == SorterStatus::Finished
+                && let Some(finder) = &self.finder
+            {
+                if let Some(finder_sorter) = finder.sorter() {
+                    // Internal state of finder needs to be rebuilt if sorter is different,
+                    // including sort order.
+                    if finder_sorter.column_index != sorter.column_index
+                        || finder.sort_order != self.sort_order
+                    {
                         should_create_new_finder = true;
                     }
+                } else {
+                    should_create_new_finder = true;
                 }
             }
             if should_create_new_finder {
@@ -626,10 +626,10 @@ impl App {
                     // i.e. matches in the header row will be highlighted first
 
                     // reset cursor if out of view
-                    if let Some(cursor_row_order) = fdr.cursor_row_order() {
-                        if !self.rows_view.in_view(cursor_row_order as u64) {
-                            fdr.reset_cursor();
-                        }
+                    if let Some(cursor_row_order) = fdr.cursor_row_order()
+                        && !self.rows_view.in_view(cursor_row_order as u64)
+                    {
+                        fdr.reset_cursor();
                     }
 
                     fdr.set_row_hint(find::RowPos::Row(self.rows_view.rows_from() as usize));
@@ -692,10 +692,10 @@ impl App {
     fn get_selection(&self) -> Option<String> {
         if let Some(result) = self.rows_view.get_cell_value_from_selection() {
             return Some(result);
-        } else if let Some(column_name) = &self.echo_column {
-            if let Some(result) = self.rows_view.get_cell_value(column_name) {
-                return Some(result);
-            }
+        } else if let Some(column_name) = &self.echo_column
+            && let Some(result) = self.rows_view.get_cell_value(column_name)
+        {
+            return Some(result);
         };
         None
     }
@@ -807,19 +807,19 @@ impl App {
     }
 
     fn adjust_column_width(&mut self, delta: i16) {
-        if let Some(column_index) = self.get_selected_column_index() {
-            if let Some(view_layout) = &mut self.csv_table_state.view_layout {
-                let current_width = view_layout.column_widths[column_index as usize];
-                let new_width = (current_width as i16).saturating_add(delta);
+        if let Some(column_index) = self.get_selected_column_index()
+            && let Some(view_layout) = &mut self.csv_table_state.view_layout
+        {
+            let current_width = view_layout.column_widths[column_index as usize];
+            let new_width = (current_width as i16).saturating_add(delta);
 
-                if new_width > 0 {
-                    let origin_index = self
-                        .rows_view
-                        .get_column_origin_index(column_index as usize);
-                    self.csv_table_state
-                        .column_width_overrides
-                        .set(origin_index, new_width as u16);
-                }
+            if new_width > 0 {
+                let origin_index = self
+                    .rows_view
+                    .get_column_origin_index(column_index as usize);
+                self.csv_table_state
+                    .column_width_overrides
+                    .set(origin_index, new_width as u16);
             }
         }
     }

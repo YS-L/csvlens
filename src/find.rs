@@ -197,7 +197,7 @@ impl Ord for FoundRow {
 
 impl PartialOrd for FoundRow {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.row_order.cmp(&other.row_order))
+        Some(self.cmp(other))
     }
 }
 
@@ -346,13 +346,13 @@ impl Finder {
                 row: RowPos::Header,
                 column: 0,
             });
-        } else if m_guard.count > 0 {
-            if let RowPos::Row(n) = self.row_hint {
-                self.cursor = Some(FinderCursor {
-                    row: RowPos::Row(m_guard.prev_from(n)),
-                    column: 0,
-                });
-            }
+        } else if m_guard.count > 0
+            && let RowPos::Row(n) = self.row_hint
+        {
+            self.cursor = Some(FinderCursor {
+                row: RowPos::Row(m_guard.prev_from(n)),
+                column: 0,
+            });
         }
         self.get_found_record_at_cursor(&m_guard)
     }
@@ -464,10 +464,10 @@ impl FinderInternalState {
             if let Ok(header) = bg_reader.headers() {
                 let mut local_column_index = 0;
                 for (column_index, field) in header.iter().enumerate() {
-                    if let Some(columns_filter) = &columns_filter {
-                        if !columns_filter.is_column_filtered(column_index) {
-                            continue;
-                        }
+                    if let Some(columns_filter) = &columns_filter
+                        && !columns_filter.is_column_filtered(column_index)
+                    {
+                        continue;
                     }
                     if target.is_match(field) {
                         column_indices.push(local_column_index);
@@ -490,10 +490,10 @@ impl FinderInternalState {
                 if let Ok(valid_record) = r {
                     let mut local_column_index = 0;
                     for (column_index, field) in valid_record.iter().enumerate() {
-                        if let Some(columns_filter) = &columns_filter {
-                            if !columns_filter.is_column_filtered(column_index) {
-                                continue;
-                            }
+                        if let Some(columns_filter) = &columns_filter
+                            && !columns_filter.is_column_filtered(column_index)
+                        {
+                            continue;
                         }
                         let should_check_regex =
                             if let Some(target_local_column_index) = target_local_column_index {
