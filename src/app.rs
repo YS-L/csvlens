@@ -2643,6 +2643,11 @@ mod tests {
 
     #[test]
     fn test_copy_selection_crlf() {
+        // Skip test in CI environments where clipboard is not available
+        if std::env::var("CI").is_ok() {
+            return;
+        }
+
         let mut app = AppBuilder::new("tests/data/cell_with_crlf.csv")
             .build()
             .unwrap();
