@@ -519,10 +519,11 @@ impl App {
             #[cfg(feature = "clipboard")]
             Control::CopySelection => {
                 if let Some(selected) = self.rows_view.get_cell_value_from_selection() {
+                    let selected_cleaned = selected.replace(['\n', '\r'], "");
                     match self.clipboard.as_mut().map(|c| c.set_text(&selected)) {
                         Ok(_) => self
                             .transient_message
-                            .replace(format!("Copied {} to clipboard", selected.as_str())),
+                            .replace(format!("Copied {} to clipboard", selected_cleaned.as_str())),
                         Err(e) => self
                             .transient_message
                             .replace(format!("Failed to copy to clipboard: {e}")),
@@ -2637,6 +2638,37 @@ mod tests {
         let actual_buffer = terminal.backend().buffer().clone();
         let lines = to_lines(&actual_buffer);
         let expected = vec!["─", " ", "─", "1", "2", "3", "4", "5", " ", "C"];
+        assert_eq!(lines, expected);
+    }
+
+    #[test]
+    fn test_copy_selection_crlf() {
+        let mut app = AppBuilder::new("tests/data/cell_with_crlf.csv")
+            .build()
+            .unwrap();
+        till_app_ready(&app);
+
+        let backend = TestBackend::new(50, 10);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        step_and_draw(&mut app, &mut terminal, Control::Nothing);
+        step_and_draw(&mut app, &mut terminal, Control::ToggleSelectionType);
+        step_and_draw(&mut app, &mut terminal, Control::ToggleSelectionType);
+        step_and_draw(&mut app, &mut terminal, Control::CopySelection);
+        let actual_buffer = terminal.backend().buffer().clone();
+        let lines = to_lines(&actual_buffer);
+        let expected = vec![
+            "──────────────────────────────────────────────────",
+            "      column_name                                 ",
+            "───┬─────────────────┬────────────────────────────",
+            "1  │  value 1…       │                            ",
+            "2  │  value 2…       │                            ",
+            "3  │  value 3…       │                            ",
+            "   │                 │                            ",
+            "   │                 │                            ",
+            "───┴─────────────────┴────────────────────────────",
+            "Copied value 1 to clipboard                       ",
+        ];
         assert_eq!(lines, expected);
     }
 }
