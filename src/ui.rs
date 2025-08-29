@@ -21,6 +21,7 @@ use ratatui::widgets::Widget;
 use ratatui::widgets::{Block, Borders, StatefulWidget};
 use regex::Regex;
 use tui_input::Input;
+use ratatui::widgets::Paragraph;
 
 use std::cmp::{max, min};
 use std::collections::HashMap;
@@ -1362,4 +1363,27 @@ impl CsvTableState {
             self.sorter_state = SorterState::Disabled;
         }
     }
+}
+
+/// Render a value picker for PickValue mode
+pub fn render_value_picker(
+    area: Rect,
+    buf: &mut Buffer,
+    values: &[String],
+    selected: usize,
+    column_name: &str,
+) {
+    let block = Block::default().title(format!("Pick value for {column_name}")).borders(Borders::ALL);
+    let inner = block.inner(area);
+    block.render(area, buf);
+    let mut text = Text::default();
+    for (i, value) in values.iter().enumerate() {
+        let style = if i == selected {
+            Style::default().add_modifier(Modifier::REVERSED)
+        } else {
+            Style::default()
+        };
+        text.lines.push(Span::styled(value.clone(), style).into());
+    }
+    Paragraph::new(text).render(inner, buf);
 }

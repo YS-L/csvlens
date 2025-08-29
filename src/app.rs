@@ -8,8 +8,9 @@ use crate::find;
 use crate::help;
 use crate::input::{Control, InputHandler};
 use crate::sort::{self, SortOrder, SorterStatus};
-use crate::ui::{CsvTable, CsvTableState, FilterColumnsState, FinderState};
+use crate::ui::{CsvTable, CsvTableState, FilterColumnsState, FinderState, render_value_picker};
 use crate::view::{self, ColumnsOffset};
+use crate::common::InputMode;
 
 #[cfg(feature = "clipboard")]
 use arboard::Clipboard;
@@ -167,6 +168,11 @@ pub struct App {
     wrap_mode: WrapMode,
     #[cfg(feature = "clipboard")]
     clipboard: Result<Clipboard>,
+    // Value picker state
+    value_picker_active: bool,
+    value_picker_values: Vec<String>,
+    value_picker_selected: usize,
+    value_picker_column: Option<usize>,
 }
 
 impl App {
@@ -260,6 +266,11 @@ impl App {
             wrap_mode: WrapMode::default(),
             #[cfg(feature = "clipboard")]
             clipboard,
+            // Value picker state
+            value_picker_active: false,
+            value_picker_values: Vec::new(),
+            value_picker_selected: 0,
+            value_picker_column: None,
         };
 
         if let Some(pat) = &columns_regex {
@@ -331,6 +342,50 @@ impl App {
         // clear message without changing other states on any action
         if !matches!(control, Control::Nothing) {
             self.transient_message = None;
+        }
+
+        // Enter/exit value picker mode
+        let mode = self.input_handler.mode();
+        if mode == InputMode::PickValue {
+            if !self.value_picker_active {
+                self.enter_value_picker();
+            }
+        } else if self.value_picker_active {
+            self.exit_value_picker();
+        }
+
+        // Handle value picker navigation and selection
+        if mode == InputMode::PickValue {
+            if let Control::BufferContent(_) = control {
+                use crossterm::event::KeyCode;
+                if let Some(ev) = self.input_handler.peek_last_key_event() {
+                    match ev.code {
+                        KeyCode::Up => {
+                            if self.value_picker_selected > 0 {
+                                self.value_picker_selected -= 1;
+                            }
+                        }
+                        KeyCode::Down => {
+                            if self.value_picker_selected + 1 < self.value_picker_values.len() {
+                                self.value_picker_selected += 1;
+                            }
+                        }
+                        KeyCode::Enter => {
+                            if let Some(_col) = self.value_picker_column {
+                                if let Some(val) = self.value_picker_values.get(self.value_picker_selected) {
+                                    let val_clone = val.clone();
+                                    self.input_handler.reset_buffer();
+                                    self.exit_value_picker();
+                                    // Apply the filter control in a separate step
+                                    self.handle_find_or_filter(&val_clone, true, false);
+                                    return Ok(());
+                                }
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
         }
 
         self.rows_view.handle_control(control)?;
@@ -553,6 +608,28 @@ impl App {
             Control::UserError(s) => {
                 self.csv_table_state.reset_buffer();
                 self.transient_message.replace(s.clone());
+            }
+            Control::FilterByValue(column_index, value) => {
+                if value.is_empty() {
+                    self.transient_message = Some("No value selected for filtering".to_string());
+                } else {
+                    // Escape the value for exact match
+                    let regex = self.create_regex(value, true);
+                    match regex {
+                        Ok(target) => {
+                            let sorter = self.sorter.clone();
+                            self.create_finder_with_column_index(
+                                target,
+                                true,
+                                Some(*column_index),
+                                sorter,
+                            );
+                        }
+                        Err(e) => {
+                            self.transient_message = Some(format!("Invalid regex: {e}"));
+                        }
+                    }
+                }
             }
             _ => {}
         }
@@ -877,6 +954,15 @@ impl App {
             return;
         }
 
+        // Render value picker; if so exit early.
+        if self.input_handler.mode() == InputMode::PickValue {
+            if let Some(col) = self.value_picker_column {
+                let col_name = self.rows_view.get_column_name_from_local_index(col);
+                render_value_picker(size, f.buffer_mut(), &self.value_picker_values, self.value_picker_selected, &col_name);
+                return;
+            }
+        }
+
         // Render table
         // TODO: check type of num_rows too big?
         let num_rows_adjusted = size.height.saturating_sub(self.num_rows_not_visible) as u64;
@@ -905,6 +991,31 @@ impl App {
             .debug_stats
             .render_elapsed(Some(start.elapsed()));
         Ok(())
+    }
+
+    fn enter_value_picker(&mut self) {
+        // Only works in cell or column selection mode
+        let col = self.rows_view.selection.column.index().map(|i| i as usize);
+        if let Some(col) = col {
+            let values = self.rows_view.unique_values_for_column(col);
+            self.value_picker_active = true;
+            self.value_picker_values = values;
+            self.value_picker_selected = 0;
+            self.value_picker_column = Some(col);
+        } else {
+            self.value_picker_active = false;
+            self.value_picker_values.clear();
+            self.value_picker_selected = 0;
+            self.value_picker_column = None;
+            self.transient_message = Some("No column selected for value picker".to_string());
+        }
+    }
+
+    fn exit_value_picker(&mut self) {
+        self.value_picker_active = false;
+        self.value_picker_values.clear();
+        self.value_picker_selected = 0;
+        self.value_picker_column = None;
     }
 }
 #[cfg(test)]
