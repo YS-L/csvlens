@@ -1157,10 +1157,10 @@ struct SorterInfo {
 impl SorterInfo {
     fn status_line(&self) -> String {
         let sort_type_str = match self.sort_type {
-            sort::SortType::Natural => "Natural",
-            sort::SortType::Lexicographic => "Lexicographic",
+            sort::SortType::Natural => "natural",
+            sort::SortType::Auto => "auto based on type",
         };
-        let prefix = format!("[{} sort by {}", sort_type_str, self.column_name);
+        let prefix = format!("[Sorting by {} ({})", self.column_name, sort_type_str);
         match &self.status {
             sort::SorterStatus::Running => format!("{prefix}...]").to_string(),
             sort::SorterStatus::Error(error_msg) => {
@@ -1385,16 +1385,16 @@ mod tests {
         };
 
         let status_line = info.status_line();
-        assert!(status_line.contains("Natural sort by test_column"));
+        assert!(status_line.contains("Sorting by test_column (natural)"));
 
         let info_lex = SorterInfo {
             status: SorterStatus::Running,
             column_name: "test_column".to_string(),
             order: SortOrder::Ascending,
-            sort_type: SortType::Lexicographic,
+            sort_type: SortType::Auto,
         };
 
         let status_line_lex = info_lex.status_line();
-        assert!(status_line_lex.contains("Lexicographic sort by test_column"));
+        assert!(status_line_lex.contains("Sorting by test_column (auto based on type)"));
     }
 }

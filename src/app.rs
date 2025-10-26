@@ -502,7 +502,7 @@ impl App {
                             self.shared_config.clone(),
                             selected_column_index as usize,
                             column_name,
-                            sort::SortType::Lexicographic,
+                            sort::SortType::Auto,
                         );
                         self.sorter = Some(Arc::new(_sorter));
                     }

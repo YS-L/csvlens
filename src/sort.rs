@@ -29,7 +29,7 @@ pub enum SortOrder {
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum SortType {
-    Lexicographic,
+    Auto,
     Natural,
 }
 
@@ -244,8 +244,8 @@ impl SorterInternalState {
                 // Use natural sorting
                 run_natural_sort(_m.clone(), config, column_index)
             } else {
-                // Use existing lexicographic sorting
-                run_lexicographic_sort(_m.clone(), config, column_index)
+                // Use auto sorting based on type (numeric for numbers and lexicographic for strings)
+                run_auto_sort(_m.clone(), config, column_index)
             };
 
             let mut m = _m.lock().unwrap();
@@ -341,12 +341,11 @@ fn run_natural_sort(
     })
 }
 
-fn run_lexicographic_sort(
+fn run_auto_sort(
     m: Arc<Mutex<SorterInternalState>>,
     config: Arc<csv::CsvConfig>,
     column_index: usize,
 ) -> CsvlensResult<SortResult> {
-    // Existing lexicographic sorting logic
     let schema = SorterInternalState::infer_schema(config.filename(), config.delimiter())?;
     let file = File::open(config.filename())?;
     let arrow_csv_reader = arrow::csv::ReaderBuilder::new(Arc::new(schema))
@@ -423,7 +422,7 @@ mod tests {
     #[test]
     fn test_simple() {
         let config = Arc::new(csv::CsvConfig::new("tests/data/simple.csv", b',', false));
-        let s = Sorter::new(config, 0, "A1".to_string(), SortType::Lexicographic);
+        let s = Sorter::new(config, 0, "A1".to_string(), SortType::Auto);
         s.wait_internal();
         let rows = s.get_sorted_indices(0, 5, SortOrder::Ascending).unwrap();
         let expected = vec![0, 9, 99, 999, 1000];
@@ -433,7 +432,7 @@ mod tests {
     #[test]
     fn test_descending() {
         let config = Arc::new(csv::CsvConfig::new("tests/data/simple.csv", b',', false));
-        let s = Sorter::new(config, 0, "A1".to_string(), SortType::Lexicographic);
+        let s = Sorter::new(config, 0, "A1".to_string(), SortType::Auto);
         s.wait_internal();
         let rows = s.get_sorted_indices(0, 5, SortOrder::Descending).unwrap();
         let expected = vec![998, 997, 996, 995, 994];
@@ -443,7 +442,7 @@ mod tests {
     #[test]
     fn test_empty() {
         let config = Arc::new(csv::CsvConfig::new("tests/data/empty.csv", b',', false));
-        let s = Sorter::new(config, 1, "b".to_string(), SortType::Lexicographic);
+        let s = Sorter::new(config, 1, "b".to_string(), SortType::Auto);
         s.wait_internal();
         assert_eq!(
             s.status(),
