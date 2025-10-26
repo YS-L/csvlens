@@ -483,7 +483,9 @@ impl App {
                 if let Some(selected_column_index) = self.get_global_selected_column_index() {
                     let mut should_create_new_sorter = false;
                     if let Some(sorter) = &self.sorter {
-                        if selected_column_index as usize != sorter.column_index || desired_sort_type != sorter.sort_type() {
+                        if selected_column_index as usize != sorter.column_index
+                            || desired_sort_type != sorter.sort_type()
+                        {
                             should_create_new_sorter = true;
                         } else {
                             match self.sort_order {
@@ -2067,14 +2069,14 @@ mod tests {
         let lines = to_lines(&actual_buffer);
         let expected = vec![
             "────────────────────────────────────────────────────────────────────────────────",
-            "       name [▴]      value                                                      ",
-            "────┬─────────────────────────┬─────────────────────────────────────────────────",
-            "13  │  appendix      0        │                                                 ",
-            "9   │  chapter1      1        │                                                 ",
-            "11  │  chapter2      2        │                                                 ",
-            "10  │  chapter10     10       │                                                 ",
-            "12  │  chapter20     20       │                                                 ",
-            "────┴─────────────────────────┴─────────────────────────────────────────────────",
+            "       name [▴N]      value                                                     ",
+            "────┬──────────────────────────┬────────────────────────────────────────────────",
+            "13  │  appendix       0        │                                                ",
+            "9   │  chapter1       1        │                                                ",
+            "11  │  chapter2       2        │                                                ",
+            "10  │  chapter10      10       │                                                ",
+            "12  │  chapter20      20       │                                                ",
+            "────┴──────────────────────────┴────────────────────────────────────────────────",
             "stdin [Row 13/13, Col 1/2]                                                      ",
         ];
         assert_eq!(lines, expected);
@@ -2087,14 +2089,14 @@ mod tests {
         let lines = to_lines(&actual_buffer);
         let expected = vec![
             "────────────────────────────────────────────────────────────────────────────────",
-            "      name [▾]      value                                                       ",
-            "───┬─────────────────────────┬──────────────────────────────────────────────────",
-            "8  │  file20.txt    20       │                                                  ",
-            "6  │  file10.txt    10       │                                                  ",
-            "7  │  file2.txt     2        │                                                  ",
-            "5  │  file1.txt     1        │                                                  ",
-            "4  │  disk11        110      │                                                  ",
-            "───┴─────────────────────────┴──────────────────────────────────────────────────",
+            "      name [▾N]      value                                                      ",
+            "───┬──────────────────────────┬─────────────────────────────────────────────────",
+            "8  │  file20.txt     20       │                                                 ",
+            "6  │  file10.txt     10       │                                                 ",
+            "7  │  file2.txt      2        │                                                 ",
+            "5  │  file1.txt      1        │                                                 ",
+            "4  │  disk11         110      │                                                 ",
+            "───┴──────────────────────────┴─────────────────────────────────────────────────",
             "stdin [Row 8/13, Col 1/2]                                                       ",
         ];
         assert_eq!(lines, expected);

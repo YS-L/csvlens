@@ -3,6 +3,7 @@ use crate::csv::Row;
 use crate::find;
 use crate::sort;
 use crate::sort::SortOrder;
+use crate::sort::SortType;
 use crate::theme::Theme;
 use crate::view;
 use crate::view::Header;
@@ -402,7 +403,12 @@ impl<'a> CsvTable<'a> {
                 SortOrder::Ascending => "▴",
                 SortOrder::Descending => "▾",
             };
-            return format!("{} [{}]", column_name, indicator);
+
+            let sort_type_indicator = match info.sort_type {
+                SortType::Natural => "N",
+                _ => "",
+            };
+            return format!("{} [{}{}]", column_name, indicator, sort_type_indicator);
         }
         column_name.to_string()
     }
