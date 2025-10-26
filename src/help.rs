@@ -113,7 +113,7 @@ impl StatefulWidget for HelpPage {
     type State = HelpPageState;
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
-        fn line_to_span(line: &str) -> Span {
+        fn line_to_span(line: &str) -> Span<'_> {
             if line.starts_with("# ") && !line.contains(':') {
                 let header_style = Style::default()
                     .add_modifier(Modifier::BOLD)

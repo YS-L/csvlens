@@ -159,15 +159,14 @@ impl Sorter {
 
     pub fn get_record_order(&self, row_index: u64, order: SortOrder) -> Option<u64> {
         let m_guard = self.internal.lock().unwrap();
-        if let Some(sort_result) = &m_guard.sort_result {
-            if let Some(mut record_order) =
+        if let Some(sort_result) = &m_guard.sort_result
+            && let Some(mut record_order) =
                 sort_result.record_orders.get(row_index as usize).cloned()
-            {
-                if order == SortOrder::Descending {
-                    record_order = sort_result.num_rows() - record_order - 1;
-                }
-                return Some(record_order as u64);
+        {
+            if order == SortOrder::Descending {
+                record_order = sort_result.num_rows() - record_order - 1;
             }
+            return Some(record_order as u64);
         }
         None
     }

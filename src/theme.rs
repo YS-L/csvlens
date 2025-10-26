@@ -1,5 +1,5 @@
 use ratatui::style::Color;
-use terminal_colorsaurus::{ColorScheme, QueryOptions, color_scheme};
+use terminal_colorsaurus::{QueryOptions, ThemeMode, theme_mode};
 
 pub struct Theme {
     pub row_number: Color,
@@ -14,9 +14,9 @@ pub struct Theme {
 
 impl Theme {
     pub fn default() -> Self {
-        match color_scheme(QueryOptions::default()) {
-            Ok(ColorScheme::Dark) => Theme::dark(),
-            Ok(ColorScheme::Light) => Theme::light(),
+        match theme_mode(QueryOptions::default()) {
+            Ok(ThemeMode::Dark) => Theme::dark(),
+            Ok(ThemeMode::Light) => Theme::light(),
             _ => Theme::dark(),
         }
     }
