@@ -571,7 +571,9 @@ impl App {
             if sorter.status() == SorterStatus::Finished {
                 if let Some(rows_view_sorter) = self.rows_view.sorter() {
                     // Sorter can be reused by rows view even if sort order is different.
-                    if rows_view_sorter.column_index != sorter.column_index {
+                    if rows_view_sorter.column_index != sorter.column_index
+                        || rows_view_sorter.sort_type() != sorter.sort_type()
+                    {
                         should_set_rows_view_sorter = true;
                     }
                 } else {
@@ -591,6 +593,7 @@ impl App {
                     // Internal state of finder needs to be rebuilt if sorter is different,
                     // including sort order.
                     if finder_sorter.column_index != sorter.column_index
+                        || finder_sorter.sort_type() != sorter.sort_type()
                         || finder.sort_order != self.sort_order
                     {
                         should_create_new_finder = true;
