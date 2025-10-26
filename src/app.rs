@@ -474,48 +474,16 @@ impl App {
             Control::ToggleLineWrap(word_wrap) => {
                 self.handle_line_wrap_toggle(*word_wrap, true);
             }
-            Control::ToggleSort => {
-                if let Some(selected_column_index) = self.get_global_selected_column_index() {
-                    let mut should_create_new_sorter = false;
-                    if let Some(column_index) = self.sorter.as_ref().map(|s| s.column_index) {
-                        if selected_column_index as usize != column_index {
-                            should_create_new_sorter = true;
-                        } else {
-                            match self.sort_order {
-                                SortOrder::Ascending => {
-                                    self.sort_order = SortOrder::Descending;
-                                }
-                                SortOrder::Descending => {
-                                    self.sort_order = SortOrder::Ascending;
-                                }
-                            }
-                            self.rows_view.set_sort_order(self.sort_order)?;
-                        }
-                    } else {
-                        should_create_new_sorter = true;
-                    }
-                    if should_create_new_sorter {
-                        let column_name = self
-                            .rows_view
-                            .get_column_name_from_global_index(selected_column_index as usize);
-                        let _sorter = sort::Sorter::new(
-                            self.shared_config.clone(),
-                            selected_column_index as usize,
-                            column_name,
-                            sort::SortType::Auto,
-                        );
-                        self.sorter = Some(Arc::new(_sorter));
-                    }
+            Control::ToggleSort | Control::ToggleNaturalSort => {
+                let desired_sort_type = if matches!(control, Control::ToggleNaturalSort) {
+                    sort::SortType::Natural
                 } else {
-                    self.transient_message
-                        .replace("Press TAB and select a column before sorting".to_string());
-                }
-            }
-            Control::ToggleNaturalSort => {
+                    sort::SortType::Auto
+                };
                 if let Some(selected_column_index) = self.get_global_selected_column_index() {
                     let mut should_create_new_sorter = false;
-                    if let Some(column_index) = self.sorter.as_ref().map(|s| s.column_index) {
-                        if selected_column_index as usize != column_index {
+                    if let Some(sorter) = &self.sorter {
+                        if selected_column_index as usize != sorter.column_index || desired_sort_type != sorter.sort_type() {
                             should_create_new_sorter = true;
                         } else {
                             match self.sort_order {
@@ -539,11 +507,9 @@ impl App {
                             self.shared_config.clone(),
                             selected_column_index as usize,
                             column_name,
-                            sort::SortType::Natural,
+                            desired_sort_type,
                         );
                         self.sorter = Some(Arc::new(_sorter));
-                        self.sort_order = SortOrder::Ascending;
-                        self.rows_view.set_sort_order(self.sort_order)?;
                     }
                 } else {
                     self.transient_message
