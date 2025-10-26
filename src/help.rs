@@ -39,8 +39,8 @@ N (in Find mode)        : Jump to previous result
 TAB                     : Toggle between row, column or cell selection modes
 >                       : Increase selected column's width
 <                       : Decrease selected column's width
-Shift + ↓ (or J)        : Sort rows by the selected column (lexicographic)
-Ctrl + J                : Sort rows by the selected column (natural)
+Shift + ↓ (or J)        : Sort rows by the selected column (auto by type: numeric for numbers and lexicographic for text)
+Ctrl + J                : Sort rows by the selected column (natural; e.g. \"file2\" < \"file10\")
 # (in Cell mode)        : Find and highlight rows like the selected cell
 @ (in Cell mode)        : Filter rows like the selected cell
 y                       : Copy the selected row or cell to clipboard
