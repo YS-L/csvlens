@@ -474,11 +474,18 @@ impl App {
             Control::ToggleLineWrap(word_wrap) => {
                 self.handle_line_wrap_toggle(*word_wrap, true);
             }
-            Control::ToggleSort => {
+            Control::ToggleSort | Control::ToggleNaturalSort => {
+                let desired_sort_type = if matches!(control, Control::ToggleNaturalSort) {
+                    sort::SortType::Natural
+                } else {
+                    sort::SortType::Auto
+                };
                 if let Some(selected_column_index) = self.get_global_selected_column_index() {
                     let mut should_create_new_sorter = false;
-                    if let Some(column_index) = self.sorter.as_ref().map(|s| s.column_index) {
-                        if selected_column_index as usize != column_index {
+                    if let Some(sorter) = &self.sorter {
+                        if selected_column_index as usize != sorter.column_index
+                            || desired_sort_type != sorter.sort_type()
+                        {
                             should_create_new_sorter = true;
                         } else {
                             match self.sort_order {
@@ -502,6 +509,7 @@ impl App {
                             self.shared_config.clone(),
                             selected_column_index as usize,
                             column_name,
+                            desired_sort_type,
                         );
                         self.sorter = Some(Arc::new(_sorter));
                     }
@@ -563,7 +571,9 @@ impl App {
             if sorter.status() == SorterStatus::Finished {
                 if let Some(rows_view_sorter) = self.rows_view.sorter() {
                     // Sorter can be reused by rows view even if sort order is different.
-                    if rows_view_sorter.column_index != sorter.column_index {
+                    if rows_view_sorter.column_index != sorter.column_index
+                        || rows_view_sorter.sort_type() != sorter.sort_type()
+                    {
                         should_set_rows_view_sorter = true;
                     }
                 } else {
@@ -583,6 +593,7 @@ impl App {
                     // Internal state of finder needs to be rebuilt if sorter is different,
                     // including sort order.
                     if finder_sorter.column_index != sorter.column_index
+                        || finder_sorter.sort_type() != sorter.sort_type()
                         || finder.sort_order != self.sort_order
                     {
                         should_create_new_finder = true;
@@ -2037,6 +2048,59 @@ mod tests {
             "5  │  43      37      48      N     89      46      11      W     Wisconsin Dells    WI       │     ",
             "───┴──────────────────────────────────────────────────────────────────────────────────────────┴─────",
             "stdin [Row 1/128, Col 1/10]                                                                         ",
+        ];
+        assert_eq!(lines, expected);
+    }
+
+    #[test]
+    fn test_natural_sorting() {
+        let mut app = AppBuilder::new("tests/data/natural_sort.csv")
+            .build()
+            .unwrap();
+        till_app_ready(&app);
+
+        let backend = TestBackend::new(80, 10);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        step_and_draw(&mut app, &mut terminal, Control::ToggleSelectionType);
+        // Select the name column (first column, no need to scroll)
+        step_and_draw(&mut app, &mut terminal, Control::ToggleNaturalSort);
+        till_app_ready(&app);
+        step_and_draw(&mut app, &mut terminal, Control::Nothing);
+
+        let actual_buffer = terminal.backend().buffer().clone();
+        let lines = to_lines(&actual_buffer);
+        let expected = vec![
+            "────────────────────────────────────────────────────────────────────────────────",
+            "       name [▴N]      value                                                     ",
+            "────┬──────────────────────────┬────────────────────────────────────────────────",
+            "13  │  appendix       0        │                                                ",
+            "9   │  chapter1       1        │                                                ",
+            "11  │  chapter2       2        │                                                ",
+            "10  │  chapter10      10       │                                                ",
+            "12  │  chapter20      20       │                                                ",
+            "────┴──────────────────────────┴────────────────────────────────────────────────",
+            "stdin [Row 13/13, Col 1/2]                                                      ",
+        ];
+        assert_eq!(lines, expected);
+
+        // Check descending
+        step_and_draw(&mut app, &mut terminal, Control::ToggleNaturalSort);
+        till_app_ready(&app);
+        step_and_draw(&mut app, &mut terminal, Control::Nothing);
+        let actual_buffer = terminal.backend().buffer().clone();
+        let lines = to_lines(&actual_buffer);
+        let expected = vec![
+            "────────────────────────────────────────────────────────────────────────────────",
+            "      name [▾N]      value                                                      ",
+            "───┬──────────────────────────┬─────────────────────────────────────────────────",
+            "8  │  file20.txt     20       │                                                 ",
+            "6  │  file10.txt     10       │                                                 ",
+            "7  │  file2.txt      2        │                                                 ",
+            "5  │  file1.txt      1        │                                                 ",
+            "4  │  disk11         110      │                                                 ",
+            "───┴──────────────────────────┴─────────────────────────────────────────────────",
+            "stdin [Row 8/13, Col 1/2]                                                       ",
         ];
         assert_eq!(lines, expected);
     }
