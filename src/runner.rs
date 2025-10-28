@@ -44,6 +44,10 @@ struct Args {
     #[clap(short = 't', long)]
     tab_separated: bool,
 
+    /// Use comma separation. Shortcut for -d ','.
+    #[clap(short = 'c', long)]
+    comma_separated: bool,
+
     /// Do not interpret the first row as headers.
     #[clap(long)]
     no_headers: bool,
@@ -138,6 +142,7 @@ impl From<Args> for CsvlensOptions {
             filename: args.filename,
             delimiter: args.delimiter,
             tab_separated: args.tab_separated,
+            comma_separated: args.comma_separated,
             no_headers: args.no_headers,
             columns: args.columns,
             filter: args.filter,
@@ -159,6 +164,7 @@ pub struct CsvlensOptions {
     pub filename: Option<String>,
     pub delimiter: Option<String>,
     pub tab_separated: bool,
+    pub comma_separated: bool,
     pub no_headers: bool,
     pub columns: Option<String>,
     pub filter: Option<String>,
@@ -237,7 +243,11 @@ impl Drop for AppRunner {
 /// ```
 pub fn run_csvlens_with_options(options: CsvlensOptions) -> CsvlensResult<Option<String>> {
     let show_stats = options.debug;
-    let delimiter = Delimiter::from_arg(&options.delimiter, options.tab_separated)?;
+    let delimiter = Delimiter::from_arg(
+        &options.delimiter,
+        options.tab_separated,
+        options.comma_separated,
+    )?;
 
     let file = SeekableFile::new(&options.filename)?;
     let filename = file.filename();

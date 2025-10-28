@@ -196,10 +196,10 @@ impl App {
         let num_rows = 50 - num_rows_not_visible;
 
         let delimiter = match delimiter {
-            Delimiter::Default => b',',
+            Delimiter::Comma => b',',
             Delimiter::Tab => b'\t',
             Delimiter::Character(d) => d,
-            Delimiter::Auto => sniff_delimiter(filename).unwrap_or(b','),
+            Delimiter::Default | Delimiter::Auto => sniff_delimiter(filename).unwrap_or(b','),
         };
         let config = csv::CsvConfig::new(filename, delimiter, no_headers);
         let shared_config = Arc::new(config);
@@ -1275,6 +1275,7 @@ mod tests {
         // Test getting column widths should not fail on data with bad formatting (some rows having
         // more fields than the header)
         let mut app = AppBuilder::new("tests/data/bad_double_quote.csv")
+            .delimiter(Delimiter::Comma)
             .build()
             .unwrap();
         till_app_ready(&app);
@@ -1302,7 +1303,10 @@ mod tests {
 
     #[test]
     fn test_extra_fields_right_most_border() {
-        let mut app = AppBuilder::new("tests/data/bad_73.csv").build().unwrap();
+        let mut app = AppBuilder::new("tests/data/bad_73.csv")
+            .delimiter(Delimiter::Comma)
+            .build()
+            .unwrap();
         till_app_ready(&app);
 
         let backend = TestBackend::new(35, 10);
@@ -1329,7 +1333,7 @@ mod tests {
     #[test]
     fn test_sniff_delimiter() {
         let mut app = AppBuilder::new("tests/data/small.bsv")
-            .delimiter(Delimiter::Auto)
+            .delimiter(Delimiter::Default)
             .build()
             .unwrap();
         till_app_ready(&app);
@@ -2562,6 +2566,7 @@ mod tests {
     #[test]
     fn test_irregular_filter_columns_then_rows() {
         let mut app = AppBuilder::new("tests/data/irregular_more_fields.csv")
+            .delimiter(Delimiter::Comma)
             .build()
             .unwrap();
         till_app_ready(&app);

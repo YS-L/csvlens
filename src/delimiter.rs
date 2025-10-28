@@ -2,8 +2,11 @@ use crate::errors::{CsvlensError, CsvlensResult};
 
 /// Delimiter behaviour as specified in the command line
 pub enum Delimiter {
-    /// Use the default delimiter (comma)
+    /// Use the default delimiter (auto detect)
     Default,
+
+    /// Comma delimiter
+    Comma,
 
     /// Use tab as the delimiter
     Tab,
@@ -17,7 +20,14 @@ pub enum Delimiter {
 
 impl Delimiter {
     /// Create a Delimiter by parsing the command line argument for the delimiter
-    pub fn from_arg(delimiter_arg: &Option<String>, tab_separation: bool) -> CsvlensResult<Self> {
+    pub fn from_arg(
+        delimiter_arg: &Option<String>,
+        tab_separation: bool,
+        comma_separation: bool,
+    ) -> CsvlensResult<Self> {
+        if comma_separation {
+            return Ok(Delimiter::Comma);
+        }
         if tab_separation {
             return Ok(Delimiter::Tab);
         }
