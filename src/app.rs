@@ -2106,6 +2106,59 @@ mod tests {
     }
 
     #[test]
+    fn test_toggle_auto_vs_natural_sorting() {
+        let mut app = AppBuilder::new("tests/data/natural_sort.csv")
+            .build()
+            .unwrap();
+        till_app_ready(&app);
+
+        let backend = TestBackend::new(80, 10);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        step_and_draw(&mut app, &mut terminal, Control::ToggleSelectionType);
+        // Select the name column (first column, no need to scroll)
+        step_and_draw(&mut app, &mut terminal, Control::ToggleNaturalSort);
+        till_app_ready(&app);
+        step_and_draw(&mut app, &mut terminal, Control::Nothing);
+
+        let actual_buffer = terminal.backend().buffer().clone();
+        let lines = to_lines(&actual_buffer);
+        let expected = vec![
+            "────────────────────────────────────────────────────────────────────────────────",
+            "       name [▴N]      value                                                     ",
+            "────┬──────────────────────────┬────────────────────────────────────────────────",
+            "13  │  appendix       0        │                                                ",
+            "9   │  chapter1       1        │                                                ",
+            "11  │  chapter2       2        │                                                ",
+            "10  │  chapter10      10       │                                                ",
+            "12  │  chapter20      20       │                                                ",
+            "────┴──────────────────────────┴────────────────────────────────────────────────",
+            "stdin [Row 13/13, Col 1/2]                                                      ",
+        ];
+        assert_eq!(lines, expected);
+
+        // Check toggling back to auto sorting
+        step_and_draw(&mut app, &mut terminal, Control::ToggleSort);
+        till_app_ready(&app);
+        step_and_draw(&mut app, &mut terminal, Control::Nothing);
+        let actual_buffer = terminal.backend().buffer().clone();
+        let lines = to_lines(&actual_buffer);
+        let expected = vec![
+            "────────────────────────────────────────────────────────────────────────────────",
+            "       name [▴]      value                                                      ",
+            "────┬─────────────────────────┬─────────────────────────────────────────────────",
+            "13  │  appendix      0        │                                                 ",
+            "9   │  chapter1      1        │                                                 ",
+            "10  │  chapter10     10       │                                                 ",
+            "11  │  chapter2      2        │                                                 ",
+            "12  │  chapter20     20       │                                                 ",
+            "────┴─────────────────────────┴─────────────────────────────────────────────────",
+            "stdin [Row 13/13, Col 1/2]                                                      ",
+        ];
+        assert_eq!(lines, expected);
+    }
+
+    #[test]
     fn test_sorting_with_filter() {
         let mut app = AppBuilder::new("tests/data/cities.csv").build().unwrap();
         till_app_ready(&app);
