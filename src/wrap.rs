@@ -30,8 +30,13 @@ impl<'a> LineWrapper<'a> {
             if let Some(s) = self.pending.take() {
                 span = Some(s);
             } else if self.index < self.spans.len() {
-                span = Some(self.spans.get(self.index).cloned().unwrap());
-                self.index += 1;
+                match self.spans.get(self.index).cloned() {
+                    Some(_span) => {
+                        span = Some(_span);
+                        self.index += 1;
+                    }
+                    None => {}
+                }
             }
             if let Some(span) = span {
                 let chars_count = span.content.chars().count();
