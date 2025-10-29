@@ -727,7 +727,7 @@ impl App {
         column_index: Option<usize>,
         sorter: Option<Arc<sort::Sorter>>,
     ) {
-        let _finder = find::Finder::new(
+        let mut finder = find::Finder::new(
             self.shared_config.clone(),
             target,
             column_index,
@@ -736,17 +736,25 @@ impl App {
             self.columns_filter.clone(),
         )
         .unwrap();
-        self.finder = Some(_finder);
         if is_filter {
             self.rows_view.set_rows_from(0).unwrap();
-            self.rows_view
-                .set_filter(self.finder.as_ref().unwrap())
-                .unwrap();
+            self.rows_view.set_filter(&finder).unwrap();
         } else {
             // will scroll to first result below once ready
             self.first_found_scrolled = false;
             self.rows_view.reset_filter().unwrap();
+
+            // finder always searches from the beginning, but here row hint is set to the selected
+            // row so finder.next() will retrieve the next match after the selected row. Except when
+            // the very first row is selected, in which case the result will yield from the very
+            // top including the header row.
+            if let Some(selected_offset) = self.rows_view.selected_offset()
+                && selected_offset > 0
+            {
+                finder.set_row_hint(find::RowPos::Row(selected_offset as usize));
+            }
         }
+        self.finder = Some(finder);
     }
 
     fn create_regex(&mut self, s: &str, escape: bool) -> std::result::Result<Regex, regex::Error> {
@@ -1264,6 +1272,43 @@ mod tests {
             "5  │  Wisconsin Dells    WI       │                                             ",
             "───┴──────────────────────────────┴─────────────────────────────────────────────",
             "stdin [Row 1/128, Col 1/2] [Filter \"(?i)city|state|wa\": 2/10 cols] [ignore-case]",
+        ];
+        let actual_buffer = terminal.backend().buffer().clone();
+        let lines = to_lines(&actual_buffer);
+        assert_eq!(lines, expected);
+    }
+
+    #[test]
+    fn test_find_from_row_cursor() {
+        let mut app = AppBuilder::new("tests/data/simple.csv").build().unwrap();
+        till_app_ready(&app);
+
+        let backend = TestBackend::new(30, 10);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        // scroll down for a bit before finding
+        step_and_draw(&mut app, &mut terminal, Control::Nothing);
+        for _ in 0..2 {
+            step_and_draw(&mut app, &mut terminal, Control::ScrollDown);
+        }
+
+        // now find "1", it should not scroll back to A1, but to the next match after the current
+        // row (A10)
+        step_and_draw(&mut app, &mut terminal, Control::Find("1".into()));
+        till_app_ready(&app);
+        step_and_draw(&mut app, &mut terminal, Control::ScrollToNextFound);
+
+        let expected = vec![
+            "──────────────────────────────",
+            "       a      b               ",
+            "────┬────────────────┬────────",
+            "10  │  A10    B10    │        ",
+            "11  │  A11    B11    │        ",
+            "12  │  A12    B12    │        ",
+            "13  │  A13    B13    │        ",
+            "14  │  A14    B14    │        ",
+            "────┴────────────────┴────────",
+            "stdin [Row 12/5000, Col 1/2] [",
         ];
         let actual_buffer = terminal.backend().buffer().clone();
         let lines = to_lines(&actual_buffer);
