@@ -430,6 +430,8 @@ struct FinderInternalState {
     founds: SortedVec<FoundRow>,
     done: bool,
     should_terminate: bool,
+    start: Instant,
+    first_match_elapsed: Option<Duration>,
     elapsed: Option<Duration>,
 }
 
@@ -448,6 +450,8 @@ impl FinderInternalState {
             founds: SortedVec::new(),
             done: false,
             should_terminate: false,
+            start: Instant::now(),
+            first_match_elapsed: None,
             elapsed: None,
         };
 
@@ -484,7 +488,6 @@ impl FinderInternalState {
             // note that records() excludes header
             let records = bg_reader.records();
 
-            let start = Instant::now();
             for (row_index, r) in records.enumerate() {
                 let mut column_indices = vec![];
                 if let Ok(valid_record) = r {
@@ -530,13 +533,16 @@ impl FinderInternalState {
 
             let mut m = _m.lock().unwrap();
             m.done = true;
-            m.elapsed = Some(start.elapsed());
+            m.elapsed = Some(m.start.elapsed());
         });
 
         m_state
     }
 
     fn found_one(&mut self, found: FoundRow) {
+        if self.first_match_elapsed.is_none() {
+            self.first_match_elapsed = Some(self.start.elapsed());
+        }
         self.founds.push(found);
         self.count += 1;
     }

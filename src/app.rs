@@ -21,7 +21,7 @@ use anyhow::Result;
 use regex::Regex;
 use std::cmp::min;
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 fn get_offsets_to_make_visible(
     found_record: &find::FoundEntry,
@@ -145,6 +145,17 @@ impl WrapMode {
     pub fn is_word_wrap(&self) -> bool {
         matches!(self, WrapMode::Words)
     }
+}
+
+fn poll_finder_first_match(finder: &find::Finder, timeout: Duration) -> bool {
+    let start = Instant::now();
+    while start.elapsed() < timeout {
+        if finder.found_any() {
+            return true;
+        }
+        std::thread::sleep(Duration::from_millis(1));
+    }
+    false
 }
 
 pub struct App {
@@ -736,6 +747,15 @@ impl App {
             self.columns_filter.clone(),
         )
         .unwrap();
+
+        // Instead of calling rows_view.set_filter() right away, wait for a bit until the first
+        // match. Otherwise, it's almost guaranteed that no match will be found yet and the view
+        // port becomes empty and comes back again in the next tick at rate of 250ms. This appears
+        // as flickering. Also do this even when not filtering so jumping to first match is faster.
+        // For most small files, 5ms should be sufficient to prevent flickering while not
+        // introducing visible delays.
+        poll_finder_first_match(&finder, Duration::from_millis(5));
+
         if is_filter {
             self.rows_view.set_rows_from(0).unwrap();
             self.rows_view.set_filter(&finder).unwrap();
