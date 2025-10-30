@@ -662,16 +662,7 @@ impl App {
         }
 
         // update rows and elapsed time if there are new results
-        self.csv_table_state
-            .debug_stats
-            .rows_view_perf(self.rows_view.perf_stats());
-        if let Some(fdr) = &self.finder {
-            self.csv_table_state
-                .debug_stats
-                .finder_elapsed(fdr.elapsed());
-        } else {
-            self.csv_table_state.debug_stats.finder_elapsed(None);
-        }
+        self.update_debug_stats();
 
         // TODO: is this update too late?
         self.csv_table_state
@@ -709,6 +700,21 @@ impl App {
         // self.csv_table_state.debug = format!("cols_offset: {:?}", self.rows_view.cols_offset());
 
         Ok(())
+    }
+
+    fn update_debug_stats(&mut self) {
+        let debug_stats = &mut self.csv_table_state.debug_stats;
+        debug_stats.rows_view_perf(self.rows_view.perf_stats());
+        if let Some(fdr) = &self.finder {
+            debug_stats.finder_elapsed(fdr.elapsed());
+        } else {
+            debug_stats.finder_elapsed(None);
+        }
+        if let Some(sorter) = &self.sorter {
+            debug_stats.sorter_elapsed(sorter.elapsed());
+        } else {
+            debug_stats.sorter_elapsed(None);
+        }
     }
 
     fn get_selection(&self) -> Option<String> {

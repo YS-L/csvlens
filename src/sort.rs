@@ -6,6 +6,8 @@ use std::fs::File;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::thread::{self};
+use std::time::Duration;
+use std::time::Instant;
 
 use arrow::array::{Array, ArrayIter};
 use arrow::compute::concat;
@@ -183,6 +185,10 @@ impl Sorter {
         self.sort_type
     }
 
+    pub fn elapsed(&self) -> Option<Duration> {
+        (self.internal.lock().unwrap()).elapsed
+    }
+
     pub fn terminate(&self) {
         let mut m = self.internal.lock().unwrap();
         m.terminate();
@@ -223,6 +229,8 @@ struct SorterInternalState {
     status: SorterStatus,
     should_terminate: bool,
     done: bool,
+    start: Instant,
+    elapsed: Option<Duration>,
 }
 
 impl SorterInternalState {
@@ -236,6 +244,8 @@ impl SorterInternalState {
             status: SorterStatus::Running,
             should_terminate: false,
             done: false,
+            start: Instant::now(),
+            elapsed: None,
         }));
 
         let _m = m_state.clone();
@@ -256,6 +266,7 @@ impl SorterInternalState {
                 m.status = SorterStatus::Error(sort_result.err().unwrap().to_string());
             }
             m.done = true;
+            m.elapsed = Some(m.start.elapsed());
         });
 
         m_state

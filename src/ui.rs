@@ -1187,6 +1187,7 @@ pub struct DebugStats {
     show_stats: bool,
     rows_view_stats: Option<crate::view::PerfStats>,
     finder_elapsed: Option<Duration>,
+    sorter_elapsed: Option<Duration>,
     render_elapsed: Option<Duration>,
 }
 
@@ -1196,6 +1197,7 @@ impl DebugStats {
             show_stats: false,
             rows_view_stats: None,
             finder_elapsed: None,
+            sorter_elapsed: None,
             render_elapsed: None,
         }
     }
@@ -1210,6 +1212,10 @@ impl DebugStats {
 
     pub fn finder_elapsed(&mut self, elapsed: Option<Duration>) {
         self.finder_elapsed = elapsed;
+    }
+
+    pub fn sorter_elapsed(&mut self, elapsed: Option<Duration>) {
+        self.sorter_elapsed = elapsed;
     }
 
     pub fn render_elapsed(&mut self, elapsed: Option<Duration>) {
@@ -1238,6 +1244,9 @@ impl DebugStats {
         }
         if let Some(elapsed) = self.finder_elapsed {
             line += format!(" finder:{:.3}ms", elapsed.as_micros() as f64 / 1000.0).as_str();
+        }
+        if let Some(elapsed) = self.sorter_elapsed {
+            line += format!(" sorter:{:.3}ms", elapsed.as_micros() as f64 / 1000.0).as_str();
         }
         if let Some(elapsed) = self.render_elapsed {
             line += format!(" render:{:.3}ms", elapsed.as_micros() as f64 / 1000.0).as_str();
