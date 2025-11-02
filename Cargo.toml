@@ -21,7 +21,7 @@ anyhow = "1.0"
 clap = { version = "4.5", features = ["derive", "wrap_help"], optional = true }
 tempfile = "3"
 regex = "1"
-csv-sniffer = "0.3.1"
+qsv-sniffer = "0.11.0"
 tui-input = { version = "0.13", features = ["crossterm"] }
 arrow = {version = "56", default-features = false, features = ["csv"]}
 sorted-vec = "0.8"
