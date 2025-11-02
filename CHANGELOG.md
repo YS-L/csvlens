@@ -1,4 +1,4 @@
-# unreleased
+# v0.14.0
 
 * Support natural sorting via `Ctrl + j` (#143 by @jqnatividad):
 
@@ -6,7 +6,7 @@
 
 * Add `--wrap chars` (or `-S`) and `--wrap words` (or `-W`) options to set the default wrapping mode
 
-* Make auto-delimiter the default. Use `-c` or `--comma` to force a comma delimiter (#51)
+* Make auto-delimiter the default. Use `-c` or `--comma-separated` to force a comma delimiter (#51)
 
 * Find command now searches from the current cursor (#14)
 
