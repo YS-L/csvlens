@@ -6,7 +6,9 @@
 
 * Add `--wrap chars` (or `-S`) and `--wrap words` (or `-W`) options to set the default wrapping mode
 
-* Make auto-delimiter the default. Use `-c` or `--comma` to force a comma delimiter
+* Make auto-delimiter the default. Use `-c` or `--comma` to force a comma delimiter (#51)
+
+* Find command now searches from the current cursor (#14)
 
 * Reduce flicker at the start of filtering. Before:
 
