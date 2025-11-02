@@ -1,19 +1,22 @@
 # unreleased
 
-* Support natural sort via `Ctrl + j` (#143 by @jqnatividad):
+* Support natural sorting via `Ctrl + j` (#143 by @jqnatividad):
+
   ![natural_sort](.github/demos/0.14.0-natural-sort.png)
 
 * Add `--wrap chars` (or `-S`) and `--wrap words` (or `-W`) options to set the default wrapping mode
 
-* Make auto-delimiter the default option. Use `-c` or `--comma` to force comma delimiter
+* Make auto-delimiter the default. Use `-c` or `--comma` to force a comma delimiter
 
 * Reduce flicker at the start of filtering. Before:
+
   ![reduce_flickering_before](.github/demos/0.14.0-filter-flicker-before.gif)
 
   After:
+
   ![reduce_flickering_after](.github/demos/0.14.0-filter-flicker-after.gif)
 
-* Fix copying cell with CRLF (#151)
+* Fix copying cells containing CRLF (#151)
 
 # v0.13.0
 
