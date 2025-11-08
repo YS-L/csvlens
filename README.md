@@ -161,6 +161,8 @@ Or, build and install from source after cloning this repo:
 cargo install --path $(pwd)
 ```
 
+Requires Rust 1.88.0 or newer.
+
 ## Library Usage
 
 This crate allows you to use csvlens as a library.

@@ -10,6 +10,7 @@ repository = "https://github.com/YS-L/csvlens"
 exclude = [".github/*", "tests/*"]
 keywords = ["cli", "csv", "viewer", "pager", "tui"]
 edition = "2024"
+rust-version = "1.88"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
