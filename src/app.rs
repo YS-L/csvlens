@@ -197,8 +197,10 @@ impl App {
         color_columns: bool,
         prompt: Option<String>,
         wrap_mode: Option<WrapMode>,
+        auto_reload: bool,
     ) -> CsvlensResult<Self> {
-        let input_handler = InputHandler::new();
+        let watch_filename = if auto_reload { Some(filename) } else { None };
+        let input_handler = InputHandler::new(watch_filename);
 
         // Some lines are reserved for plotting headers (3 lines for headers + 2 lines for status bar)
         let num_rows_not_visible: u16 = 5;
@@ -558,6 +560,11 @@ impl App {
                     };
                 }
             }
+            Control::FileChanged => {
+                self.handle_file_changed()?;
+                // self.transient_message
+                //     .replace("File changed on disk, reloaded".to_string());
+            }
             Control::Reset => {
                 self.csv_table_state.column_width_overrides.reset();
                 self.reset_filter();
@@ -838,6 +845,61 @@ impl App {
         self.csv_table_state.reset_buffer();
     }
 
+    fn handle_file_changed(&mut self) -> CsvlensResult<()> {
+        // Recreate finder if any
+        if let Some(finder) = &self.finder {
+            let target = finder.target().clone();
+            self.create_finder_with_column_index(
+                target,
+                self.rows_view.is_filter(),
+                // TODO: this assumes the previous column index is still valid after reload which
+                // might not be true
+                finder.column_index(),
+                None,
+            );
+        }
+
+        // Recreate sorter if any
+        if let Some(sorter) = &self.sorter {
+            let selected_column_index = sorter.column_index as u64;
+            let column_name = self
+                .rows_view
+                .get_column_name_from_global_index(selected_column_index as usize);
+            let desired_sort_type = sorter.sort_type();
+            let _sorter = sort::Sorter::new(
+                self.shared_config.clone(),
+                selected_column_index as usize,
+                column_name,
+                desired_sort_type,
+            );
+            self.sorter = Some(Arc::new(_sorter));
+        }
+
+        // Update reader but preserve other states such as cursor position
+        let csvlens_reader = csv::CsvLensReader::new(self.shared_config.clone())?;
+        let filter_finder = if let Some(finder) = &self.finder
+            && self.rows_view.is_filter()
+        {
+            Some(finder)
+        } else {
+            None
+        };
+        self.rows_view.set_reader(csvlens_reader, filter_finder)?;
+        self.rows_view.reset_sorter()?;
+
+        // Re-apply columns filter if any
+        if let Some(columns_filter) = &self.columns_filter {
+            let columns_filter = Arc::new(ColumnsFilter::new(
+                columns_filter.pattern(),
+                self.rows_view.raw_headers(),
+            ));
+            self.columns_filter = Some(columns_filter.clone());
+            self.rows_view.set_columns_filter(&columns_filter).unwrap();
+        }
+
+        Ok(())
+    }
+
     fn increase_cols_offset(&mut self) {
         if self.csv_table_state.has_more_cols_to_show() {
             // TODO: should this be a &mut method in RowsView that modifies cols_offset directly?
@@ -1007,6 +1069,7 @@ mod tests {
                 false,
                 self.prompt,
                 self.wrap_mode,
+                false,
             )
         }
 

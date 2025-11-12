@@ -106,6 +106,10 @@ struct Args {
     #[arg(short = 'W', group = "wrap_flags")]
     pub wrap_words: bool,
 
+    /// Auto-reload the file when it changes on disk
+    #[clap(long)]
+    pub auto_reload: bool,
+
     /// Show stats for debugging
     #[clap(long)]
     debug: bool,
@@ -154,6 +158,7 @@ impl From<Args> for CsvlensOptions {
             color_columns: args.color_columns,
             prompt: args.prompt,
             wrap_mode: Args::get_wrap_mode(args.wrap, args.wrap_chars, args.wrap_words),
+            auto_reload: args.auto_reload,
         }
     }
 }
@@ -176,6 +181,7 @@ pub struct CsvlensOptions {
     pub color_columns: bool,
     pub prompt: Option<String>,
     pub wrap_mode: Option<WrapMode>,
+    pub auto_reload: bool,
 }
 
 struct AppRunner {
@@ -267,6 +273,7 @@ pub fn run_csvlens_with_options(options: CsvlensOptions) -> CsvlensResult<Option
         options.color_columns,
         options.prompt,
         options.wrap_mode,
+        options.auto_reload,
     )?;
 
     let mut app_runner = AppRunner::new(app);

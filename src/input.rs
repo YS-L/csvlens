@@ -45,6 +45,7 @@ pub enum Control {
     Help,
     UnknownOption(String),
     UserError(String),
+    FileChanged,
     Nothing,
 }
 
@@ -67,9 +68,9 @@ pub struct InputHandler {
 }
 
 impl InputHandler {
-    pub fn new() -> InputHandler {
+    pub fn new(watch_filename: Option<&str>) -> InputHandler {
         InputHandler {
-            events: CsvlensEvents::new(),
+            events: CsvlensEvents::new(watch_filename),
             mode: InputMode::Default,
             buffer_state: BufferState::Inactive,
             buffer_history_container: BufferHistoryContainer::new(),
@@ -77,45 +78,49 @@ impl InputHandler {
     }
 
     pub fn next(&mut self) -> Control {
-        if let CsvlensEvent::Input(mut key) = self.events.next().unwrap() {
-            /*
-            The shift key modifier is not consistent across platforms.
-
-            For upper case alphabets, e.g. 'A'
-
-            Unix: Char("A") + SHIFT
-            Windows: Char("A") + SHIFT
-
-            For non-alphabets, e.g. '>'
-
-            Unix: Char(">") + NULL
-            Windows: Char(">") + SHIFT
-
-            But the key event handling below assumes that the shift key modifier is only added for
-            alphabets. To satisfy the assumption, the following ensures that the presence or absence
-            of shift modifier is consistent across platforms.
-
-            Idea borrowed from: https://github.com/sxyazi/yazi/pull/174
-            */
-            let platform_consistent_shift = match (key.code, key.modifiers) {
-                (KeyCode::Char(c), _) => c.is_ascii_uppercase(),
-                (_, m) => m.contains(KeyModifiers::SHIFT),
-            };
-            if platform_consistent_shift {
-                key.modifiers.insert(KeyModifiers::SHIFT);
-            } else {
-                key.modifiers.remove(KeyModifiers::SHIFT);
-            }
-            if self.is_help_mode() {
-                return self.handler_help(key);
-            } else if self.is_input_buffering() {
-                return self.handler_buffering(key);
-            } else {
-                return self.handler_default(key);
-            }
+        match self.events.next().unwrap() {
+            CsvlensEvent::Input(key) => self.handle_key(key),
+            CsvlensEvent::FileChanged => Control::FileChanged,
+            CsvlensEvent::Tick => Control::Nothing,
         }
-        // tick event, no need to distinguish it for now
-        Control::Nothing
+    }
+
+    fn handle_key(&mut self, mut key: KeyEvent) -> Control {
+        /*
+        The shift key modifier is not consistent across platforms.
+
+        For upper case alphabets, e.g. 'A'
+
+        Unix: Char("A") + SHIFT
+        Windows: Char("A") + SHIFT
+
+        For non-alphabets, e.g. '>'
+
+        Unix: Char(">") + NULL
+        Windows: Char(">") + SHIFT
+
+        But the key event handling below assumes that the shift key modifier is only added for
+        alphabets. To satisfy the assumption, the following ensures that the presence or absence
+        of shift modifier is consistent across platforms.
+
+        Idea borrowed from: https://github.com/sxyazi/yazi/pull/174
+        */
+        let platform_consistent_shift = match (key.code, key.modifiers) {
+            (KeyCode::Char(c), _) => c.is_ascii_uppercase(),
+            (_, m) => m.contains(KeyModifiers::SHIFT),
+        };
+        if platform_consistent_shift {
+            key.modifiers.insert(KeyModifiers::SHIFT);
+        } else {
+            key.modifiers.remove(KeyModifiers::SHIFT);
+        }
+        if self.is_help_mode() {
+            self.handler_help(key)
+        } else if self.is_input_buffering() {
+            self.handler_buffering(key)
+        } else {
+            self.handler_default(key)
+        }
     }
 
     fn handler_default(&mut self, key_event: KeyEvent) -> Control {

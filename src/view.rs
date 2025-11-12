@@ -374,6 +374,21 @@ impl RowsView {
         self.selection.row.set_bound(num_rows_rendered);
     }
 
+    pub fn set_reader(
+        &mut self,
+        reader: CsvLensReader,
+        filter_finder: Option<&find::Finder>,
+    ) -> CsvlensResult<()> {
+        self.reader = reader;
+        self.headers = Self::get_default_headers_from_reader(&self.reader);
+        if let Some(finder) = filter_finder {
+            self.set_filter(finder)?;
+        } else {
+            self.do_get_rows()?;
+        }
+        Ok(())
+    }
+
     pub fn set_filter(&mut self, finder: &find::Finder) -> CsvlensResult<()> {
         let filter = RowsFilter::new(finder, self.rows_from, self.num_rows);
         // only need to reload rows if the currently shown indices changed
