@@ -27,6 +27,7 @@ use std::cmp::{max, min};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
+use std::time::Instant;
 
 const NUM_SPACES_AFTER_LINE_NUMBER: u16 = 2;
 const NUM_SPACES_BETWEEN_COLUMNS: u16 = 4;
@@ -810,6 +811,15 @@ impl<'a> CsvTable<'a> {
                 content += " [ignore-case]";
             }
 
+            // Last autoreload time
+            if let Some(last_autoreload_at) = &state.last_autoreload_at {
+                content += format!(
+                    " [Last reload: {}s ago]",
+                    last_autoreload_at.elapsed().as_secs()
+                )
+                .as_str();
+            }
+
             // Debug
             if !state.debug.is_empty() {
                 content += format!(" (debug: {})", state.debug).as_str();
@@ -1285,6 +1295,7 @@ pub struct CsvTableState {
     pub theme: Theme,
     pub color_columns: bool,
     pub prompt: Option<String>,
+    pub last_autoreload_at: Option<Instant>,
     pub debug: String,
 }
 
@@ -1324,6 +1335,7 @@ impl CsvTableState {
             theme: Theme::default(),
             color_columns,
             prompt,
+            last_autoreload_at: None,
             debug: "".into(),
         }
     }

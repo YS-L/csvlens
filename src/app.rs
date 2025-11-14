@@ -562,8 +562,7 @@ impl App {
             }
             Control::FileChanged => {
                 self.handle_file_changed()?;
-                // self.transient_message
-                //     .replace("File changed on disk, reloaded".to_string());
+                self.csv_table_state.last_autoreload_at = Some(Instant::now());
             }
             Control::Reset => {
                 self.csv_table_state.column_width_overrides.reset();

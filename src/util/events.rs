@@ -1,7 +1,4 @@
-use std::{
-    path::Path,
-    time::Duration,
-};
+use std::{path::Path, time::Duration};
 
 use crossterm::event::{Event, KeyEvent, KeyEventKind, poll, read};
 use notify::RecommendedWatcher;
