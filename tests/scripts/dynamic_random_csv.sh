@@ -24,11 +24,10 @@ header=$(head -n 1 "$INPUT")
 while :; do
   {
     echo "$header"
-    # Shuffle lines using sort -R (works on macOS, Linux, BSD)
     tail -n +2 "$INPUT" | sort -R | head -n "$SAMPLE_SIZE"
   } > "$OUTPUT"
 
-  echo "[dynamic_csv] $(date '+%H:%M:%S') → wrote $SAMPLE_SIZE random rows to $OUTPUT"
+  echo "[dynamic_csv] $(date '+%H:%M:%S'): wrote $SAMPLE_SIZE random rows to $OUTPUT"
 
   sleep "$INTERVAL"
 done

@@ -53,12 +53,6 @@ impl CsvlensEvents {
                 Event::Key(event) if event.kind == KeyEventKind::Press => {
                     Ok(CsvlensEvent::Input(event))
                 }
-                // _ => {
-                //     let time_spent = now.elapsed();
-                //     let rest = self.tick_rate.saturating_sub(time_spent);
-
-                //     Self { tick_rate: rest, watch_filename: self.watch_filename.clone() }.next()
-                // }
                 _ => Ok(CsvlensEvent::Tick),
             },
             Ok(false) => {
