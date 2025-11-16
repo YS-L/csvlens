@@ -200,7 +200,7 @@ impl App {
         auto_reload: bool,
     ) -> CsvlensResult<Self> {
         let watch_filename = if auto_reload { Some(filename) } else { None };
-        let input_handler = InputHandler::new(watch_filename);
+        let input_handler = InputHandler::new(watch_filename)?;
 
         // Some lines are reserved for plotting headers (3 lines for headers + 2 lines for status bar)
         let num_rows_not_visible: u16 = 5;

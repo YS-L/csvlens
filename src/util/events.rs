@@ -4,6 +4,8 @@ use crossterm::event::{Event, KeyEvent, KeyEventKind, poll, read};
 use notify::RecommendedWatcher;
 use notify_debouncer_mini::{DebounceEventResult, Debouncer, new_debouncer};
 
+use crate::errors::CsvlensResult;
+
 pub enum CsvlensEvent<I> {
     Input(I),
     FileChanged,
@@ -24,14 +26,13 @@ pub struct CsvlensEvents {
 }
 
 impl CsvlensEvents {
-    pub fn new(watch_filename: Option<&str>) -> CsvlensEvents {
+    pub fn new(watch_filename: Option<&str>) -> CsvlensResult<CsvlensEvents> {
         let file_watcher = if let Some(filename) = watch_filename {
             let (tx, rx) = std::sync::mpsc::channel();
-            let mut debouncer = new_debouncer(Duration::from_millis(100), tx).unwrap();
+            let mut debouncer = new_debouncer(Duration::from_millis(100), tx)?;
             debouncer
                 .watcher()
-                .watch(Path::new(filename), notify::RecursiveMode::NonRecursive)
-                .unwrap();
+                .watch(Path::new(filename), notify::RecursiveMode::NonRecursive)?;
             Some(FileWatcher {
                 watch_filename: filename.to_string(),
                 rx,
@@ -40,10 +41,10 @@ impl CsvlensEvents {
         } else {
             None
         };
-        CsvlensEvents {
+        Ok(CsvlensEvents {
             tick_rate: Duration::from_millis(250),
             file_watcher,
-        }
+        })
     }
 
     pub fn next(&self) -> std::io::Result<CsvlensEvent<KeyEvent>> {

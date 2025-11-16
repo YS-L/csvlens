@@ -31,4 +31,7 @@ pub enum CsvlensError {
 
     #[error(transparent)]
     Io(#[from] std::io::Error),
+
+    #[error(transparent)]
+    Notify(#[from] notify::Error),
 }
