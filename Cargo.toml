@@ -31,7 +31,7 @@ thiserror = "2"
 terminal-colorsaurus = "1.0"
 ansi-to-tui = "7.0.0"
 notify = "8.2.0"
-notify-debouncer-mini = "0.7.0"
+notify-debouncer-full = "0.6.0"
 
 [target.'cfg(windows)'.dependencies]
 crossterm = "0.28"

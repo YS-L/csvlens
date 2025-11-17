@@ -703,7 +703,8 @@ impl App {
         // if let Some(finder) = &self.finder {
         //     self.csv_table_state.debug = format!("cursor: {:?}", finder.cursor);
         // }
-        // self.csv_table_state.debug = format!("cols_offset: {:?}", self.rows_view.cols_offset());
+        // self.csv_table_state.debug =
+        //     format!("last reload: {:?}", self.csv_table_state.last_autoreload_at);
 
         Ok(())
     }

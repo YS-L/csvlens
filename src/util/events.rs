@@ -2,7 +2,7 @@ use std::{path::Path, time::Duration};
 
 use crossterm::event::{Event, KeyEvent, KeyEventKind, poll, read};
 use notify::RecommendedWatcher;
-use notify_debouncer_mini::{DebounceEventResult, Debouncer, new_debouncer};
+use notify_debouncer_full::{DebounceEventResult, Debouncer, RecommendedCache, new_debouncer};
 
 use crate::errors::CsvlensResult;
 
@@ -15,7 +15,7 @@ pub enum CsvlensEvent<I> {
 struct FileWatcher {
     watch_filename: String,
     rx: std::sync::mpsc::Receiver<DebounceEventResult>,
-    _debouncer: Debouncer<RecommendedWatcher>,
+    _debouncer: Debouncer<RecommendedWatcher, RecommendedCache>,
 }
 
 /// A small event handler that wrap termion input and tick events. Each event
@@ -29,10 +29,8 @@ impl CsvlensEvents {
     pub fn new(watch_filename: Option<&str>) -> CsvlensResult<CsvlensEvents> {
         let file_watcher = if let Some(filename) = watch_filename {
             let (tx, rx) = std::sync::mpsc::channel();
-            let mut debouncer = new_debouncer(Duration::from_millis(100), tx)?;
-            debouncer
-                .watcher()
-                .watch(Path::new(filename), notify::RecursiveMode::NonRecursive)?;
+            let mut debouncer = new_debouncer(Duration::from_millis(100), None, tx)?;
+            debouncer.watch(Path::new(filename), notify::RecursiveMode::NonRecursive)?;
             Some(FileWatcher {
                 watch_filename: filename.to_string(),
                 rx,
@@ -62,8 +60,13 @@ impl CsvlensEvents {
                     let mut file_changed = false;
                     while let Ok(debounced_event) = file_watcher.rx.try_recv() {
                         match debounced_event {
-                            Ok(_) => {
-                                file_changed = true;
+                            Ok(events) => {
+                                for ev in events {
+                                    if let notify::EventKind::Modify(_) = ev.event.kind {
+                                        file_changed = true;
+                                        break;
+                                    }
+                                }
                             }
                             Err(e) => {
                                 eprintln!(
