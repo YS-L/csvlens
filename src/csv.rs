@@ -207,6 +207,7 @@ impl CsvLensReader {
 
         let num_fields = self.headers.len();
 
+        let mut should_stop = false;
         loop {
             if next_wanted.is_none() {
                 break;
@@ -223,7 +224,7 @@ impl CsvLensReader {
                 next_pos = pos_iter.next();
             }
             if let Some(pos) = seek_pos {
-                self.reader.seek(pos)?;
+                self.reader.seek(pos.clone())?;
                 stats.log_seek();
             }
 
@@ -272,6 +273,7 @@ impl CsvLensReader {
                     }
                 } else {
                     // no more records
+                    should_stop = true;
                     break;
                 }
             }
@@ -281,6 +283,12 @@ impl CsvLensReader {
                 // done. If next_wanted is not None, that means an out of bound
                 // index was provided - that could happen for small input - and
                 // we should ignore it and stop here regardless
+                break;
+            }
+
+            if should_stop {
+                // no more records, no point continuing even if there are more marked positions.
+                // This could be caused by out of bound indices or changed file content.
                 break;
             }
         }
