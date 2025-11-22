@@ -10,6 +10,7 @@ use crate::input::{Control, InputHandler};
 use crate::sort::{self, SortOrder, SorterStatus};
 use crate::ui::{CsvTable, CsvTableState, FilterColumnsState, FinderState};
 use crate::view::{self, ColumnsOffset};
+use crate::watch::{FileWatcher, Watcher};
 
 #[cfg(feature = "clipboard")]
 use arboard::Clipboard;
@@ -199,8 +200,12 @@ impl App {
         wrap_mode: Option<WrapMode>,
         auto_reload: bool,
     ) -> CsvlensResult<Self> {
-        let watch_filename = if auto_reload { Some(filename) } else { None };
-        let input_handler = InputHandler::new(watch_filename)?;
+        let watcher = if auto_reload {
+            Some(Arc::new(Watcher::new(filename)?))
+        } else {
+            None
+        };
+        let input_handler = InputHandler::new(watcher.map(FileWatcher::from));
 
         // Some lines are reserved for plotting headers (3 lines for headers + 2 lines for status bar)
         let num_rows_not_visible: u16 = 5;

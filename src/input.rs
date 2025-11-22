@@ -1,8 +1,8 @@
 use crate::app::WrapMode;
 use crate::common::InputMode;
-use crate::errors::CsvlensResult;
 use crate::history::BufferHistoryContainer;
 use crate::util::events::{CsvlensEvent, CsvlensEvents};
+use crate::watch::FileWatcher;
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
 use tui_input::Input;
 use tui_input::backend::crossterm::EventHandler;
@@ -69,13 +69,13 @@ pub struct InputHandler {
 }
 
 impl InputHandler {
-    pub fn new(watch_filename: Option<&str>) -> CsvlensResult<InputHandler> {
-        Ok(InputHandler {
-            events: CsvlensEvents::new(watch_filename)?,
+    pub fn new(file_watcher: Option<FileWatcher>) -> InputHandler {
+        InputHandler {
+            events: CsvlensEvents::new(file_watcher),
             mode: InputMode::Default,
             buffer_state: BufferState::Inactive,
             buffer_history_container: BufferHistoryContainer::new(),
-        })
+        }
     }
 
     pub fn next(&mut self) -> Control {

@@ -54,6 +54,7 @@ mod theme;
 mod ui;
 mod util;
 mod view;
+mod watch;
 mod wrap;
 
 pub use app::WrapMode;
