@@ -30,6 +30,7 @@ arboard = { version = "3.6", default-features = false, features = ["wayland-data
 thiserror = "2"
 terminal-colorsaurus = "1.0"
 ansi-to-tui = "7.0.0"
+clap-cargo = "0.18.3"
 
 [target.'cfg(windows)'.dependencies]
 crossterm = "0.28"
