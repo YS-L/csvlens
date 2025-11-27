@@ -1223,9 +1223,9 @@ dependencies = [
 
 [[package]]
 name = "qsv-sniffer"
-version = "0.11.0"
+version = "0.12.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7b25b79fc637d5ec0a9d72612207f48676b39c8b5c48ab32cfa0d47915fd664a"
+checksum = "a78937b2f303e65f6729979c37b5b544086121fcf482468fd38ba11f617ed0bb"
 dependencies = [
  "bitflags",
  "bytecount",
@@ -1234,9 +1234,18 @@ dependencies = [
  "hashbrown 0.15.5",
  "memchr",
  "qsv-dateparser",
+ "qsv-tabwriter",
  "regex",
  "simdutf8",
- "tabwriter",
+]
+
+[[package]]
+name = "qsv-tabwriter"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "54463b66af16cc13ab644a864ca4f6972e7d612317d64caf4a30867f12637e50"
+dependencies = [
+ "unicode-width 0.2.0",
 ]
 
 [[package]]
@@ -1483,15 +1492,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "unicode-ident",
-]
-
-[[package]]
-name = "tabwriter"
-version = "1.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fce91f2f0ec87dff7e6bcbbeb267439aa1188703003c6055193c821487400432"
-dependencies = [
- "unicode-width 0.2.0",
 ]
 
 [[package]]
