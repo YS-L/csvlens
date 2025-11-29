@@ -1,3 +1,5 @@
+use arrow::row;
+
 use crate::columns_filter::ColumnsFilter;
 use crate::csv::{CsvLensReader, Row};
 use crate::errors::CsvlensResult;
@@ -6,6 +8,7 @@ use crate::input::Control;
 use crate::sort::{SortOrder, Sorter};
 
 use std::cmp::min;
+use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -260,6 +263,7 @@ pub struct RowsView {
     sort_order: SortOrder,
     pub selection: Selection,
     perf_stats: Option<PerfStats>,
+    marked_rows: HashSet<usize>
 }
 
 impl RowsView {
@@ -281,6 +285,7 @@ impl RowsView {
             sort_order: SortOrder::Ascending,
             selection: Selection::default(num_rows),
             perf_stats: None,
+            marked_rows: HashSet::new(),
         };
         Ok(view)
     }
@@ -295,6 +300,10 @@ impl RowsView {
 
     pub fn rows(&self) -> &Vec<Row> {
         &self.rows
+    }
+
+    pub fn marked_rows(&self) -> &HashSet<usize> {
+        &self.marked_rows
     }
 
     pub fn get_column_name_from_global_index(&self, column_index: usize) -> String {
@@ -694,6 +703,23 @@ impl RowsView {
         // current selected might be out of range, reset it
         // self.selection.row.set_bound(self.rows.len() as u64);
         Ok(())
+    }
+
+    pub fn toggle_mark(&mut self, row_index:usize) {
+        if let Some(row) = self.rows.get(row_index) {
+            let record_num = row.record_num;
+            if !self.marked_rows.remove(&record_num) {
+                self.marked_rows.insert(record_num);
+            }
+        }
+    }
+
+    pub fn is_marked(&mut self, record_num:usize) -> bool {
+        self.marked_rows.contains(&record_num)
+    }
+
+    pub fn clear_marks(&mut self) {
+        self.marked_rows.clear();
     }
 
     #[cfg(test)]

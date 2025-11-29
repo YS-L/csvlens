@@ -40,6 +40,7 @@ pub enum Control {
     CopySelection,
     ToggleSelectionType,
     ToggleLineWrap(WrapMode),
+    ToggleMark,
     ToggleSort,
     ToggleNaturalSort,
     Reset,
@@ -177,6 +178,7 @@ impl InputHandler {
             },
             KeyModifiers::SHIFT => match key_event.code {
                 KeyCode::Char('G') | KeyCode::End => Control::ScrollBottom,
+                KeyCode::Char('M') => Control::ToggleMark,
                 KeyCode::Char('N') => Control::ScrollToPrevFound,
                 KeyCode::Char('H') => Control::Help,
                 KeyCode::Char('J') | KeyCode::Down => Control::ToggleSort,

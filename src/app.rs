@@ -9,7 +9,7 @@ use crate::help;
 use crate::input::{Control, InputHandler};
 use crate::sort::{self, SortOrder, SorterStatus};
 use crate::ui::{CsvTable, CsvTableState, FilterColumnsState, FinderState};
-use crate::view::{self, ColumnsOffset};
+use crate::view::{self, ColumnsOffset, SelectionType};
 use crate::watch::{FileWatcher, Watcher};
 
 #[cfg(feature = "clipboard")]
@@ -489,6 +489,17 @@ impl App {
             Control::ToggleSelectionType => {
                 self.rows_view.selection.toggle_selection_type();
             }
+            Control::ToggleMark => {
+                if let SelectionType::Row = self.rows_view.selection.selection_type()  {
+                    if let Some(row_index) = self.rows_view.selection.row.index() {
+                        self.rows_view.toggle_mark(row_index as usize);
+                    }
+                } else {
+                    self.transient_message.replace(
+                        "Marking of rows only works in row mode".to_string(),
+                    );
+                }
+            }
             Control::ToggleLineWrap(word_wrap) => {
                 self.handle_line_wrap_toggle(*word_wrap, true);
             }
@@ -681,6 +692,7 @@ impl App {
         self.csv_table_state
             .set_cols_offset(self.rows_view.cols_offset());
         self.csv_table_state.selection = Some(self.rows_view.selection.clone());
+        self.csv_table_state.marked_rows = Some(self.rows_view.marked_rows().clone());
 
         if let Some(n) = self.rows_view.get_total_line_numbers() {
             self.csv_table_state.set_total_line_number(n, false);
