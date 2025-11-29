@@ -30,6 +30,11 @@ impl RowsFilter {
     }
 }
 
+pub struct MarkToggleResult {
+    pub record_num: usize,
+    pub marked: bool,
+}
+
 #[derive(Clone)]
 pub struct SelectionDimension {
     index: Option<u64>,
@@ -263,7 +268,7 @@ pub struct RowsView {
     sort_order: SortOrder,
     pub selection: Selection,
     perf_stats: Option<PerfStats>,
-    marked_rows: HashSet<usize>
+    marked_rows: HashSet<usize>,
 }
 
 impl RowsView {
@@ -705,17 +710,24 @@ impl RowsView {
         Ok(())
     }
 
-    pub fn toggle_mark(&mut self, row_index:usize) {
+    pub fn toggle_mark(&mut self, row_index: usize) -> Option<MarkToggleResult> {
         if let Some(row) = self.rows.get(row_index) {
             let record_num = row.record_num;
             if !self.marked_rows.remove(&record_num) {
-                self.marked_rows.insert(record_num);
+                if self.marked_rows.insert(record_num) {
+                    return Some(MarkToggleResult {
+                        record_num,
+                        marked: true,
+                    });
+                }
+            } else {
+                return Some(MarkToggleResult {
+                    record_num,
+                    marked: false,
+                });
             }
         }
-    }
-
-    pub fn is_marked(&mut self, record_num:usize) -> bool {
-        self.marked_rows.contains(&record_num)
+        None
     }
 
     pub fn clear_marks(&mut self) {

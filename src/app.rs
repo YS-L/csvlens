@@ -490,15 +490,31 @@ impl App {
                 self.rows_view.selection.toggle_selection_type();
             }
             Control::ToggleMark => {
-                if let SelectionType::Row = self.rows_view.selection.selection_type()  {
+                if let SelectionType::Row = self.rows_view.selection.selection_type() {
                     if let Some(row_index) = self.rows_view.selection.row.index() {
-                        self.rows_view.toggle_mark(row_index as usize);
+                        if let Some(toggle_result) = self.rows_view.toggle_mark(row_index as usize)
+                        {
+                            if toggle_result.marked {
+                                self.transient_message
+                                    .replace(format!("Marked line {}", toggle_result.record_num));
+                            } else {
+                                self.transient_message
+                                    .replace(format!("Unmarked line {}", toggle_result.record_num));
+                            }
+                        } else {
+                            self.transient_message
+                                .replace("Unable to mark this line".to_string());
+                        }
                     }
                 } else {
-                    self.transient_message.replace(
-                        "Marking of rows only works in row mode".to_string(),
-                    );
+                    self.transient_message
+                        .replace("Marking of rows only works in row mode".to_string());
                 }
+            }
+            Control::ResetMarks => {
+                self.rows_view.clear_marks();
+                self.transient_message
+                    .replace("All marks cleared".to_string());
             }
             Control::ToggleLineWrap(word_wrap) => {
                 self.handle_line_wrap_toggle(*word_wrap, true);
