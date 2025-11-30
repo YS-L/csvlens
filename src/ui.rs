@@ -479,16 +479,10 @@ impl<'a> CsvTable<'a> {
                 content_style = content_style.patch(selected_style);
             }
 
-            let is_marked = if let RowType::Record(_) = row_type {
-                if let Some(row_idx) = row_index {
-                    if let Some(marked_rows) = &state.marked_rows {
-                        let idx = row_idx + 1;
-                        marked_rows.contains(&idx)
-                    } else {
-                        false
-                    }
-                } else {
-                    false
+            let is_marked = if matches!(row_type, RowType::Record(_)) {
+                match (row_index, &state.marked_rows) {
+                    (Some(idx), Some(marked_rows)) => marked_rows.contains(&(idx + 1)),
+                    _ => false,
                 }
             } else {
                 false

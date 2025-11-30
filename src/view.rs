@@ -1,5 +1,3 @@
-use arrow::row;
-
 use crate::columns_filter::ColumnsFilter;
 use crate::csv::{CsvLensReader, Row};
 use crate::errors::CsvlensResult;
@@ -711,23 +709,21 @@ impl RowsView {
     }
 
     pub fn toggle_mark(&mut self, row_index: usize) -> Option<MarkToggleResult> {
-        if let Some(row) = self.rows.get(row_index) {
-            let record_num = row.record_num;
-            if !self.marked_rows.remove(&record_num) {
-                if self.marked_rows.insert(record_num) {
-                    return Some(MarkToggleResult {
-                        record_num,
-                        marked: true,
-                    });
-                }
-            } else {
-                return Some(MarkToggleResult {
-                    record_num,
-                    marked: false,
-                });
-            }
-        }
-        None
+        let record_num = self.rows.get(row_index)?.record_num;
+
+        if self.marked_rows.remove(&record_num) {
+            return Some(MarkToggleResult {
+                record_num,
+                marked: false,
+            });
+        };
+
+        self.marked_rows.insert(record_num);
+
+        Some(MarkToggleResult {
+            record_num,
+            marked: true,
+        })
     }
 
     pub fn clear_marks(&mut self) {
