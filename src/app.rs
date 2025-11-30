@@ -148,6 +148,11 @@ impl WrapMode {
     }
 }
 
+enum ScrollToFoundState {
+    Pending,
+    Done,
+}
+
 fn poll_finder_first_match(finder: &find::Finder, timeout: Duration) -> bool {
     let start = Instant::now();
     while start.elapsed() < timeout {
@@ -167,7 +172,7 @@ pub struct App {
     columns_filter: Option<Arc<ColumnsFilter>>,
     csv_table_state: CsvTableState,
     finder: Option<find::Finder>,
-    first_found_scrolled: bool,
+    scroll_to_found_state: ScrollToFoundState,
     frame_width: Option<u16>,
     transient_message: Option<String>,
     show_stats: bool,
@@ -246,7 +251,6 @@ impl App {
         );
 
         let finder: Option<find::Finder> = None;
-        let first_found_scrolled = false;
         let frame_width = None;
 
         let transient_message: Option<String> = None;
@@ -266,7 +270,7 @@ impl App {
             columns_filter: None,
             csv_table_state,
             finder,
-            first_found_scrolled,
+            scroll_to_found_state: ScrollToFoundState::Done,
             frame_width,
             transient_message,
             show_stats,
@@ -630,10 +634,11 @@ impl App {
                 if let Some(finder) = &self.finder {
                     // Inherit previous finder's column index if any, instead of using the current
                     // selected column intended for sorter
-                    self.create_finder_with_column_index(
+                    self.create_finder_with_params(
                         target,
                         self.rows_view.is_filter(),
                         finder.column_index(),
+                        finder.starting_row_index(),
                         sorter,
                     );
                 } else {
@@ -645,27 +650,27 @@ impl App {
         if let Some(fdr) = self.finder.as_mut() {
             if !self.rows_view.is_filter() {
                 // scroll to first result once ready
-                if !self.first_found_scrolled && fdr.found_any() {
-                    if let Some(found_entry) = fdr.next() {
-                        scroll_to_found_entry(
-                            found_entry,
-                            &mut self.rows_view,
-                            &mut self.csv_table_state,
-                        );
+                match self.scroll_to_found_state {
+                    ScrollToFoundState::Pending => {
+                        if let Some(found_entry) = fdr.set_initial_cursor_if_ready() {
+                            scroll_to_found_entry(
+                                found_entry,
+                                &mut self.rows_view,
+                                &mut self.csv_table_state,
+                            );
+                            self.scroll_to_found_state = ScrollToFoundState::Done;
+                        }
                     }
-                    self.first_found_scrolled = true;
-                } else if self.first_found_scrolled {
-                    // Conditioned on first_found_scrolled to retain the initial Header row hint,
-                    // i.e. matches in the header row will be highlighted first
+                    ScrollToFoundState::Done => {
+                        // reset cursor if out of view
+                        if let Some(cursor_row_order) = fdr.cursor_row_order()
+                            && !self.rows_view.in_view(cursor_row_order as u64)
+                        {
+                            fdr.reset_cursor();
+                        }
 
-                    // reset cursor if out of view
-                    if let Some(cursor_row_order) = fdr.cursor_row_order()
-                        && !self.rows_view.in_view(cursor_row_order as u64)
-                    {
-                        fdr.reset_cursor();
+                        fdr.set_row_hint(self.rows_view.rows_from() as usize);
                     }
-
-                    fdr.set_row_hint(find::RowPos::Row(self.rows_view.rows_from() as usize));
                 }
             } else {
                 self.rows_view.set_filter(fdr).unwrap();
@@ -740,26 +745,33 @@ impl App {
         None
     }
 
+    fn get_finder_starting_row_index(&self) -> usize {
+        self.rows_view.selected_offset().unwrap_or(0) as usize
+    }
+
     fn create_finder(&mut self, target: Regex, is_filter: bool, sorter: Option<Arc<sort::Sorter>>) {
-        self.create_finder_with_column_index(
+        self.create_finder_with_params(
             target,
             is_filter,
             self.get_selected_column_index().map(|x| x as usize),
+            self.get_finder_starting_row_index(),
             sorter,
         );
     }
 
-    fn create_finder_with_column_index(
+    fn create_finder_with_params(
         &mut self,
         target: Regex,
         is_filter: bool,
         column_index: Option<usize>,
+        starting_row_index: usize,
         sorter: Option<Arc<sort::Sorter>>,
     ) {
-        let mut finder = find::Finder::new(
+        let finder = find::Finder::new(
             self.shared_config.clone(),
             target,
             column_index,
+            starting_row_index,
             sorter,
             self.sort_order,
             self.columns_filter.clone(),
@@ -778,19 +790,8 @@ impl App {
             self.rows_view.set_rows_from(0).unwrap();
             self.rows_view.set_filter(&finder).unwrap();
         } else {
-            // will scroll to first result below once ready
-            self.first_found_scrolled = false;
             self.rows_view.reset_filter().unwrap();
-
-            // finder always searches from the beginning, but here row hint is set to the selected
-            // row so finder.next() will retrieve the next match after the selected row. Except when
-            // the very first row is selected, in which case the result will yield from the very
-            // top including the header row.
-            if let Some(selected_offset) = self.rows_view.selected_offset()
-                && selected_offset > 0
-            {
-                finder.set_row_hint(find::RowPos::Row(selected_offset as usize));
-            }
+            self.scroll_to_found_state = ScrollToFoundState::Pending;
         }
         self.finder = Some(finder);
     }
@@ -854,12 +855,13 @@ impl App {
         // Recreate finder if any
         if let Some(finder) = &self.finder {
             let target = finder.target().clone();
-            self.create_finder_with_column_index(
+            self.create_finder_with_params(
                 target,
                 self.rows_view.is_filter(),
                 // TODO: this assumes the previous column index is still valid after reload which
                 // might not be true
                 finder.column_index(),
+                finder.starting_row_index(),
                 None,
             );
         }
