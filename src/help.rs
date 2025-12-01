@@ -53,6 +53,8 @@ Enter (in Cell mode)    : Print the selected cell to stdout and exit
 f<n>                    : Freeze this number of columns from the left
 r                       : Reset to default view (clear all filters and custom column widths)
 H (or ?)                : Display this help
+m                       : Toggle line mark
+M                       : Reset line marks
 q                       : Exit";
 
 pub struct HelpPage {}

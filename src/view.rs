@@ -6,6 +6,7 @@ use crate::input::Control;
 use crate::sort::{SortOrder, Sorter};
 
 use std::cmp::min;
+use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -25,6 +26,11 @@ impl RowsFilter {
             max_index,
         }
     }
+}
+
+pub struct MarkToggleResult {
+    pub record_num: usize,
+    pub marked: bool,
 }
 
 #[derive(Clone)]
@@ -260,6 +266,7 @@ pub struct RowsView {
     sort_order: SortOrder,
     pub selection: Selection,
     perf_stats: Option<PerfStats>,
+    marked_rows: HashSet<usize>,
 }
 
 impl RowsView {
@@ -281,6 +288,7 @@ impl RowsView {
             sort_order: SortOrder::Ascending,
             selection: Selection::default(num_rows),
             perf_stats: None,
+            marked_rows: HashSet::new(),
         };
         Ok(view)
     }
@@ -295,6 +303,10 @@ impl RowsView {
 
     pub fn rows(&self) -> &Vec<Row> {
         &self.rows
+    }
+
+    pub fn marked_rows(&self) -> &HashSet<usize> {
+        &self.marked_rows
     }
 
     pub fn get_column_name_from_global_index(&self, column_index: usize) -> String {
@@ -694,6 +706,28 @@ impl RowsView {
         // current selected might be out of range, reset it
         // self.selection.row.set_bound(self.rows.len() as u64);
         Ok(())
+    }
+
+    pub fn toggle_mark(&mut self, row_index: usize) -> Option<MarkToggleResult> {
+        let record_num = self.rows.get(row_index)?.record_num;
+
+        if self.marked_rows.remove(&record_num) {
+            return Some(MarkToggleResult {
+                record_num,
+                marked: false,
+            });
+        };
+
+        self.marked_rows.insert(record_num);
+
+        Some(MarkToggleResult {
+            record_num,
+            marked: true,
+        })
+    }
+
+    pub fn clear_marks(&mut self) {
+        self.marked_rows.clear();
     }
 
     #[cfg(test)]
