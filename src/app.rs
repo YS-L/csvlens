@@ -608,14 +608,13 @@ impl App {
                             Ok(_) => self
                                 .transient_message
                                 .replace(format!("Copied column {} to clipboard", column_index)),
-                            Err(e) => self.transient_message.replace(format!(
-                                "Failed to copy column {} to clipboard: {}",
-                                column_index, e
-                            )),
+                            Err(e) => self
+                                .transient_message
+                                .replace(format!("Failed to copy column to clipboard: {}", e)),
                         }
                     } else {
                         self.transient_message
-                            .replace(format!("Trying to copy a column"))
+                            .replace(format!("Could not copy column"))
                     };
                 }
             }
