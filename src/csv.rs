@@ -331,10 +331,19 @@ impl CsvLensReader {
         }
     }
 
-    pub fn get_column_values(&self, column_index: usize) -> CsvlensResult<Vec<String>> {
+    pub fn get_column_values(
+        &self,
+        column_index: usize,
+        limit: Option<usize>,
+    ) -> CsvlensResult<Vec<String>> {
         let mut reader = self.config.new_reader()?;
         let mut values = vec![];
         for result in reader.records() {
+            if let Some(l) = limit {
+                if values.len() >= l {
+                    break;
+                }
+            }
             let record = result?;
             if let Some(field) = record.get(column_index) {
                 values.push(field.to_string());

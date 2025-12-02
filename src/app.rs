@@ -600,14 +600,34 @@ impl App {
                     } else {
                         None
                     };
-                    if let Some((column_index, column_values)) = self
+                    let limit = 10000;
+                    if let Some((column_index, column_values, count)) = self
                         .rows_view
-                        .get_column_values_from_selection(indices.as_ref())
+                        .get_column_values_from_selection(indices.as_ref(), Some(limit))
                     {
+                        let filtered_index = self
+                            .rows_view
+                            .cols_offset()
+                            .get_filtered_column_index(column_index as u64)
+                            as usize;
+                        let column_name = self
+                            .rows_view
+                            .get_column_name_from_local_index(filtered_index);
                         match self.clipboard.as_mut().map(|c| c.set_text(&column_values)) {
-                            Ok(_) => self
-                                .transient_message
-                                .replace(format!("Copied column {} to clipboard", column_index)),
+                            Ok(_) => {
+                                let msg = if count >= limit {
+                                    format!(
+                                        "Copied first {} rows of column \"{}\" to clipboard",
+                                        count, column_name
+                                    )
+                                } else {
+                                    format!(
+                                        "Copied {} rows of column \"{}\" to clipboard",
+                                        count, column_name
+                                    )
+                                };
+                                self.transient_message.replace(msg)
+                            }
                             Err(e) => self
                                 .transient_message
                                 .replace(format!("Failed to copy column to clipboard: {}", e)),

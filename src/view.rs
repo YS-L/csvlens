@@ -361,19 +361,30 @@ impl RowsView {
     pub fn get_column_values_from_selection(
         &self,
         indices: Option<&Vec<u64>>,
-    ) -> Option<(usize, String)> {
+        limit: Option<usize>,
+    ) -> Option<(usize, String, usize)> {
         if let Some(column_index) = self.selection.column.index() {
             let filtered_index = self.cols_offset.get_filtered_column_index(column_index) as usize;
             if let Some(header) = self.headers.get(filtered_index) {
                 let origin_index = header.origin_index;
                 let values = if let Some(indices) = indices {
+                    let indices_to_use = if let Some(l) = limit {
+                        if indices.len() > l {
+                            &indices[0..l]
+                        } else {
+                            indices.as_slice()
+                        }
+                    } else {
+                        indices.as_slice()
+                    };
                     self.reader
-                        .get_column_values_for_indices(origin_index, indices)
+                        .get_column_values_for_indices(origin_index, indices_to_use)
                 } else {
-                    self.reader.get_column_values(origin_index)
+                    self.reader.get_column_values(origin_index, limit)
                 };
                 if let Ok(values) = values {
-                    return Some((column_index as usize, values.join("\n")));
+                    let count = values.len();
+                    return Some((column_index as usize, values.join("\n"), count));
                 }
             }
         }
