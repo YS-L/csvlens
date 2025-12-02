@@ -110,6 +110,10 @@ struct Args {
     #[clap(long)]
     pub auto_reload: bool,
 
+    /// Limit the number of rows to copy to clipboard
+    #[clap(long)]
+    pub clipboard_limit: Option<usize>,
+
     /// Show stats for debugging
     #[clap(long)]
     debug: bool,
@@ -159,6 +163,7 @@ impl From<Args> for CsvlensOptions {
             prompt: args.prompt,
             wrap_mode: Args::get_wrap_mode(args.wrap, args.wrap_chars, args.wrap_words),
             auto_reload: args.auto_reload,
+            clipboard_limit: args.clipboard_limit,
         }
     }
 }
@@ -182,6 +187,7 @@ pub struct CsvlensOptions {
     pub prompt: Option<String>,
     pub wrap_mode: Option<WrapMode>,
     pub auto_reload: bool,
+    pub clipboard_limit: Option<usize>,
 }
 
 struct AppRunner {
@@ -274,6 +280,7 @@ pub fn run_csvlens_with_options(options: CsvlensOptions) -> CsvlensResult<Option
         options.prompt,
         options.wrap_mode,
         options.auto_reload,
+        options.clipboard_limit,
     )?;
 
     let mut app_runner = AppRunner::new(app);

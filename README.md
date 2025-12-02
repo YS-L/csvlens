@@ -46,13 +46,15 @@ Key | Action
 `Ctrl + j` | Same as above, but sort by natural ordering (e.g. "file2" < "file10")
 `#` (in Cell mode) | Find and highlight rows like the selected cell
 `@` (in Cell mode) | Filter rows like the selected cell
-`y` | Copy the selected row or cell to clipboard
+`y` | Copy the selected row, cell or column to clipboard
 `Enter` (in Cell mode) | Print the selected cell to stdout and exit
 `-S` | Toggle line wrapping
 `-W` | Toggle line wrapping by words
 `f<n>` | Freeze this number of columns from the left
 `r` | Reset to default view (clear all filters and custom column widths)
 `H` (or `?`) | Display help
+`m` | Toggle line mark
+`M` | Reset line marks
 `q` | Exit
 
 ### Optional parameters

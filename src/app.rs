@@ -24,6 +24,8 @@ use std::cmp::min;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+const DEFAULT_CLIPBOARD_LIMIT: usize = 10000;
+
 fn get_offsets_to_make_visible(
     found_record: &find::FoundEntry,
     rows_view: &view::RowsView,
@@ -182,6 +184,7 @@ pub struct App {
     sorter: Option<Arc<sort::Sorter>>,
     sort_order: SortOrder,
     wrap_mode: WrapMode,
+    clipboard_limit: Option<usize>,
     #[cfg(feature = "clipboard")]
     clipboard: Result<Clipboard>,
 }
@@ -204,6 +207,7 @@ impl App {
         prompt: Option<String>,
         wrap_mode: Option<WrapMode>,
         auto_reload: bool,
+        clipboard_limit: Option<usize>,
     ) -> CsvlensResult<Self> {
         let watcher = if auto_reload {
             Some(Arc::new(Watcher::new(filename)?))
@@ -280,6 +284,7 @@ impl App {
             sorter: None,
             sort_order: SortOrder::Ascending,
             wrap_mode: WrapMode::default(),
+            clipboard_limit,
             #[cfg(feature = "clipboard")]
             clipboard,
         };
@@ -600,7 +605,7 @@ impl App {
                     } else {
                         None
                     };
-                    let limit = 10000;
+                    let limit = self.clipboard_limit.unwrap_or(DEFAULT_CLIPBOARD_LIMIT);
                     if let Some((column_index, column_values, count)) = self
                         .rows_view
                         .get_column_values_from_selection(indices.as_ref(), Some(limit))
@@ -615,7 +620,7 @@ impl App {
                             .get_column_name_from_local_index(filtered_index);
                         match self.clipboard.as_mut().map(|c| c.set_text(&column_values)) {
                             Ok(_) => {
-                                let msg = if count >= limit {
+                                let msg = if count == limit {
                                     format!(
                                         "Copied first {} rows of column \"{}\" to clipboard",
                                         count, column_name
@@ -1147,6 +1152,7 @@ mod tests {
                 self.prompt,
                 self.wrap_mode,
                 false,
+                None,
             )
         }
 
