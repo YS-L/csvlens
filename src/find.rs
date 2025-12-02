@@ -425,6 +425,15 @@ impl Finder {
         indices
     }
 
+    pub fn get_all_found_indices(&self) -> Vec<u64> {
+        let m_guard = self.internal.lock().unwrap();
+        m_guard
+            .founds
+            .iter()
+            .map(|x| x.row_index() as u64)
+            .collect()
+    }
+
     #[cfg(test)]
     pub fn wait_internal(&self) {
         loop {

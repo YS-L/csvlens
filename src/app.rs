@@ -594,6 +594,29 @@ impl App {
                             .transient_message
                             .replace(format!("Failed to copy to clipboard: {e}")),
                     };
+                } else if let SelectionType::Column = self.rows_view.selection.selection_type() {
+                    let indices = if self.rows_view.is_filter() {
+                        self.finder.as_ref().map(|f| f.get_all_found_indices())
+                    } else {
+                        None
+                    };
+                    if let Some((column_index, column_values)) = self
+                        .rows_view
+                        .get_column_values_from_selection(indices.as_ref())
+                    {
+                        match self.clipboard.as_mut().map(|c| c.set_text(&column_values)) {
+                            Ok(_) => self
+                                .transient_message
+                                .replace(format!("Copied column {} to clipboard", column_index)),
+                            Err(e) => self.transient_message.replace(format!(
+                                "Failed to copy column {} to clipboard: {}",
+                                column_index, e
+                            )),
+                        }
+                    } else {
+                        self.transient_message
+                            .replace(format!("Trying to copy a column"))
+                    };
                 }
             }
             Control::FileChanged => {

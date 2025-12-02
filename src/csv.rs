@@ -330,6 +330,66 @@ impl CsvLensReader {
             thread::sleep(time::Duration::from_millis(100));
         }
     }
+
+    pub fn get_column_values(&self, column_index: usize) -> CsvlensResult<Vec<String>> {
+        let mut reader = self.config.new_reader()?;
+        let mut values = vec![];
+        for result in reader.records() {
+            let record = result?;
+            if let Some(field) = record.get(column_index) {
+                values.push(field.to_string());
+            }
+        }
+        Ok(values)
+    }
+
+    pub fn get_column_values_for_indices(
+        &self,
+        column_index: usize,
+        indices: &[u64],
+    ) -> CsvlensResult<Vec<String>> {
+        let mut get_row_indices = indices
+            .iter()
+            .enumerate()
+            .map(|x| GetRowIndex {
+                record_index: *x.1,
+                order_index: x.0,
+            })
+            .collect::<Vec<_>>();
+        get_row_indices.sort_by(|a, b| a.record_index.cmp(&b.record_index));
+
+        let mut reader = self.config.new_reader()?;
+        let mut values = vec![String::new(); indices.len()];
+
+        let mut indices_iter = get_row_indices.iter();
+        let mut next_wanted = indices_iter.next();
+        let mut current_record_index = 0;
+
+        if next_wanted.is_none() {
+            return Ok(values);
+        }
+
+        for result in reader.records() {
+            let record = result?;
+            while let Some(wanted) = next_wanted {
+                if current_record_index == wanted.record_index {
+                    if let Some(field) = record.get(column_index) {
+                        values[wanted.order_index] = field.to_string();
+                    }
+                    next_wanted = indices_iter.next();
+                } else if current_record_index > wanted.record_index {
+                    next_wanted = indices_iter.next();
+                } else {
+                    break;
+                }
+            }
+            if next_wanted.is_none() {
+                break;
+            }
+            current_record_index += 1;
+        }
+        Ok(values)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]

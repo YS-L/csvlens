@@ -358,6 +358,28 @@ impl RowsView {
         None
     }
 
+    pub fn get_column_values_from_selection(
+        &self,
+        indices: Option<&Vec<u64>>,
+    ) -> Option<(usize, String)> {
+        if let Some(column_index) = self.selection.column.index() {
+            let filtered_index = self.cols_offset.get_filtered_column_index(column_index) as usize;
+            if let Some(header) = self.headers.get(filtered_index) {
+                let origin_index = header.origin_index;
+                let values = if let Some(indices) = indices {
+                    self.reader
+                        .get_column_values_for_indices(origin_index, indices)
+                } else {
+                    self.reader.get_column_values(origin_index)
+                };
+                if let Ok(values) = values {
+                    return Some((column_index as usize, values.join("\n")));
+                }
+            }
+        }
+        None
+    }
+
     pub fn get_row_value(&self) -> Option<(usize, String)> {
         if let Some(row_index) = self.selection.row.index()
             && let Some(row) = self.rows().get(row_index as usize)
