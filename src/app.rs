@@ -602,6 +602,8 @@ impl App {
                 } else if let SelectionType::Column = self.rows_view.selection.selection_type() {
                     let indices = if self.rows_view.is_filter() {
                         self.finder.as_ref().map(|f| f.get_all_found_indices())
+                    } else if let Some(sorter) = self.rows_view.sorter() {
+                        sorter.get_all_sorted_indices(self.rows_view.sort_order())
                     } else {
                         None
                     };

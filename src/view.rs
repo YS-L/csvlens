@@ -767,4 +767,8 @@ impl RowsView {
     pub fn wait_internal(&self) {
         self.reader.wait_internal()
     }
+
+    pub fn sort_order(&self) -> SortOrder {
+        self.sort_order
+    }
 }
