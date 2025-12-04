@@ -641,7 +641,7 @@ impl App {
                         }
                     } else {
                         self.transient_message
-                            .replace(format!("Could not copy column"))
+                            .replace("Could not copy column".to_string())
                     };
                 }
             }

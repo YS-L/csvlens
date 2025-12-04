@@ -339,10 +339,10 @@ impl CsvLensReader {
         let mut reader = self.config.new_reader()?;
         let mut values = vec![];
         for result in reader.records() {
-            if let Some(l) = limit {
-                if values.len() >= l {
-                    break;
-                }
+            if let Some(l) = limit
+                && values.len() >= l
+            {
+                break;
             }
             let record = result?;
             if let Some(field) = record.get(column_index) {
@@ -372,21 +372,21 @@ impl CsvLensReader {
 
         let mut indices_iter = get_row_indices.iter();
         let mut next_wanted = indices_iter.next();
-        let mut current_record_index = 0;
+        // let mut current_record_index = 0;
 
         if next_wanted.is_none() {
             return Ok(values);
         }
 
-        for result in reader.records() {
+        for (current_record_index, result) in reader.records().enumerate() {
             let record = result?;
             while let Some(wanted) = next_wanted {
-                if current_record_index == wanted.record_index {
+                if current_record_index == wanted.record_index as usize {
                     if let Some(field) = record.get(column_index) {
                         values[wanted.order_index] = field.to_string();
                     }
                     next_wanted = indices_iter.next();
-                } else if current_record_index > wanted.record_index {
+                } else if current_record_index > wanted.record_index as usize {
                     next_wanted = indices_iter.next();
                 } else {
                     break;
@@ -395,7 +395,6 @@ impl CsvLensReader {
             if next_wanted.is_none() {
                 break;
             }
-            current_record_index += 1;
         }
         Ok(values)
     }
