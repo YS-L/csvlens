@@ -159,6 +159,25 @@ impl Sorter {
         None
     }
 
+    pub fn get_all_sorted_indices(&self, order: SortOrder) -> Option<Vec<u64>> {
+        let m_guard = self.internal.lock().unwrap();
+        if let Some(sort_result) = &m_guard.sort_result {
+            let mut out = Vec::with_capacity(sort_result.num_rows());
+            let index_range: Box<dyn Iterator<Item = usize>> = if order == SortOrder::Ascending {
+                Box::new(0..sort_result.num_rows())
+            } else {
+                Box::new((0..sort_result.num_rows()).rev())
+            };
+            for i in index_range {
+                if let Some(record_index) = sort_result.record_indices.get(i) {
+                    out.push(*record_index as u64)
+                }
+            }
+            return Some(out);
+        }
+        None
+    }
+
     pub fn get_record_order(&self, row_index: u64, order: SortOrder) -> Option<u64> {
         let m_guard = self.internal.lock().unwrap();
         if let Some(sort_result) = &m_guard.sort_result

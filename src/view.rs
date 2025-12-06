@@ -358,6 +358,39 @@ impl RowsView {
         None
     }
 
+    pub fn get_column_values_from_selection(
+        &self,
+        indices: Option<&Vec<u64>>,
+        limit: Option<usize>,
+    ) -> Option<(usize, String, usize)> {
+        if let Some(column_index) = self.selection.column.index() {
+            let filtered_index = self.cols_offset.get_filtered_column_index(column_index) as usize;
+            if let Some(header) = self.headers.get(filtered_index) {
+                let origin_index = header.origin_index;
+                let values = if let Some(indices) = indices {
+                    let indices_to_use = if let Some(l) = limit {
+                        if indices.len() > l {
+                            &indices[0..l]
+                        } else {
+                            indices.as_slice()
+                        }
+                    } else {
+                        indices.as_slice()
+                    };
+                    self.reader
+                        .get_column_values_for_indices(origin_index, indices_to_use)
+                } else {
+                    self.reader.get_column_values(origin_index, limit)
+                };
+                if let Ok(values) = values {
+                    let count = values.len();
+                    return Some((column_index as usize, values.join("\n"), count));
+                }
+            }
+        }
+        None
+    }
+
     pub fn get_row_value(&self) -> Option<(usize, String)> {
         if let Some(row_index) = self.selection.row.index()
             && let Some(row) = self.rows().get(row_index as usize)
@@ -737,5 +770,9 @@ impl RowsView {
     #[cfg(test)]
     pub fn wait_internal(&self) {
         self.reader.wait_internal()
+    }
+
+    pub fn sort_order(&self) -> SortOrder {
+        self.sort_order
     }
 }

@@ -24,6 +24,8 @@ use std::cmp::min;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+const DEFAULT_CLIPBOARD_LIMIT: usize = 10000;
+
 fn get_offsets_to_make_visible(
     found_record: &find::FoundEntry,
     rows_view: &view::RowsView,
@@ -182,6 +184,7 @@ pub struct App {
     sorter: Option<Arc<sort::Sorter>>,
     sort_order: SortOrder,
     wrap_mode: WrapMode,
+    clipboard_limit: Option<usize>,
     #[cfg(feature = "clipboard")]
     clipboard: Result<Clipboard>,
 }
@@ -204,6 +207,7 @@ impl App {
         prompt: Option<String>,
         wrap_mode: Option<WrapMode>,
         auto_reload: bool,
+        clipboard_limit: Option<usize>,
     ) -> CsvlensResult<Self> {
         let watcher = if auto_reload {
             Some(Arc::new(Watcher::new(filename)?))
@@ -280,6 +284,7 @@ impl App {
             sorter: None,
             sort_order: SortOrder::Ascending,
             wrap_mode: WrapMode::default(),
+            clipboard_limit,
             #[cfg(feature = "clipboard")]
             clipboard,
         };
@@ -593,6 +598,50 @@ impl App {
                         Err(e) => self
                             .transient_message
                             .replace(format!("Failed to copy to clipboard: {e}")),
+                    };
+                } else if let SelectionType::Column = self.rows_view.selection.selection_type() {
+                    let indices = if self.rows_view.is_filter() {
+                        self.finder.as_ref().map(|f| f.get_all_found_indices())
+                    } else if let Some(sorter) = self.rows_view.sorter() {
+                        sorter.get_all_sorted_indices(self.rows_view.sort_order())
+                    } else {
+                        None
+                    };
+                    let limit = self.clipboard_limit.unwrap_or(DEFAULT_CLIPBOARD_LIMIT);
+                    if let Some((column_index, column_values, count)) = self
+                        .rows_view
+                        .get_column_values_from_selection(indices.as_ref(), Some(limit))
+                    {
+                        let filtered_index = self
+                            .rows_view
+                            .cols_offset()
+                            .get_filtered_column_index(column_index as u64)
+                            as usize;
+                        let column_name = self
+                            .rows_view
+                            .get_column_name_from_local_index(filtered_index);
+                        match self.clipboard.as_mut().map(|c| c.set_text(&column_values)) {
+                            Ok(_) => {
+                                let msg = if count == limit {
+                                    format!(
+                                        "Copied first {} rows of column \"{}\" to clipboard",
+                                        count, column_name
+                                    )
+                                } else {
+                                    format!(
+                                        "Copied {} rows of column \"{}\" to clipboard",
+                                        count, column_name
+                                    )
+                                };
+                                self.transient_message.replace(msg)
+                            }
+                            Err(e) => self
+                                .transient_message
+                                .replace(format!("Failed to copy column to clipboard: {}", e)),
+                        }
+                    } else {
+                        self.transient_message
+                            .replace("Could not copy column".to_string())
                     };
                 }
             }
@@ -1105,6 +1154,7 @@ mod tests {
                 self.prompt,
                 self.wrap_mode,
                 false,
+                None,
             )
         }
 
