@@ -2967,4 +2967,48 @@ mod tests {
         ];
         assert_eq!(lines, expected);
     }
+
+    #[test]
+    fn test_scroll_to_last_rows() {
+        let mut app = AppBuilder::new("tests/data/cities.csv").build().unwrap();
+        till_app_ready(&app);
+
+        let backend = TestBackend::new(50, 20);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        // Need a second Nothing to get states like num_rendered rows right, probably something to
+        // fix later.
+        step_and_draw(&mut app, &mut terminal, Control::Nothing);
+        step_and_draw(&mut app, &mut terminal, Control::Nothing);
+
+        // cities.csv has 128 rows, scroll to row 125 to test scrolling near the end
+        step_and_draw(&mut app, &mut terminal, Control::ScrollTo(125));
+
+        let actual_buffer = terminal.backend().buffer().clone();
+        let lines = to_lines(&actual_buffer);
+        let expected = vec![
+            "──────────────────────────────────────────────────",
+            "        LatD    LatM    LatS    NS    LonD    …   ",
+            "─────┬────────────────────────────────────────────",
+            "114  │  35      56      23      N     77      …   ",
+            "115  │  41      35      24      N     109     …   ",
+            "116  │  42      16      12      N     89      …   ",
+            "117  │  43      9       35      N     77      …   ",
+            "118  │  44      1       12      N     92      …   ",
+            "119  │  37      16      12      N     79      …   ",
+            "120  │  37      32      24      N     77      …   ",
+            "121  │  39      49      48      N     84      …   ",
+            "122  │  38      46      12      N     112     …   ",
+            "123  │  45      38      23      N     89      …   ",
+            "124  │  39      31      12      N     119     …   ",
+            "125  │  50      25      11      N     104     …   ",
+            "126  │  40      10      48      N     122     …   ",
+            "127  │  40      19      48      N     75      …   ",
+            "128  │  41      9       35      N     81      …   ",
+            "─────┴────────────────────────────────────────────",
+            "stdin [Row 125/128, Col 1/10]                     ",
+        ];
+
+        assert_eq!(lines, expected);
+    }
 }

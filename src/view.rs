@@ -616,12 +616,16 @@ impl RowsView {
                 self.selection.row.select_last()
             }
             Control::ScrollTo(n) => {
+                // Don't scroll beyond the bottom row
                 let mut rows_from = n.saturating_sub(1) as u64;
                 if let Some(n) = self.bottom_rows_from() {
                     rows_from = min(rows_from, n);
                 }
                 self.set_rows_from(rows_from)?;
-                self.selection.row.select_first()
+                // Set row selection to the correct row
+                self.selection
+                    .row
+                    .set_index(n.saturating_sub(1).saturating_sub(rows_from as usize) as u64);
             }
             _ => {}
         }
