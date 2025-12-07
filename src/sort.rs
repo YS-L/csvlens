@@ -432,7 +432,11 @@ mod tests {
 
     #[test]
     fn test_simple() {
-        let config = Arc::new(csv::CsvConfig::new("tests/data/simple.csv", b',', false));
+        let config = Arc::new(csv::CsvConfig::new(
+            "tests/data/simple.csv",
+            None,
+            csv::CsvBaseConfig::new(b',', false),
+        ));
         let s = Sorter::new(config, 0, "A1".to_string(), SortType::Auto);
         s.wait_internal();
         let rows = s.get_sorted_indices(0, 5, SortOrder::Ascending).unwrap();
@@ -442,7 +446,11 @@ mod tests {
 
     #[test]
     fn test_descending() {
-        let config = Arc::new(csv::CsvConfig::new("tests/data/simple.csv", b',', false));
+        let config = Arc::new(csv::CsvConfig::new(
+            "tests/data/simple.csv",
+            None,
+            csv::CsvBaseConfig::new(b',', false),
+        ));
         let s = Sorter::new(config, 0, "A1".to_string(), SortType::Auto);
         s.wait_internal();
         let rows = s.get_sorted_indices(0, 5, SortOrder::Descending).unwrap();
@@ -452,7 +460,11 @@ mod tests {
 
     #[test]
     fn test_empty() {
-        let config = Arc::new(csv::CsvConfig::new("tests/data/empty.csv", b',', false));
+        let config = Arc::new(csv::CsvConfig::new(
+            "tests/data/empty.csv",
+            None,
+            csv::CsvBaseConfig::new(b',', false),
+        ));
         let s = Sorter::new(config, 1, "b".to_string(), SortType::Auto);
         s.wait_internal();
         assert_eq!(

@@ -30,6 +30,7 @@ arboard = { version = "3.6", default-features = false, features = ["wayland-data
 thiserror = "2"
 terminal-colorsaurus = "1.0"
 ansi-to-tui = "7.0.0"
+csv-core = "0.1.13"
 
 [target.'cfg(windows)'.dependencies]
 crossterm = "0.28"
@@ -46,3 +47,6 @@ lto = "thin"
 
 [profile.release]
 strip = "debuginfo"
+
+[dev-dependencies]
+rstest = "0.26.1"

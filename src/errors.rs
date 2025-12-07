@@ -27,6 +27,9 @@ pub enum CsvlensError {
     Csv(#[from] csv::Error),
 
     #[error(transparent)]
+    CsvFromUtf8Error(#[from] csv::FromUtf8Error),
+
+    #[error(transparent)]
     Arrow(#[from] arrow::error::ArrowError),
 
     #[error(transparent)]

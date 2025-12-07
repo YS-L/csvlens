@@ -1,5 +1,6 @@
 use crate::columns_filter;
 use crate::csv;
+use crate::csv::CsvlensRecordIterator;
 use crate::errors::CsvlensResult;
 use crate::sort;
 use crate::sort::SortOrder;
@@ -507,7 +508,7 @@ impl FinderInternalState {
             }
 
             // note that records() excludes header
-            let records = bg_reader.records();
+            let records = CsvlensRecordIterator::new(config).unwrap();
 
             for (row_index, r) in records.enumerate() {
                 let mut column_indices = vec![];
@@ -533,9 +534,9 @@ impl FinderInternalState {
                 }
                 if !column_indices.is_empty() {
                     let row_order = match &sorter {
-                        Some(s) => {
-                            s.get_record_order(row_index as u64, sort_order).unwrap() as usize
-                        }
+                        Some(s) => s
+                            .get_record_order(row_index as u64, sort_order)
+                            .unwrap_or(u64::MAX) as usize,
                         _ => row_index,
                     };
                     let found = FoundRow {

@@ -550,7 +550,7 @@ impl RowsView {
     }
 
     pub fn get_total_line_numbers_approx(&self) -> Option<usize> {
-        self.reader.get_last_indexed_line_number()
+        Some(self.reader.get_approx_line_numbers())
     }
 
     pub fn in_view(&self, row_index: u64) -> bool {
@@ -636,7 +636,7 @@ impl RowsView {
         if let Some(max_line_number) = self
             .reader
             .get_total_line_numbers()
-            .or_else(|| self.reader.get_last_indexed_line_number())
+            .or_else(|| Some(self.reader.get_approx_line_numbers()))
         {
             if let Some(filter) = &self.filter {
                 if let Some(max_index) = filter.max_index {
@@ -682,7 +682,7 @@ impl RowsView {
         out
     }
 
-    fn do_get_rows(&mut self) -> CsvlensResult<()> {
+    pub fn do_get_rows(&mut self) -> CsvlensResult<()> {
         let start = Instant::now();
         let (mut rows, reader_stats) = if let Some(filter) = &self.filter {
             let indices = &filter.indices;

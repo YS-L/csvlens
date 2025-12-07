@@ -17,6 +17,7 @@ Options:
   -c, --chunk-size SIZE    Base chunk size in bytes (default: random 1-50)
                           Use 'random' for variable chunks, or a number
   -l, --line-buffered      Stream complete lines instead of arbitrary chunks
+  -o, --output FILE        Output to file instead of stdout
   -h, --help              Show this help message
 
 Examples:
@@ -25,6 +26,7 @@ Examples:
   $0 data.csv -s 0.2 -c 10
   $0 data.csv -c random
   $0 data.csv -l           # Line buffered mode
+  $0 data.csv -o out.csv   # Output to file
 EOF
   exit 1
 }
@@ -33,6 +35,7 @@ SPEED=0.1
 CHUNK_MODE="random"
 CHUNK_SIZE=0
 LINE_BUFFERED=false
+OUTPUT=""
 
 INPUT=""
 while [[ $# -gt 0 ]]; do
@@ -53,6 +56,10 @@ while [[ $# -gt 0 ]]; do
     -l|--line-buffered)
       LINE_BUFFERED=true
       shift
+      ;;
+    -o|--output)
+      OUTPUT="$2"
+      shift 2
       ;;
     -h|--help)
       show_usage
@@ -97,18 +104,31 @@ do_sleep() {
   perl -e "select(undef, undef, undef, $1)"
 }
 
+# Setup output redirection
+if [[ -n "$OUTPUT" ]]; then
+  # Clear output file
+  > "$OUTPUT"
+  OUTPUT_TARGET="file: $OUTPUT"
+else
+  OUTPUT_TARGET="stdout"
+fi
+
 if [[ "$LINE_BUFFERED" == "true" ]]; then
-  echo "[stream_csv] Starting: $INPUT (speed=${SPEED}s, line-buffered mode)" >&2
+  echo "[stream_csv] Starting: $INPUT (speed=${SPEED}s, line-buffered mode, output=$OUTPUT_TARGET)" >&2
 
   # Stream line by line
   while IFS= read -r line; do
-    printf '%s\n' "$line"
+    if [[ -n "$OUTPUT" ]]; then
+      printf '%s\n' "$line" >> "$OUTPUT"
+    else
+      printf '%s\n' "$line"
+    fi
     if (( $(echo "$SPEED > 0" | bc -l) )); then
       do_sleep "$SPEED"
     fi
   done < "$INPUT"
 else
-  echo "[stream_csv] Starting: $INPUT (speed=${SPEED}s, chunks=$CHUNK_MODE)" >&2
+  echo "[stream_csv] Starting: $INPUT (speed=${SPEED}s, chunks=$CHUNK_MODE, output=$OUTPUT_TARGET)" >&2
 
   FILE_CONTENT=$(cat "$INPUT")
   FILE_SIZE=${#FILE_CONTENT}
@@ -118,7 +138,11 @@ else
   while [[ $POSITION -lt $FILE_SIZE ]]; do
     CHUNK_SIZE=$(get_chunk_size)
     CHUNK="${FILE_CONTENT:$POSITION:$CHUNK_SIZE}"
-    printf '%s' "$CHUNK"
+    if [[ -n "$OUTPUT" ]]; then
+      printf '%s' "$CHUNK" >> "$OUTPUT"
+    else
+      printf '%s' "$CHUNK"
+    fi
     POSITION=$((POSITION + CHUNK_SIZE))
 
     if (( $(echo "$SPEED > 0" | bc -l) )); then
@@ -126,5 +150,3 @@ else
     fi
   done
 fi
-
-echo "[stream_csv] Complete" >&2

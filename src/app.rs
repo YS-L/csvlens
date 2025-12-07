@@ -7,6 +7,7 @@ use crate::errors::{CsvlensError, CsvlensResult};
 use crate::find;
 use crate::help;
 use crate::input::{Control, InputHandler};
+use crate::io::SeekableFile;
 use crate::sort::{self, SortOrder, SorterStatus};
 use crate::ui::{CsvTable, CsvTableState, FilterColumnsState, FinderState};
 use crate::view::{self, ColumnsOffset, SelectionType};
@@ -184,14 +185,14 @@ pub struct App {
     wrap_mode: WrapMode,
     #[cfg(feature = "clipboard")]
     clipboard: Result<Clipboard>,
+    _seekable_file: SeekableFile,
 }
 
 impl App {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        filename: &str,
-        delimiter: Delimiter,
         original_filename: Option<String>,
+        delimiter: Delimiter,
         show_stats: bool,
         echo_column: Option<String>,
         ignore_case: bool,
@@ -204,8 +205,13 @@ impl App {
         prompt: Option<String>,
         wrap_mode: Option<WrapMode>,
         auto_reload: bool,
+        no_streaming_stdin: bool,
     ) -> CsvlensResult<Self> {
-        let watcher = if auto_reload {
+        // TODO: pass a base_config to wait for header properly?
+        let seekable_file = SeekableFile::new(&original_filename, no_streaming_stdin)?;
+        let filename = seekable_file.filename();
+
+        let watcher = if auto_reload || seekable_file.stream_active().is_some() {
             Some(Arc::new(Watcher::new(filename)?))
         } else {
             None
@@ -224,7 +230,9 @@ impl App {
             Delimiter::Character(d) => d,
             Delimiter::Default | Delimiter::Auto => sniff_delimiter(filename).unwrap_or(b','),
         };
-        let config = csv::CsvConfig::new(filename, delimiter, no_headers);
+        let base_config = csv::CsvBaseConfig::new(delimiter, no_headers);
+        let config =
+            csv::CsvConfig::new(filename, seekable_file.stream_active().clone(), base_config);
         let shared_config = Arc::new(config);
 
         let csvlens_reader = csv::CsvLensReader::new(shared_config.clone())?;
@@ -282,6 +290,7 @@ impl App {
             wrap_mode: WrapMode::default(),
             #[cfg(feature = "clipboard")]
             clipboard,
+            _seekable_file: seekable_file,
         };
 
         if let Some(pat) = &columns_regex {
@@ -350,8 +359,9 @@ impl App {
             return self.step_help(control);
         }
 
-        // clear message without changing other states on any action
-        if !matches!(control, Control::Nothing) {
+        // Clear message without changing other states on any action. FileChanged is excluded since
+        // it is not initiated by user and can mask other messages on streaming input.
+        if !matches!(control, Control::Nothing | Control::FileChanged) {
             self.transient_message = None;
         }
 
@@ -524,47 +534,12 @@ impl App {
                 self.handle_line_wrap_toggle(*word_wrap, true);
             }
             Control::ToggleSort | Control::ToggleNaturalSort => {
-                let desired_sort_type = if matches!(control, Control::ToggleNaturalSort) {
-                    sort::SortType::Natural
+                if self.shared_config.is_streaming() {
+                    self.transient_message.replace(
+                        "Sorting is not supported when data is still streaming".to_string(),
+                    );
                 } else {
-                    sort::SortType::Auto
-                };
-                if let Some(selected_column_index) = self.get_global_selected_column_index() {
-                    let mut should_create_new_sorter = false;
-                    if let Some(sorter) = &self.sorter {
-                        if selected_column_index as usize != sorter.column_index
-                            || desired_sort_type != sorter.sort_type()
-                        {
-                            should_create_new_sorter = true;
-                        } else {
-                            match self.sort_order {
-                                SortOrder::Ascending => {
-                                    self.sort_order = SortOrder::Descending;
-                                }
-                                SortOrder::Descending => {
-                                    self.sort_order = SortOrder::Ascending;
-                                }
-                            }
-                            self.rows_view.set_sort_order(self.sort_order)?;
-                        }
-                    } else {
-                        should_create_new_sorter = true;
-                    }
-                    if should_create_new_sorter {
-                        let column_name = self
-                            .rows_view
-                            .get_column_name_from_global_index(selected_column_index as usize);
-                        let _sorter = sort::Sorter::new(
-                            self.shared_config.clone(),
-                            selected_column_index as usize,
-                            column_name,
-                            desired_sort_type,
-                        );
-                        self.sorter = Some(Arc::new(_sorter));
-                    }
-                } else {
-                    self.transient_message
-                        .replace("Press TAB and select a column before sorting".to_string());
+                    self.handle_sort(control)?;
                 }
             }
             Control::IncreaseWidth => {
@@ -598,7 +573,6 @@ impl App {
             }
             Control::FileChanged => {
                 self.handle_file_changed()?;
-                self.csv_table_state.last_autoreload_at = Some(Instant::now());
             }
             Control::Reset => {
                 self.csv_table_state.column_width_overrides.reset();
@@ -879,7 +853,60 @@ impl App {
         self.csv_table_state.reset_buffer();
     }
 
+    fn handle_sort(&mut self, control: &Control) -> CsvlensResult<()> {
+        let desired_sort_type = if matches!(control, Control::ToggleNaturalSort) {
+            sort::SortType::Natural
+        } else {
+            sort::SortType::Auto
+        };
+        if let Some(selected_column_index) = self.get_global_selected_column_index() {
+            let mut should_create_new_sorter = false;
+            if let Some(sorter) = &self.sorter {
+                if selected_column_index as usize != sorter.column_index
+                    || desired_sort_type != sorter.sort_type()
+                {
+                    should_create_new_sorter = true;
+                } else {
+                    match self.sort_order {
+                        SortOrder::Ascending => {
+                            self.sort_order = SortOrder::Descending;
+                        }
+                        SortOrder::Descending => {
+                            self.sort_order = SortOrder::Ascending;
+                        }
+                    }
+                    self.rows_view.set_sort_order(self.sort_order)?;
+                }
+            } else {
+                should_create_new_sorter = true;
+            }
+            if should_create_new_sorter {
+                let column_name = self
+                    .rows_view
+                    .get_column_name_from_global_index(selected_column_index as usize);
+                let _sorter = sort::Sorter::new(
+                    self.shared_config.clone(),
+                    selected_column_index as usize,
+                    column_name,
+                    desired_sort_type,
+                );
+                self.sorter = Some(Arc::new(_sorter));
+            }
+        } else {
+            self.transient_message
+                .replace("Press TAB and select a column before sorting".to_string());
+        }
+        Ok(())
+    }
+
     fn handle_file_changed(&mut self) -> CsvlensResult<()> {
+        if self._seekable_file.stream_active().is_some() {
+            // No need to rebuild states for streaming input, just reload rows. Check this instead
+            // of shared_config.is_streaming() since the latter can be set to false when streaming
+            // is complete. We still don't want to rebuild states in that case.
+            return self.rows_view.do_get_rows();
+        }
+
         // Recreate finder if any
         if let Some(finder) = &self.finder {
             let target = finder.target().clone();
@@ -931,6 +958,8 @@ impl App {
             self.columns_filter = Some(columns_filter.clone());
             self.rows_view.set_columns_filter(&columns_filter).unwrap();
         }
+
+        self.csv_table_state.last_autoreload_at = Some(Instant::now());
 
         Ok(())
     }
@@ -1056,9 +1085,8 @@ mod tests {
     use ratatui::buffer::Buffer;
 
     struct AppBuilder {
-        filename: String,
-        delimiter: Delimiter,
         original_filename: Option<String>,
+        delimiter: Delimiter,
         show_stats: bool,
         echo_column: Option<String>,
         ignore_case: bool,
@@ -1073,9 +1101,8 @@ mod tests {
     impl AppBuilder {
         fn new(filename: &str) -> Self {
             AppBuilder {
-                filename: filename.to_owned(),
+                original_filename: Some(filename.to_owned()),
                 delimiter: Delimiter::Default,
-                original_filename: None,
                 show_stats: false,
                 echo_column: None,
                 ignore_case: false,
@@ -1083,16 +1110,15 @@ mod tests {
                 columns_regex: None,
                 filter_regex: None,
                 find_regex: None,
-                prompt: None,
+                prompt: Some("stdin".to_owned()),
                 wrap_mode: None,
             }
         }
 
         fn build(self) -> CsvlensResult<App> {
             App::new(
-                self.filename.as_str(),
-                self.delimiter,
                 self.original_filename,
+                self.delimiter,
                 self.show_stats,
                 self.echo_column,
                 self.ignore_case,
@@ -1104,6 +1130,7 @@ mod tests {
                 false,
                 self.prompt,
                 self.wrap_mode,
+                false,
                 false,
             )
         }
