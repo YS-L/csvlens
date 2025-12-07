@@ -1042,9 +1042,10 @@ mod tests {
         let mut r = CsvLensReader::new(config).unwrap();
         wait_till_ready(&r, &stream_active);
         let rows = r.get_rows_for_indices(&vec![95]).unwrap().0;
-        let expected = vec![
-            Row::new(96, vec!["2020-05-05", "1000717", "717490024", "0", "train"]),
-        ];
+        let expected = vec![Row::new(
+            96,
+            vec!["2020-05-05", "1000717", "717490024", "0", "train"],
+        )];
         assert_eq!(rows, expected);
     }
 
