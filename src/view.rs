@@ -437,9 +437,10 @@ impl RowsView {
             }
             self.filter = None;
             if let Some(n) = record_index_to_preserve {
-                self.handle_scroll_to((n as usize).saturating_add(1))?;
+                self.handle_scroll_to((n as usize).saturating_add(1))
+            } else {
+                self.do_get_rows()
             }
-            self.do_get_rows()
         } else {
             Ok(())
         }
