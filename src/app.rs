@@ -497,7 +497,7 @@ impl App {
             }
             Control::BufferReset => {
                 self.csv_table_state.reset_buffer();
-                self.reset_filter();
+                self.reset_filter(true);
                 self.reset_columns_filter();
             }
             Control::ToggleSelectionType => {
@@ -576,7 +576,7 @@ impl App {
             }
             Control::Reset => {
                 self.csv_table_state.column_width_overrides.reset();
-                self.reset_filter();
+                self.reset_filter(false);
                 self.reset_columns_filter();
                 self.reset_sorter();
             }
@@ -792,7 +792,7 @@ impl App {
             self.rows_view.set_rows_from(0).unwrap();
             self.rows_view.set_filter(&finder).unwrap();
         } else {
-            self.rows_view.reset_filter().unwrap();
+            self.rows_view.reset_filter(false).unwrap();
             self.scroll_to_found_state = ScrollToFoundState::Pending;
         }
         self.finder = Some(finder);
@@ -1014,11 +1014,11 @@ impl App {
             .map(|local_index| self.rows_view.get_column_origin_index(local_index as usize) as u64)
     }
 
-    fn reset_filter(&mut self) {
+    fn reset_filter(&mut self, preserve_row_selection: bool) {
         if self.finder.is_some() {
             self.finder = None;
             self.csv_table_state.finder_state = FinderState::FinderInactive;
-            self.rows_view.reset_filter().unwrap();
+            self.rows_view.reset_filter(preserve_row_selection).unwrap();
         }
     }
 
@@ -3036,6 +3036,107 @@ mod tests {
             "stdin [Row 125/128, Col 1/10]                     ",
         ];
 
+        assert_eq!(lines, expected);
+    }
+
+    #[test]
+    fn test_filter_reset_preserve_selected_row() {
+        let mut app = AppBuilder::new("tests/data/cities.csv")
+            .filter_regex(Some("OH".to_string()))
+            .build()
+            .unwrap();
+        till_app_ready(&app);
+
+        let backend = TestBackend::new(80, 10);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        // Filter and select row 62 (3rd row in filtered view)
+        step_and_draw(&mut app, &mut terminal, Control::Nothing);
+        step_and_draw(&mut app, &mut terminal, Control::ScrollDown);
+        step_and_draw(&mut app, &mut terminal, Control::ScrollDown);
+
+        let expected = vec![
+            "────────────────────────────────────────────────────────────────────────────────",
+            "       LatD    LatM    LatS    NS    LonD    LonM    LonS    EW    City         ",
+            "────┬───────────────────────────────────────────────────────────────────────────",
+            "1   │  41      5       59      N     80      39      0       W     Youngsto…    ",
+            "50  │  41      39      0       N     83      32      24      W     Toledo       ",
+            "62  │  40      21      36      N     80      37      12      W     Steubenv…    ",
+            "65  │  39      55      11      N     83      48      35      W     Springfi…    ",
+            "92  │  41      27      0       N     82      42      35      W     Sandusky     ",
+            "────┴───────────────────────────────────────────────────────────────────────────",
+            "stdin [Row 62/128, Col 1/10] [Filter \"OH\": 3/6]                                 ",
+        ];
+        let actual_buffer = terminal.backend().buffer().clone();
+        let lines = to_lines(&actual_buffer);
+        assert_eq!(lines, expected);
+
+        // Reset filter, row 62 should still be selected
+        step_and_draw(&mut app, &mut terminal, Control::BufferReset);
+        let expected = vec![
+            "────────────────────────────────────────────────────────────────────────────────",
+            "       LatD    LatM    LatS    NS    LonD    LonM    LonS    EW    City         ",
+            "────┬───────────────────────────────────────────────────────────────────────────",
+            "62  │  40      21      36      N     80      37      12      W     Steubenv…    ",
+            "63  │  40      37      11      N     103     13      12      W     Sterling     ",
+            "64  │  38      9       0       N     79      4       11      W     Staunton     ",
+            "65  │  39      55      11      N     83      48      35      W     Springfi…    ",
+            "66  │  37      13      12      N     93      17      24      W     Springfi…    ",
+            "────┴───────────────────────────────────────────────────────────────────────────",
+            "stdin [Row 62/128, Col 1/10]                                                    ",
+        ];
+        let actual_buffer = terminal.backend().buffer().clone();
+        let lines = to_lines(&actual_buffer);
+        assert_eq!(lines, expected);
+    }
+
+    #[test]
+    fn test_filter_reset_preserve_rows_from() {
+        let mut app = AppBuilder::new("tests/data/cities.csv")
+            .filter_regex(Some("CA".to_string()))
+            .build()
+            .unwrap();
+        till_app_ready(&app);
+
+        let backend = TestBackend::new(80, 10);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        // Filter and toggle to column selection
+        step_and_draw(&mut app, &mut terminal, Control::Nothing);
+        step_and_draw(&mut app, &mut terminal, Control::ToggleSelectionType);
+
+        let expected = vec![
+            "────────────────────────────────────────────────────────────────────────────────",
+            "       LatD    LatM    LatS    NS    LonD    LonM    LonS    EW    City         ",
+            "────┬───────────────────────────────────────────────────────────────────────────",
+            "19  │  41      25      11      N     122     23      23      W     Weed         ",
+            "60  │  37      57      35      N     121     17      24      W     Stockton     ",
+            "86  │  38      26      23      N     122     43      12      W     Santa Ro…    ",
+            "88  │  34      25      11      N     119     41      59      W     Santa Ba…    ",
+            "89  │  33      45      35      N     117     52      12      W     Santa Ana    ",
+            "────┴───────────────────────────────────────────────────────────────────────────",
+            "stdin [Row 19/128, Col 1/10] [Filter \"CA\": -/12]                                ",
+        ];
+        let actual_buffer = terminal.backend().buffer().clone();
+        let lines = to_lines(&actual_buffer);
+        assert_eq!(lines, expected);
+
+        // Reset filter, rows should start with 19
+        step_and_draw(&mut app, &mut terminal, Control::BufferReset);
+        let expected = vec![
+            "────────────────────────────────────────────────────────────────────────────────",
+            "       LatD    LatM    LatS    NS    LonD    LonM    LonS    EW    City         ",
+            "────┬───────────────────────────────────────────────────────────────────────────",
+            "19  │  41      25      11      N     122     23      23      W     Weed         ",
+            "20  │  31      13      11      N     82      20      59      W     Waycross     ",
+            "21  │  44      57      35      N     89      38      23      W     Wausau       ",
+            "22  │  42      21      36      N     87      49      48      W     Waukegan     ",
+            "23  │  44      54      0       N     97      6       36      W     Watertown    ",
+            "────┴───────────────────────────────────────────────────────────────────────────",
+            "stdin [Row 19/128, Col 1/10]                                                    ",
+        ];
+        let actual_buffer = terminal.backend().buffer().clone();
+        let lines = to_lines(&actual_buffer);
         assert_eq!(lines, expected);
     }
 }

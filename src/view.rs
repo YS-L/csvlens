@@ -424,12 +424,25 @@ impl RowsView {
         self.filter.is_some()
     }
 
-    pub fn reset_filter(&mut self) -> CsvlensResult<()> {
-        if !self.is_filter() {
-            return Ok(());
+    pub fn reset_filter(&mut self, preserve_row_selection: bool) -> CsvlensResult<()> {
+        if let Some(filter) = &self.filter {
+            let mut record_index_to_preserve = None;
+            if preserve_row_selection {
+                if let Some(row_selection_index) = self.selection.row.index {
+                    record_index_to_preserve =
+                        filter.indices.get(row_selection_index as usize).cloned();
+                } else {
+                    record_index_to_preserve = filter.indices.first().cloned();
+                }
+            }
+            self.filter = None;
+            if let Some(n) = record_index_to_preserve {
+                self.handle_scroll_to((n as usize).saturating_add(1))?;
+            }
+            self.do_get_rows()
+        } else {
+            Ok(())
         }
-        self.filter = None;
-        self.do_get_rows()
     }
 
     pub fn columns_filter(&self) -> Option<&Arc<ColumnsFilter>> {
@@ -616,19 +629,25 @@ impl RowsView {
                 self.selection.row.select_last()
             }
             Control::ScrollTo(n) => {
-                // Don't scroll beyond the bottom row
-                let mut rows_from = n.saturating_sub(1) as u64;
-                if let Some(n) = self.bottom_rows_from() {
-                    rows_from = min(rows_from, n);
-                }
-                self.set_rows_from(rows_from)?;
-                // Set row selection to the correct row
-                self.selection
-                    .row
-                    .set_index(n.saturating_sub(1).saturating_sub(rows_from as usize) as u64);
+                self.handle_scroll_to(*n)?;
             }
             _ => {}
         }
+        Ok(())
+    }
+
+    /// Scroll to a 1-based record number
+    fn handle_scroll_to(&mut self, n: usize) -> CsvlensResult<()> {
+        // Don't scroll beyond the bottom row
+        let mut rows_from = n.saturating_sub(1) as u64;
+        if let Some(n) = self.bottom_rows_from() {
+            rows_from = min(rows_from, n);
+        }
+        self.set_rows_from(rows_from)?;
+        // Set row selection to the correct row
+        self.selection
+            .row
+            .set_index(n.saturating_sub(1).saturating_sub(rows_from as usize) as u64);
         Ok(())
     }
 
