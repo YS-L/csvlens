@@ -3139,4 +3139,57 @@ mod tests {
         let lines = to_lines(&actual_buffer);
         assert_eq!(lines, expected);
     }
+
+    #[test]
+    fn test_filter_reset_preserve_rows_from_with_sorter() {
+        let mut app = AppBuilder::new("tests/data/cities.csv")
+            .filter_regex(Some("CA".to_string()))
+            .build()
+            .unwrap();
+        till_app_ready(&app);
+
+        let backend = TestBackend::new(80, 10);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        // Filter and toggle to column selection and sort
+        step_and_draw(&mut app, &mut terminal, Control::Nothing);
+        step_and_draw(&mut app, &mut terminal, Control::ToggleSelectionType);
+        step_and_draw(&mut app, &mut terminal, Control::ToggleSort);
+        till_app_ready(&app);
+        step_and_draw(&mut app, &mut terminal, Control::Nothing);
+
+        let expected = vec![
+            "────────────────────────────────────────────────────────────────────────────────",
+            "       LatD [▴]      LatM    LatS    NS    LonD    LonM    LonS    EW    Ci…    ",
+            "────┬───────────────────────────────────────────────────────────────────────────",
+            "93  │  32            42      35      N     117     9       0       W     Sa…    ",
+            "89  │  33            45      35      N     117     52      12      W     Sa…    ",
+            "88  │  34            25      11      N     119     41      59      W     Sa…    ",
+            "94  │  34            6       36      N     117     18      35      W     Sa…    ",
+            "99  │  36            40      11      N     121     39      0       W     Sa…    ",
+            "────┴───────────────────────────────────────────────────────────────────────────",
+            "stdin [Row 93/128, Col 1/10] [Filter \"CA\": -/12]                                ",
+        ];
+        let actual_buffer = terminal.backend().buffer().clone();
+        let lines = to_lines(&actual_buffer);
+        assert_eq!(lines, expected);
+
+        // Reset filter, rows should start with 93
+        step_and_draw(&mut app, &mut terminal, Control::BufferReset);
+        let expected = vec![
+            "────────────────────────────────────────────────────────────────────────────────",
+            "       LatD [▴]      LatM    LatS    NS    LonD    LonM    LonS    EW    Ci…    ",
+            "────┬───────────────────────────────────────────────────────────────────────────",
+            "93  │  32            42      35      N     117     9       0       W     Sa…    ",
+            "41  │  33            12      35      N     87      34      11      W     Tu…    ",
+            "58  │  33            55      11      N     80      20      59      W     Su…    ",
+            "74  │  33            38      23      N     96      36      36      W     Sh…    ",
+            "51  │  33            25      48      N     94      3       0       W     Te…    ",
+            "────┴───────────────────────────────────────────────────────────────────────────",
+            "stdin [Row 93/128, Col 1/10]                                                    ",
+        ];
+        let actual_buffer = terminal.backend().buffer().clone();
+        let lines = to_lines(&actual_buffer);
+        assert_eq!(lines, expected);
+    }
 }

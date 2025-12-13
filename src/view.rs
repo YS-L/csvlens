@@ -435,6 +435,11 @@ impl RowsView {
                     record_index_to_preserve = filter.indices.first().cloned();
                 }
             }
+            if let (Some(sorter), Some(index)) = (&self.sorter, record_index_to_preserve) {
+                // The row index is in terms of original data, but the view is now sorted. Need to
+                // get the actual row number to scroll to that points to that record.
+                record_index_to_preserve = sorter.get_record_order(index, self.sort_order);
+            }
             self.filter = None;
             if let Some(n) = record_index_to_preserve {
                 self.handle_scroll_to((n as usize).saturating_add(1))
