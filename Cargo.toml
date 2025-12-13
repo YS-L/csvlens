@@ -31,7 +31,7 @@ arboard = { version = "3.6", default-features = false, features = ["wayland-data
 thiserror = "2"
 terminal-colorsaurus = "1.0"
 ansi-to-tui = "7.0.0"
-clap-cargo = "0.18.3"
+clap-cargo = {version = "0.18.3", optional = true}
 csv-core = "0.1.13"
 rand = { version = "0.8", optional = true }
 
@@ -41,7 +41,7 @@ crossterm = "0.28"
 [features]
 default = ["clipboard", "cli"]
 clipboard = ["dep:arboard"]
-cli = ["dep:clap"]
+cli = ["dep:clap", "dep:clap-cargo"]
 bench = ["dep:rand"]
 
 # The profile that 'cargo dist' will build with
