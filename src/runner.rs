@@ -31,6 +31,7 @@ pub enum ClapWrapMode {
 #[derive(Parser, Debug)]
 #[command(version)]
 #[command(group(ArgGroup::new("wrap_flags").conflicts_with("wrap")))]
+#[command(styles = clap_cargo::style::CLAP_STYLING)]
 struct Args {
     /// CSV filename
     filename: Option<String>,
