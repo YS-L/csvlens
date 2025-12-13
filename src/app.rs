@@ -3157,6 +3157,8 @@ mod tests {
         step_and_draw(&mut app, &mut terminal, Control::ToggleSort);
         till_app_ready(&app);
         step_and_draw(&mut app, &mut terminal, Control::Nothing);
+        till_app_ready(&app);
+        step_and_draw(&mut app, &mut terminal, Control::Nothing);
 
         let expected = vec![
             "────────────────────────────────────────────────────────────────────────────────",
