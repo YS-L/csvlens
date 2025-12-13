@@ -25,6 +25,7 @@ use tui_input::Input;
 
 use std::cmp::{max, min};
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::Duration;
 use std::time::Instant;
@@ -477,6 +478,24 @@ impl<'a> CsvTable<'a> {
                 filler_style = filler_style.patch(selected_style);
                 content_style = content_style.patch(selected_style);
             }
+
+            let is_marked = if matches!(row_type, RowType::Record(_)) {
+                match (row_index, &state.marked_rows) {
+                    (Some(idx), Some(marked_rows)) => marked_rows.contains(&(idx + 1)),
+                    _ => false,
+                }
+            } else {
+                false
+            };
+
+            if is_marked && !is_selected {
+                let marked_style = Style::default()
+                    .fg(state.theme.marked_foreground)
+                    .bg(state.theme.marked_background);
+                filler_style = filler_style.patch(marked_style);
+                content_style = content_style.patch(marked_style);
+            }
+
             let short_padding = match &state.selection {
                 Some(selection) => !matches!(selection.selection_type(), view::SelectionType::Row),
                 None => false,
@@ -1284,6 +1303,7 @@ pub struct CsvTableState {
     // TODO: should probably be with BordersState
     col_ending_pos_x: u16,
     pub selection: Option<view::Selection>,
+    pub marked_rows: Option<HashSet<usize>>,
     pub transient_message: Option<String>,
     pub echo_column: Option<String>,
     pub ignore_case: bool,
@@ -1324,6 +1344,7 @@ impl CsvTableState {
             borders_state: None,
             col_ending_pos_x: 0,
             selection: None,
+            marked_rows: None,
             transient_message: None,
             echo_column: echo_column.clone(),
             ignore_case,

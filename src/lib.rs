@@ -61,3 +61,8 @@ pub use app::WrapMode;
 pub use runner::CsvlensOptions;
 pub use runner::run_csvlens;
 pub use runner::run_csvlens_with_options;
+
+#[cfg(any(test, feature = "bench"))]
+pub mod bench_api {
+    pub use crate::csv::{CsvBaseConfig, CsvConfig, CsvlensRecordIterator};
+}

@@ -1,7 +1,6 @@
 use crate::app::{App, WrapMode};
 use crate::delimiter::Delimiter;
 use crate::errors::CsvlensResult;
-use crate::io::SeekableFile;
 
 #[cfg(feature = "cli")]
 use clap::ArgGroup;
@@ -114,6 +113,10 @@ struct Args {
     /// Show stats for debugging
     #[clap(long)]
     debug: bool,
+
+    /// Disable streaming stdin (load entire input before displaying)
+    #[clap(long)]
+    pub no_streaming_stdin: bool,
 }
 
 #[cfg(feature = "cli")]
@@ -160,6 +163,7 @@ impl From<Args> for CsvlensOptions {
             prompt: args.prompt,
             wrap_mode: Args::get_wrap_mode(args.wrap, args.wrap_chars, args.wrap_words),
             auto_reload: args.auto_reload,
+            no_streaming_stdin: args.no_streaming_stdin,
         }
     }
 }
@@ -183,6 +187,7 @@ pub struct CsvlensOptions {
     pub prompt: Option<String>,
     pub wrap_mode: Option<WrapMode>,
     pub auto_reload: bool,
+    pub no_streaming_stdin: bool,
 }
 
 struct AppRunner {
@@ -256,13 +261,9 @@ pub fn run_csvlens_with_options(options: CsvlensOptions) -> CsvlensResult<Option
         options.comma_separated,
     )?;
 
-    let file = SeekableFile::new(&options.filename)?;
-    let filename = file.filename();
-
     let app = App::new(
-        filename,
-        delimiter,
         options.filename,
+        delimiter,
         show_stats,
         options.echo_column,
         options.ignore_case,
@@ -275,6 +276,7 @@ pub fn run_csvlens_with_options(options: CsvlensOptions) -> CsvlensResult<Option
         options.prompt,
         options.wrap_mode,
         options.auto_reload,
+        options.no_streaming_stdin,
     )?;
 
     let mut app_runner = AppRunner::new(app);

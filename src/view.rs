@@ -6,6 +6,7 @@ use crate::input::Control;
 use crate::sort::{SortOrder, Sorter};
 
 use std::cmp::min;
+use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -25,6 +26,11 @@ impl RowsFilter {
             max_index,
         }
     }
+}
+
+pub struct MarkToggleResult {
+    pub record_num: usize,
+    pub marked: bool,
 }
 
 #[derive(Clone)]
@@ -260,6 +266,7 @@ pub struct RowsView {
     sort_order: SortOrder,
     pub selection: Selection,
     perf_stats: Option<PerfStats>,
+    marked_rows: HashSet<usize>,
 }
 
 impl RowsView {
@@ -281,6 +288,7 @@ impl RowsView {
             sort_order: SortOrder::Ascending,
             selection: Selection::default(num_rows),
             perf_stats: None,
+            marked_rows: HashSet::new(),
         };
         Ok(view)
     }
@@ -295,6 +303,10 @@ impl RowsView {
 
     pub fn rows(&self) -> &Vec<Row> {
         &self.rows
+    }
+
+    pub fn marked_rows(&self) -> &HashSet<usize> {
+        &self.marked_rows
     }
 
     pub fn get_column_name_from_global_index(&self, column_index: usize) -> String {
@@ -412,12 +424,26 @@ impl RowsView {
         self.filter.is_some()
     }
 
-    pub fn reset_filter(&mut self) -> CsvlensResult<()> {
-        if !self.is_filter() {
-            return Ok(());
+    pub fn reset_filter(&mut self, preserve_row_selection: bool) -> CsvlensResult<()> {
+        if let Some(filter) = &self.filter {
+            let mut record_index_to_preserve = None;
+            if preserve_row_selection {
+                if let Some(row_selection_index) = self.selection.row.index {
+                    record_index_to_preserve =
+                        filter.indices.get(row_selection_index as usize).cloned();
+                } else {
+                    record_index_to_preserve = filter.indices.first().cloned();
+                }
+            }
+            self.filter = None;
+            if let Some(n) = record_index_to_preserve {
+                self.handle_scroll_to((n as usize).saturating_add(1))
+            } else {
+                self.do_get_rows()
+            }
+        } else {
+            Ok(())
         }
-        self.filter = None;
-        self.do_get_rows()
     }
 
     pub fn columns_filter(&self) -> Option<&Arc<ColumnsFilter>> {
@@ -538,7 +564,7 @@ impl RowsView {
     }
 
     pub fn get_total_line_numbers_approx(&self) -> Option<usize> {
-        self.reader.get_last_indexed_line_number()
+        Some(self.reader.get_approx_line_numbers())
     }
 
     pub fn in_view(&self, row_index: u64) -> bool {
@@ -604,15 +630,25 @@ impl RowsView {
                 self.selection.row.select_last()
             }
             Control::ScrollTo(n) => {
-                let mut rows_from = n.saturating_sub(1) as u64;
-                if let Some(n) = self.bottom_rows_from() {
-                    rows_from = min(rows_from, n);
-                }
-                self.set_rows_from(rows_from)?;
-                self.selection.row.select_first()
+                self.handle_scroll_to(*n)?;
             }
             _ => {}
         }
+        Ok(())
+    }
+
+    /// Scroll to a 1-based record number
+    fn handle_scroll_to(&mut self, n: usize) -> CsvlensResult<()> {
+        // Don't scroll beyond the bottom row
+        let mut rows_from = n.saturating_sub(1) as u64;
+        if let Some(n) = self.bottom_rows_from() {
+            rows_from = min(rows_from, n);
+        }
+        self.set_rows_from(rows_from)?;
+        // Set row selection to the correct row
+        self.selection
+            .row
+            .set_index(n.saturating_sub(1).saturating_sub(rows_from as usize) as u64);
         Ok(())
     }
 
@@ -620,7 +656,7 @@ impl RowsView {
         if let Some(max_line_number) = self
             .reader
             .get_total_line_numbers()
-            .or_else(|| self.reader.get_last_indexed_line_number())
+            .or_else(|| Some(self.reader.get_approx_line_numbers()))
         {
             if let Some(filter) = &self.filter {
                 if let Some(max_index) = filter.max_index {
@@ -666,7 +702,7 @@ impl RowsView {
         out
     }
 
-    fn do_get_rows(&mut self) -> CsvlensResult<()> {
+    pub fn do_get_rows(&mut self) -> CsvlensResult<()> {
         let start = Instant::now();
         let (mut rows, reader_stats) = if let Some(filter) = &self.filter {
             let indices = &filter.indices;
@@ -694,6 +730,28 @@ impl RowsView {
         // current selected might be out of range, reset it
         // self.selection.row.set_bound(self.rows.len() as u64);
         Ok(())
+    }
+
+    pub fn toggle_mark(&mut self, row_index: usize) -> Option<MarkToggleResult> {
+        let record_num = self.rows.get(row_index)?.record_num;
+
+        if self.marked_rows.remove(&record_num) {
+            return Some(MarkToggleResult {
+                record_num,
+                marked: false,
+            });
+        };
+
+        self.marked_rows.insert(record_num);
+
+        Some(MarkToggleResult {
+            record_num,
+            marked: true,
+        })
+    }
+
+    pub fn clear_marks(&mut self) {
+        self.marked_rows.clear();
     }
 
     #[cfg(test)]

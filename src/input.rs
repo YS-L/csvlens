@@ -40,6 +40,8 @@ pub enum Control {
     CopySelection,
     ToggleSelectionType,
     ToggleLineWrap(WrapMode),
+    ToggleMark,
+    ResetMarks,
     ToggleSort,
     ToggleNaturalSort,
     Reset,
@@ -173,6 +175,7 @@ impl InputHandler {
                 KeyCode::Char('#') => Control::FindLikeCell,
                 KeyCode::Char('@') => Control::FilterLikeCell,
                 KeyCode::Char('y') => Control::CopySelection,
+                KeyCode::Char('m') => Control::ToggleMark,
                 _ => Control::Nothing,
             },
             KeyModifiers::SHIFT => match key_event.code {
@@ -180,6 +183,7 @@ impl InputHandler {
                 KeyCode::Char('N') => Control::ScrollToPrevFound,
                 KeyCode::Char('H') => Control::Help,
                 KeyCode::Char('J') | KeyCode::Down => Control::ToggleSort,
+                KeyCode::Char('M') => Control::ResetMarks,
                 _ => Control::Nothing,
             },
             KeyModifiers::CONTROL => match key_event.code {

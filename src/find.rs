@@ -1,5 +1,6 @@
 use crate::columns_filter;
 use crate::csv;
+use crate::csv::CsvlensRecordIterator;
 use crate::errors::CsvlensResult;
 use crate::sort;
 use crate::sort::SortOrder;
@@ -95,13 +96,15 @@ impl FinderCursor {
 pub struct Finder {
     internal: Arc<Mutex<FinderInternalState>>,
     pub cursor: Option<FinderCursor>,
-    row_hint: RowPos,
+    row_hint: usize,
     target: Regex,
     column_index: Option<usize>,
+    starting_row_index: usize,
     sorter: Option<Arc<sort::Sorter>>,
     pub sort_order: SortOrder,
 }
 
+#[derive(Clone, Debug)]
 pub enum FoundEntry {
     Header(HeaderEntry),
     Row(RowEntry),
@@ -214,6 +217,7 @@ impl Finder {
         config: Arc<csv::CsvConfig>,
         target: Regex,
         column_index: Option<usize>,
+        starting_row_index: usize,
         sorter: Option<Arc<sort::Sorter>>,
         sort_order: SortOrder,
         columns_filter: Option<Arc<columns_filter::ColumnsFilter>>,
@@ -222,6 +226,7 @@ impl Finder {
             config,
             target.clone(),
             column_index,
+            starting_row_index,
             sorter.clone(),
             sort_order,
             columns_filter,
@@ -229,9 +234,10 @@ impl Finder {
         let finder = Finder {
             internal,
             cursor: None,
-            row_hint: RowPos::Header,
+            row_hint: starting_row_index,
             target,
             column_index,
+            starting_row_index,
             sorter: sorter.clone(),
             sort_order,
         };
@@ -266,7 +272,9 @@ impl Finder {
 
     pub fn cursor_row_order(&self) -> Option<usize> {
         let m_guard = self.internal.lock().unwrap();
-        if let Some(FoundEntry::Row(entry)) = self.get_found_record_at_cursor(&m_guard) {
+        if let Some(FoundEntry::Row(entry)) =
+            self.get_found_record_at_cursor(&m_guard, &self.cursor)
+        {
             Some(entry.row_order())
         } else {
             None
@@ -281,6 +289,10 @@ impl Finder {
         self.column_index
     }
 
+    pub fn starting_row_index(&self) -> usize {
+        self.starting_row_index
+    }
+
     pub fn sorter(&self) -> &Option<Arc<sort::Sorter>> {
         &self.sorter
     }
@@ -289,14 +301,26 @@ impl Finder {
         self.cursor = None;
     }
 
-    pub fn set_row_hint(&mut self, row_hint: RowPos) {
+    pub fn set_row_hint(&mut self, row_hint: usize) {
         self.row_hint = row_hint;
+    }
+
+    pub fn set_initial_cursor_if_ready(&mut self) -> Option<FoundEntry> {
+        let m_guard = self.internal.lock().unwrap();
+        if let Some(cursor_row) = m_guard.founds_index_after_starting_row {
+            self.cursor = Some(FinderCursor {
+                row: RowPos::Row(cursor_row),
+                column: 0,
+            });
+        }
+        self.get_found_record_at_cursor(&m_guard, &self.cursor)
     }
 
     pub fn next(&mut self) -> Option<FoundEntry> {
         let m_guard = self.internal.lock().unwrap();
         let count = m_guard.count;
         let founds = &m_guard.founds;
+        let found_header = &m_guard.found_header;
         if let Some(cursor) = &self.cursor {
             let column_indices = match cursor.row {
                 RowPos::Header => m_guard.found_header.as_ref().map(|x| x.column_indices()),
@@ -311,24 +335,19 @@ impl Finder {
                     self.cursor = Some(cursor.next_row(count));
                 }
             }
-        } else if matches!(self.row_hint, RowPos::Header) && m_guard.found_header.is_some() {
+        } else if count > 0 {
+            self.cursor = Some(FinderCursor {
+                row: RowPos::Row(m_guard.next_from(self.row_hint)),
+                column: 0,
+            });
+        } else if found_header.is_some() {
+            // No rows found, but header has match
             self.cursor = Some(FinderCursor {
                 row: RowPos::Header,
                 column: 0,
             });
-        } else if count > 0 {
-            let n = match self.row_hint {
-                // If here, we know there is no matches in header even though row_hint is still
-                // Header. Start from first found row.
-                RowPos::Header => 0,
-                RowPos::Row(n) => n,
-            };
-            self.cursor = Some(FinderCursor {
-                row: RowPos::Row(m_guard.next_from(n)),
-                column: 0,
-            });
         }
-        self.get_found_record_at_cursor(&m_guard)
+        self.get_found_record_at_cursor(&m_guard, &self.cursor)
     }
 
     pub fn prev(&mut self) -> Option<FoundEntry> {
@@ -341,32 +360,32 @@ impl Finder {
                 // Previous row if available
                 self.cursor = Some(cursor.prev_row(m_guard.found_header.is_some()));
             }
-        } else if matches!(self.row_hint, RowPos::Header) && m_guard.found_header.is_some() {
+        } else if m_guard.count > 0 {
+            self.cursor = Some(FinderCursor {
+                row: RowPos::Row(m_guard.prev_from(self.row_hint)),
+                column: 0,
+            });
+        } else if m_guard.found_header.is_some() {
+            // No rows found, but header has match
             self.cursor = Some(FinderCursor {
                 row: RowPos::Header,
                 column: 0,
             });
-        } else if m_guard.count > 0
-            && let RowPos::Row(n) = self.row_hint
-        {
-            self.cursor = Some(FinderCursor {
-                row: RowPos::Row(m_guard.prev_from(n)),
-                column: 0,
-            });
         }
-        self.get_found_record_at_cursor(&m_guard)
+        self.get_found_record_at_cursor(&m_guard, &self.cursor)
     }
 
     pub fn current(&self) -> Option<FoundEntry> {
         let m_guard = self.internal.lock().unwrap();
-        self.get_found_record_at_cursor(&m_guard)
+        self.get_found_record_at_cursor(&m_guard, &self.cursor)
     }
 
     fn get_found_record_at_cursor(
         &self,
         m_guard: &MutexGuard<FinderInternalState>,
+        cursor: &Option<FinderCursor>,
     ) -> Option<FoundEntry> {
-        if let Some(cursor) = &self.cursor {
+        if let Some(cursor) = cursor {
             match cursor.row {
                 RowPos::Header => m_guard
                     .found_header
@@ -428,6 +447,7 @@ struct FinderInternalState {
     count: usize,
     found_header: Option<FoundHeader>,
     founds: SortedVec<FoundRow>,
+    founds_index_after_starting_row: Option<usize>,
     done: bool,
     should_terminate: bool,
     start: Instant,
@@ -440,6 +460,7 @@ impl FinderInternalState {
         config: Arc<csv::CsvConfig>,
         target: Regex,
         target_local_column_index: Option<usize>,
+        starting_row_index: usize,
         sorter: Option<Arc<sort::Sorter>>,
         sort_order: SortOrder,
         columns_filter: Option<Arc<columns_filter::ColumnsFilter>>,
@@ -448,6 +469,7 @@ impl FinderInternalState {
             count: 0,
             found_header: None,
             founds: SortedVec::new(),
+            founds_index_after_starting_row: None,
             done: false,
             should_terminate: false,
             start: Instant::now(),
@@ -486,7 +508,7 @@ impl FinderInternalState {
             }
 
             // note that records() excludes header
-            let records = bg_reader.records();
+            let records = CsvlensRecordIterator::new(config).unwrap();
 
             for (row_index, r) in records.enumerate() {
                 let mut column_indices = vec![];
@@ -512,9 +534,9 @@ impl FinderInternalState {
                 }
                 if !column_indices.is_empty() {
                     let row_order = match &sorter {
-                        Some(s) => {
-                            s.get_record_order(row_index as u64, sort_order).unwrap() as usize
-                        }
+                        Some(s) => s
+                            .get_record_order(row_index as u64, sort_order)
+                            .unwrap_or(u64::MAX) as usize,
                         _ => row_index,
                     };
                     let found = FoundRow {
@@ -523,6 +545,15 @@ impl FinderInternalState {
                         column_indices,
                     };
                     let mut m = _m.lock().unwrap();
+                    // Update founds_index_after_starting_row if not set yet for non-sorting case.
+                    // Sorting case needs to be handled differently since the record order is not
+                    // sequential
+                    if row_order >= starting_row_index
+                        && m.founds_index_after_starting_row.is_none()
+                        && sorter.is_none()
+                    {
+                        m.founds_index_after_starting_row = Some(m.count);
+                    }
                     (*m).found_one(found);
                 }
                 let m = _m.lock().unwrap();
@@ -532,6 +563,17 @@ impl FinderInternalState {
             }
 
             let mut m = _m.lock().unwrap();
+
+            // Update founds_index_after_starting_row for sorting case after all records are scanned
+            if sorter.is_some() {
+                let found_index = m.next_from(starting_row_index);
+                if let Some(found) = m.founds.get(found_index)
+                    && found.row_order() >= starting_row_index
+                {
+                    m.founds_index_after_starting_row = Some(found_index);
+                }
+            };
+
             m.done = true;
             m.elapsed = Some(m.start.elapsed());
         });
