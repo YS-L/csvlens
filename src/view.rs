@@ -651,9 +651,11 @@ impl RowsView {
         }
         self.set_rows_from(rows_from)?;
         // Set row selection to the correct row
-        self.selection
-            .row
-            .set_index(n.saturating_sub(1).saturating_sub(rows_from as usize) as u64);
+        if self.selection.row.index().is_some() {
+            self.selection
+                .row
+                .set_index(n.saturating_sub(1).saturating_sub(rows_from as usize) as u64);
+        }
         Ok(())
     }
 

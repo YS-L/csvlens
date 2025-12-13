@@ -3040,6 +3040,40 @@ mod tests {
     }
 
     #[test]
+    fn test_scroll_to_column_selection_mode() {
+        let mut app = AppBuilder::new("tests/data/cities.csv").build().unwrap();
+        till_app_ready(&app);
+
+        let backend = TestBackend::new(50, 10);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        step_and_draw(&mut app, &mut terminal, Control::Nothing);
+        step_and_draw(&mut app, &mut terminal, Control::ToggleSelectionType);
+        step_and_draw(&mut app, &mut terminal, Control::ScrollTo(10));
+
+        let actual_buffer = terminal.backend().buffer().clone();
+        let lines = to_lines(&actual_buffer);
+        let expected = vec![
+            "──────────────────────────────────────────────────",
+            "       LatD    LatM    LatS    NS    LonD    …    ",
+            "────┬─────────────────────────────────────────────",
+            "10  │  39      45      0       N     75      …    ",
+            "11  │  48      9       0       N     103     …    ",
+            "12  │  41      15      0       N     77      0    ",
+            "13  │  37      40      48      N     82      …    ",
+            "14  │  33      54      0       N     98      …    ",
+            "────┴─────────────────────────────────────────────",
+            "stdin [Row 10/128, Col 1/10]                      ",
+        ];
+
+        assert_eq!(lines, expected);
+
+        // Check remains in column selection mode
+        assert_eq!(app.rows_view.selection.row.index().is_some(), false);
+        assert_eq!(app.rows_view.selection.column.index().is_some(), true);
+    }
+
+    #[test]
     fn test_filter_reset_preserve_selected_row() {
         let mut app = AppBuilder::new("tests/data/cities.csv")
             .filter_regex(Some("OH".to_string()))
