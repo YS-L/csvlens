@@ -3155,9 +3155,9 @@ mod tests {
         step_and_draw(&mut app, &mut terminal, Control::Nothing);
         step_and_draw(&mut app, &mut terminal, Control::ToggleSelectionType);
         step_and_draw(&mut app, &mut terminal, Control::ToggleSort);
-        till_app_ready(&app);  // Wait for sorter
+        till_app_ready(&app); // Wait for sorter
         step_and_draw(&mut app, &mut terminal, Control::Nothing);
-        till_app_ready(&app);  // Wait for the re-created finder with sorter
+        till_app_ready(&app); // Wait for the re-created finder with sorter
         step_and_draw(&mut app, &mut terminal, Control::Nothing);
 
         let expected = vec![
