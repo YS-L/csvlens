@@ -51,6 +51,8 @@ Key | Action
 `-S` | Toggle line wrapping
 `-W` | Toggle line wrapping by words
 `f<n>` | Freeze this number of columns from the left
+`m` | Mark / unmark the selected row visually
+`M` | Clear all row marks
 `r` | Reset to default view (clear all filters and custom column widths)
 `H` (or `?`) | Display help
 `q` | Exit
