@@ -64,7 +64,7 @@ rand = "0.8"
 name = "record_iterator"
 harness = false
 
-[[bin]]
+[[example]]
 name = "build_bench_data"
 path = "src/bin/build_bench_data.rs"
 required-features = ["bench"]
