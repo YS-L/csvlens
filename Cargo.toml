@@ -66,5 +66,4 @@ harness = false
 
 [[example]]
 name = "build_bench_data"
-path = "src/bin/build_bench_data.rs"
 required-features = ["bench"]
