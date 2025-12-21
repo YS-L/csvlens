@@ -1,17 +1,12 @@
-# (unreleased)
+# v0.15.0
 
-## New features
 * Add `--auto-reload` option to automatically reload content on file change (#79)
 * Stream data from stdin by default (disable with `--no-streaming-stdin`) (#81)
 * Support visually marking rows (toggle: `m`; clear all marks: `M`) (#166 by @giantatwork)
-
-## Bug fixes
+* Preserve selected row after filter is cleared (#170)
 * Fix search from current cursor for larger files (#165)
 * Fix row selection when scrolling to rows near bottom (#168)
 * Fix potential freeze when the underlying file changes unexpectedly
-
-## Improvements
-* Preserve selected row after filter is cleared (#170)
 
 # v0.14.0
 
