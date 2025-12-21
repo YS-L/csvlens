@@ -36,7 +36,7 @@ fn generate_random_csv(path: &str, rows: usize, cols: usize) {
 ///
 /// Run with:
 ///
-/// cargo run --bin build_bench_data --features=bench
+/// cargo run --example build_bench_data --features=bench
 fn main() {
     generate_random_csv("benches/data/random_100k.csv", 100_000, 30);
 }
