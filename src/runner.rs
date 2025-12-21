@@ -5,9 +5,9 @@ use crate::errors::CsvlensResult;
 #[cfg(feature = "cli")]
 use clap::ArgGroup;
 #[cfg(feature = "cli")]
-use clap::ValueEnum;
-#[cfg(feature = "cli")]
 use clap::Parser;
+#[cfg(feature = "cli")]
+use clap::ValueEnum;
 use crossterm::execute;
 use crossterm::terminal::{
     EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode,
