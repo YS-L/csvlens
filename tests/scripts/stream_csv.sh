@@ -17,6 +17,7 @@ Options:
   -c, --chunk-size SIZE    Base chunk size in bytes (default: random 1-50)
                           Use 'random' for variable chunks, or a number
   -l, --line-buffered      Stream complete lines instead of arbitrary chunks
+  -d, --delay SECONDS      Initial delay before streaming starts (default: 0)
   -o, --output FILE        Output to file instead of stdout
   -h, --help              Show this help message
 
@@ -26,6 +27,7 @@ Examples:
   $0 data.csv -s 0.2 -c 10
   $0 data.csv -c random
   $0 data.csv -l           # Line buffered mode
+  $0 data.csv -d 2         # Wait 2 seconds before streaming
   $0 data.csv -o out.csv   # Output to file
 EOF
   exit 1
@@ -35,6 +37,7 @@ SPEED=0.1
 CHUNK_MODE="random"
 CHUNK_SIZE=0
 LINE_BUFFERED=false
+INITIAL_DELAY=0
 OUTPUT=""
 
 INPUT=""
@@ -56,6 +59,10 @@ while [[ $# -gt 0 ]]; do
     -l|--line-buffered)
       LINE_BUFFERED=true
       shift
+      ;;
+    -d|--delay)
+      INITIAL_DELAY="$2"
+      shift 2
       ;;
     -o|--output)
       OUTPUT="$2"
@@ -91,6 +98,11 @@ if ! [[ "$SPEED" =~ ^[0-9]+\.?[0-9]*$ ]]; then
   exit 1
 fi
 
+if ! [[ "$INITIAL_DELAY" =~ ^[0-9]+\.?[0-9]*$ ]]; then
+  echo "Error: Initial delay must be a number" >&2
+  exit 1
+fi
+
 get_chunk_size() {
   if [[ "$CHUNK_MODE" == "random" ]]; then
     echo $((RANDOM % 50 + 1))
@@ -116,6 +128,11 @@ fi
 if [[ "$LINE_BUFFERED" == "true" ]]; then
   echo "[stream_csv] Starting: $INPUT (speed=${SPEED}s, line-buffered mode, output=$OUTPUT_TARGET)" >&2
 
+  # Initial delay before streaming
+  if (( $(echo "$INITIAL_DELAY > 0" | bc -l) )); then
+    do_sleep "$INITIAL_DELAY"
+  fi
+
   # Stream line by line
   while IFS= read -r line; do
     if [[ -n "$OUTPUT" ]]; then
@@ -129,6 +146,11 @@ if [[ "$LINE_BUFFERED" == "true" ]]; then
   done < "$INPUT"
 else
   echo "[stream_csv] Starting: $INPUT (speed=${SPEED}s, chunks=$CHUNK_MODE, output=$OUTPUT_TARGET)" >&2
+
+  # Initial delay before streaming
+  if (( $(echo "$INITIAL_DELAY > 0" | bc -l) )); then
+    do_sleep "$INITIAL_DELAY"
+  fi
 
   FILE_CONTENT=$(cat "$INPUT")
   FILE_SIZE=${#FILE_CONTENT}
