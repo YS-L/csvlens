@@ -4,6 +4,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use tempfile::NamedTempFile;
 
+use crate::csv::{CsvBaseConfig, CsvConfig, CsvlensRecordIterator};
 use crate::errors::{CsvlensError, CsvlensResult};
 
 pub struct SeekableFile {
@@ -23,14 +24,33 @@ impl SeekableFile {
 
         let mut stream_to_inner_file = || {
             let inner_path = inner_file.path().to_owned();
+
+            // Thread to stream stdin to inner file
             let stream_active_flag = Arc::new(AtomicBool::new(true));
             let _stream_active_flag = stream_active_flag.clone();
+            let _inner_path = inner_path.clone();
             std::thread::spawn(move || {
                 let mut stdin = std::io::stdin();
-                Self::chunked_copy_to_path(&mut stdin, inner_path).unwrap();
+                Self::chunked_copy_to_path(&mut stdin, _inner_path).unwrap();
                 _stream_active_flag.store(false, Ordering::Relaxed);
             });
             stream_active = Some(stream_active_flag);
+
+            // Thread to wait for the headers to be available. This is needed because once App is
+            // started, it will immediately read the headers from the file. For slowly streaming
+            // inputs, the headers might not be available yet.
+            let _stream_active = stream_active.clone();
+            let handle = std::thread::spawn(move || {
+                // The delimiter here can be just an approximation since we just need to make sure
+                // the header row as a whole is ready. Set no_headers: true to yield the header row
+                // as a record.
+                let base_config = CsvBaseConfig::new(b',', true);
+                let path = inner_path.to_str().unwrap();
+                let config = CsvConfig::new(path, _stream_active, base_config);
+                let mut record_iterator = CsvlensRecordIterator::new(Arc::new(config)).unwrap();
+                record_iterator.next();
+            });
+            handle.join().unwrap();
         };
 
         let copy_to_inner_file = || {

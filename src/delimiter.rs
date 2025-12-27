@@ -1,6 +1,7 @@
 use crate::errors::{CsvlensError, CsvlensResult};
 
 /// Delimiter behaviour as specified in the command line
+#[derive(Debug)]
 pub enum Delimiter {
     /// Use the default delimiter (auto detect)
     Default,

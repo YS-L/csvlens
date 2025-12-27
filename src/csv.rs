@@ -1052,6 +1052,30 @@ mod tests {
     #[rstest]
     #[case(false)]
     #[case(true)]
+    fn test_streaming_100_tsv(#[case] is_streaming: bool) {
+        let stream_active = if is_streaming {
+            Some(Arc::new(AtomicBool::new(true)))
+        } else {
+            None
+        };
+        let config = Arc::new(CsvConfig::new(
+            "tests/data/test_streaming_100.tsv",
+            stream_active.clone(),
+            CsvBaseConfig::new(b'\t', false),
+        ));
+        let mut r = CsvLensReader::new(config).unwrap();
+        wait_till_ready(&r, &stream_active);
+        let rows = r.get_rows_for_indices(&vec![95]).unwrap().0;
+        let expected = vec![Row::new(
+            96,
+            vec!["2020-05-05", "1000717", "717490024", "0", "train"],
+        )];
+        assert_eq!(rows, expected);
+    }
+
+    #[rstest]
+    #[case(false)]
+    #[case(true)]
     fn test_streaming_100_iterator(#[case] is_streaming: bool) {
         let stream_active = if is_streaming {
             Some(Arc::new(AtomicBool::new(true)))
