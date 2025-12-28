@@ -629,19 +629,29 @@ impl<'a> CsvTable<'a> {
         style: Style,
         highlight_style: Style,
     ) -> Vec<Span<'a>> {
-        // Each span can only have one style, hence split content into matches and non-matches and
-        // set styles accordingly
-        let mut matches = active.target.find_iter(hname);
-        let non_matches = active.target.split(hname);
-        let mut spans = vec![];
-        for part in non_matches {
-            if !part.is_empty() {
-                spans.push(Span::styled(part, style));
+        let mut spans = Vec::new();
+        let mut last = 0;
+
+        for m in active.target.find_iter(hname) {
+            let (s, e) = (m.start(), m.end());
+            if s == e {
+                continue;
             }
-            if let Some(m) = matches.next() {
-                spans.push(Span::styled(m.as_str(), highlight_style));
+            if last < s {
+                spans.push(Span::styled(&hname[last..s], style));
             }
+            spans.push(Span::styled(&hname[s..e], highlight_style));
+            last = e;
         }
+
+        if last < hname.len() {
+            spans.push(Span::styled(&hname[last..], style));
+        }
+
+        if spans.is_empty() {
+            spans.push(Span::styled(hname, style));
+        }
+
         spans
     }
 
