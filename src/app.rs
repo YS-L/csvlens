@@ -833,6 +833,12 @@ impl App {
     }
 
     fn handle_find_or_filter(&mut self, pat: &str, is_filter: bool, escape: bool) {
+        if pat.is_empty() {
+            // This can occur only when the regex is directly provided via CLI argument. Empty regex
+            // would match everything and is almost certainly not what user intends, so just ignore
+            // it for now.
+            return;
+        }
         let re = self.create_regex(pat, escape);
         if let Ok(target) = re {
             let _sorter = if let Some(s) = &self.sorter {
@@ -1152,6 +1158,11 @@ mod tests {
 
         fn columns_regex(mut self, columns: Option<String>) -> Self {
             self.columns_regex = columns;
+            self
+        }
+
+        fn find_regex(mut self, find: Option<String>) -> Self {
+            self.find_regex = find;
             self
         }
 
@@ -3223,6 +3234,35 @@ mod tests {
             "51  │  33            25      48      N     94      3       0       W     Te…    ",
             "────┴───────────────────────────────────────────────────────────────────────────",
             "stdin [Row 93/128, Col 1/10]                                                    ",
+        ];
+        let actual_buffer = terminal.backend().buffer().clone();
+        let lines = to_lines(&actual_buffer);
+        assert_eq!(lines, expected);
+    }
+
+    #[test]
+    fn test_cli_find_option_empty_regex() {
+        let mut app = AppBuilder::new("tests/data/cities.csv")
+            .find_regex(Some("".to_string()))
+            .build()
+            .unwrap();
+        till_app_ready(&app);
+
+        let backend = TestBackend::new(80, 10);
+        let mut terminal = Terminal::new(backend).unwrap();
+        step_and_draw(&mut app, &mut terminal, Control::Nothing);
+
+        let expected = vec![
+            "────────────────────────────────────────────────────────────────────────────────",
+            "      LatD    LatM    LatS    NS    LonD    LonM    LonS    EW    City          ",
+            "───┬────────────────────────────────────────────────────────────────────────────",
+            "1  │  41      5       59      N     80      39      0       W     Youngstown    ",
+            "2  │  42      52      48      N     97      23      23            Yankton       ",
+            "3  │  46      35      59      N     120     30      36      W     Yakima        ",
+            "4  │  42      16      12      N     71      48      0       W     Worcester     ",
+            "5  │  43      37      48      N     89      46      11      W     Wisconsin…    ",
+            "───┴────────────────────────────────────────────────────────────────────────────",
+            "stdin [Row 1/128, Col 1/10]                                                     ",
         ];
         let actual_buffer = terminal.backend().buffer().clone();
         let lines = to_lines(&actual_buffer);
