@@ -799,12 +799,46 @@ impl<'a> CsvTable<'a> {
                 Some(row) => row.record_num.to_string(),
                 _ => "-".to_owned(),
             };
+
+            let is_filter_active = matches!(
+                &state.finder_state,
+                FinderState::FinderActive(active) if active.is_filter
+            );
+
+            // Show the selected column only when line wrap is off, we're in cell selection
+            // (row + column), and no filter is active; otherwise fall back to the scroll offset.
+            let use_selection_col = !state.enable_line_wrap
+                && matches!(
+                    state.selection.as_ref().map(|s| s.selection_type()),
+                    Some(view::SelectionType::Cell)
+                )
+                && !is_filter_active;
+
+            let current_col = if is_filter_active {
+                state.cols_offset.num_skip.saturating_add(1)
+            } else if let Some(selection) = &state.selection {
+                match selection.selection_type() {
+                    view::SelectionType::Column | view::SelectionType::Cell
+                        if use_selection_col =>
+                    {
+                        if let Some(col_idx) = selection.column.index() {
+                            state
+                                .cols_offset
+                                .get_filtered_column_index(col_idx)
+                                .saturating_add(1)
+                        } else {
+                            state.cols_offset.num_skip.saturating_add(1)
+                        }
+                    }
+                    _ => state.cols_offset.num_skip.saturating_add(1),
+                }
+            } else {
+                state.cols_offset.num_skip.saturating_add(1)
+            };
+
             content += format!(
                 " [Row {}/{}, Col {}/{}]",
-                row_num,
-                total_str,
-                state.cols_offset.num_skip + 1,
-                state.total_cols,
+                row_num, total_str, current_col, state.total_cols,
             )
             .as_str();
 
