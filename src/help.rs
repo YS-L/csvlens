@@ -55,6 +55,7 @@ r                       : Reset to default view (clear all filters and custom co
 H (or ?)                : Display this help
 m                       : Mark / unmark the selected row visually
 M                       : Clear all row marks
+Ctrl + m                : Print the marked rows (with header) to stdout and exit
 q                       : Exit";
 
 pub struct HelpPage {}
