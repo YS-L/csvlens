@@ -332,6 +332,11 @@ impl App {
             {
                 return Ok(Some(result));
             }
+            if matches!(control, Control::SelectMarks)
+                && let Some(result) = self.get_marked_rows()
+            {
+                return Ok(Some(result));
+            }
             if matches!(control, Control::Help) {
                 self.help_page_state.activate();
                 self.input_handler.enter_help_mode();
@@ -523,42 +528,6 @@ impl App {
                 } else {
                     self.transient_message
                         .replace("Marking of rows only works in row mode".to_string());
-                }
-            }
-            #[cfg(feature = "clipboard")]
-            Control::CopyMarks => {
-                let marked = self.rows_view.marked_rows();
-                if marked.is_empty() {
-                    self.transient_message
-                        .replace("No marked rows to copy".to_string());
-                } else {
-                    let mut record_numbers: Vec<usize> = marked.iter().copied().collect();
-                    record_numbers.sort_unstable();
-
-                    let headers_line = self.rows_view.get_headers_line();
-                    match self.rows_view.get_rows_values(&record_numbers) {
-                        Ok(lines) => {
-                            let mut content_lines =
-                                Vec::with_capacity(lines.len().saturating_add(1));
-                            content_lines.push(headers_line);
-                            content_lines.extend(lines);
-                            let content = content_lines.join("\n");
-                            match self.clipboard.as_mut().map(|c| c.set_text(&content)) {
-                                Ok(_) => self.transient_message.replace(format!(
-                                    "Copied {} marked row{} to clipboard",
-                                    record_numbers.len(),
-                                    if record_numbers.len() == 1 { "" } else { "s" }
-                                )),
-                                Err(e) => self
-                                    .transient_message
-                                    .replace(format!("Failed to copy to clipboard: {e}")),
-                            };
-                        }
-                        Err(e) => {
-                            self.transient_message
-                                .replace(format!("Failed to copy marked rows: {e}"));
-                        }
-                    };
                 }
             }
             Control::ResetMarks => {
@@ -781,6 +750,27 @@ impl App {
             return Some(result);
         };
         None
+    }
+
+    fn get_marked_rows(&mut self) -> Option<String> {
+        let marked = self.rows_view.marked_rows();
+        if marked.is_empty() {
+            return Some(String::new());
+        }
+
+        let mut record_numbers: Vec<usize> = marked.iter().copied().collect();
+        record_numbers.sort_unstable();
+
+        let headers_line = self.rows_view.get_headers_line();
+        match self.rows_view.get_rows_values(&record_numbers) {
+            Ok(lines) => {
+                let mut content_lines = Vec::with_capacity(lines.len().saturating_add(1));
+                content_lines.push(headers_line);
+                content_lines.extend(lines);
+                Some(content_lines.join("\n"))
+            }
+            Err(_) => None,
+        }
     }
 
     fn get_finder_starting_row_index(&self) -> usize {
