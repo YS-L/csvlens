@@ -2164,7 +2164,7 @@ mod tests {
             "4  │  42      …   12              N     71      48      0       W     Worce…    ",
             "5  │  43      …   48              N     89      46      11      W     Wisco…    ",
             "───┴────────────────────────────────────────────────────────────────────────────",
-            "stdin [Row 1/128, Col 1/10]                                                     ",
+            "stdin [Row 1/128, Col 2/10]                                                     ",
         ];
         assert_eq!(lines, expected);
 
@@ -2187,7 +2187,7 @@ mod tests {
             "4  │  42      …   12              │                                             ",
             "5  │  43      …   48              │                                             ",
             "───┴──────────────────────────────┴─────────────────────────────────────────────",
-            "stdin [Row 1/128, Col 1/3] [Filter \"Lat\": 3/10 cols]                            ",
+            "stdin [Row 1/128, Col 2/3] [Filter \"Lat\": 3/10 cols]                            ",
         ];
         assert_eq!(lines, expected);
 
@@ -2205,7 +2205,7 @@ mod tests {
             "4  │  42      16      12      N     71      48      0       W     Worcester     ",
             "5  │  43      37      48      N     89      46      11      W     Wisconsin…    ",
             "───┴────────────────────────────────────────────────────────────────────────────",
-            "stdin [Row 1/128, Col 1/10]                                                     ",
+            "stdin [Row 1/128, Col 2/10]                                                     ",
         ];
         assert_eq!(lines, expected);
     }
@@ -2239,7 +2239,7 @@ mod tests {
             "125  │  50      25      11      N     104     39      0       W     Regina        SA       │        ",
             "124  │  39      31      12      N     119     48      35      W     Reno          NV       │        ",
             "─────┴─────────────────────────────────────────────────────────────────────────────────────┴────────",
-            "stdin [Row 128/128, Col 1/10]                                                                       ",
+            "stdin [Row 128/128, Col 9/10]                                                                       ",
         ];
         assert_eq!(lines, expected);
 
@@ -2258,7 +2258,7 @@ mod tests {
             "4  │  42      16      12      N     71      48      0       W     Worcester          MA       │     ",
             "5  │  43      37      48      N     89      46      11      W     Wisconsin Dells    WI       │     ",
             "───┴──────────────────────────────────────────────────────────────────────────────────────────┴─────",
-            "stdin [Row 1/128, Col 1/10]                                                                         ",
+            "stdin [Row 1/128, Col 9/10]                                                                         ",
         ];
         assert_eq!(lines, expected);
     }
@@ -2434,7 +2434,7 @@ mod tests {
             "89  │  33      45      35      Santa Ana        │                               ",
             "92  │  41      27      0       Sandusky         │                               ",
             "────┴───────────────────────────────────────────┴───────────────────────────────",
-            "stdin [Row 86/128, Col 1/4] [Filter \"San\": -/11] [Filter \"Lat|City\": 4/10 cols] ",
+            "stdin [Row 86/128, Col 4/4] [Filter \"San\": -/11] [Filter \"Lat|City\": 4/10 cols] ",
         ];
         assert_eq!(lines, expected);
     }
@@ -2557,7 +2557,7 @@ mod tests {
             "12  │  41      15      0       N     77      0       0       W     Williams…    ",
             "20  │  31      13      11      N     82      20      59      W     Waycross     ",
             "────┴───────────────────────────────────────────────────────────────────────────",
-            "stdin [Row 4/128, Col 1/10] [Filter \"^1\" in LatM: -/19]                         ",
+            "stdin [Row 4/128, Col 2/10] [Filter \"^1\" in LatM: -/19]                         ",
         ];
         assert_eq!(lines, expected);
     }
@@ -2595,7 +2595,7 @@ mod tests {
             "65  │  11      N     83      48      35      W     Springfield     OH       │   ",
             "92  │  0       N     82      42      35      W     Sandusky        OH       │   ",
             "────┴───────────────────────────────────────────────────────────────────────┴───",
-            "stdin [Row 1/128, Col 3/10] [Filter \"^OH$\" in State: 1/6]                       ",
+            "stdin [Row 1/128, Col 10/10] [Filter \"^OH$\" in State: 1/6]                      ",
         ];
         assert_eq!(lines, expected);
     }
@@ -2841,7 +2841,7 @@ mod tests {
             "4  │  42      16    ║ W     Worcester    MA       ",
             "5  │  43      37    ║ W     Wisconsi…    WI       ",
             "───┴────────────────╨─────────────────────────────",
-            "stdin [Row 1/128, Col 6/10]                       ",
+            "stdin [Row 1/128, Col 8/10]                       ",
         ];
         assert_eq!(lines, expected);
     }

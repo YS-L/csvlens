@@ -800,40 +800,53 @@ impl<'a> CsvTable<'a> {
                 _ => "-".to_owned(),
             };
 
-            let is_filter_active = matches!(
-                &state.finder_state,
-                FinderState::FinderActive(active) if active.is_filter
-            );
-
-            // Show the selected column only when line wrap is off, we're in cell selection
-            // (row + column), and no filter is active; otherwise fall back to the scroll offset.
+            // Show the selected column when:
+            // - Line wrap is off
+            // - We're in cell or column selection mode
+            // Otherwise fall back to the scroll offset.
             let use_selection_col = !state.enable_line_wrap
                 && matches!(
                     state.selection.as_ref().map(|s| s.selection_type()),
-                    Some(view::SelectionType::Cell)
-                )
-                && !is_filter_active;
+                    Some(view::SelectionType::Cell | view::SelectionType::Column)
+                );
 
-            let current_col = if is_filter_active {
-                state.cols_offset.num_skip.saturating_add(1)
-            } else if let Some(selection) = &state.selection {
+            let current_col = if let Some(selection) = &state.selection {
                 match selection.selection_type() {
                     view::SelectionType::Column | view::SelectionType::Cell
                         if use_selection_col =>
                     {
                         if let Some(col_idx) = selection.column.index() {
-                            state
+                            // Ensure the calculated column doesn't exceed total_cols
+                            let calculated_col = state
                                 .cols_offset
                                 .get_filtered_column_index(col_idx)
-                                .saturating_add(1)
+                                .saturating_add(1);
+                            std::cmp::min(calculated_col, state.total_cols as u64)
                         } else {
-                            state.cols_offset.num_skip.saturating_add(1)
+                            // When no column is selected, show the first visible non-frozen column
+                            state
+                                .cols_offset
+                                .num_freeze
+                                .saturating_add(state.cols_offset.num_skip)
+                                .saturating_add(1)
                         }
                     }
-                    _ => state.cols_offset.num_skip.saturating_add(1),
+                    _ => {
+                        // In row selection mode or when line wrap is on, show the first visible non-frozen column
+                        state
+                            .cols_offset
+                            .num_freeze
+                            .saturating_add(state.cols_offset.num_skip)
+                            .saturating_add(1)
+                    }
                 }
             } else {
-                state.cols_offset.num_skip.saturating_add(1)
+                // When no selection, show the first visible non-frozen column
+                state
+                    .cols_offset
+                    .num_freeze
+                    .saturating_add(state.cols_offset.num_skip)
+                    .saturating_add(1)
             };
 
             content += format!(
