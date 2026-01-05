@@ -251,7 +251,7 @@ impl App {
 
         let csv_table_state = CsvTableState::new(
             original_filename,
-            rows_view.headers().len(),
+            rows_view.raw_headers().len(),
             &echo_column,
             ignore_case,
             color_columns,
@@ -696,7 +696,7 @@ impl App {
         }
 
         self.csv_table_state
-            .set_total_cols(self.rows_view.headers().len());
+            .set_total_cols(self.rows_view.raw_headers().len());
 
         if let Some(f) = &self.finder {
             // TODO: need to create a new finder every time?
@@ -1340,7 +1340,7 @@ mod tests {
             "4  │  71      48      0       Worcester          │                              ",
             "5  │  89      46      11      Wisconsin Dells    │                              ",
             "───┴─────────────────────────────────────────────┴──────────────────────────────",
-            "stdin [Row 1/128, Col 1/4] [Filter \"Lon|City\": 4/10 cols]                       ",
+            "stdin [Row 1/128, Col 5/10] [Filter \"Lon|City\": 4/10 cols]                      ",
         ];
         let actual_buffer = terminal.backend().buffer().clone();
         let lines = to_lines(&actual_buffer);
@@ -1370,7 +1370,7 @@ mod tests {
             "   │           │                                                                ",
             "   │           │                                                                ",
             "───┴───────────┴────────────────────────────────────────────────────────────────",
-            "stdin [Row 1/2, Col 1/1] [Filter \"COL2\": 1/2 cols]                              ",
+            "stdin [Row 1/2, Col 2/2] [Filter \"COL2\": 1/2 cols]                              ",
         ];
         let actual_buffer = terminal.backend().buffer().clone();
         let lines = to_lines(&actual_buffer);
@@ -1433,7 +1433,7 @@ mod tests {
             "4  │  Worcester          MA       │                                             ",
             "5  │  Wisconsin Dells    WI       │                                             ",
             "───┴──────────────────────────────┴─────────────────────────────────────────────",
-            "stdin [Row 1/128, Col 1/2] [Filter \"(?i)city|state|wa\": 2/10 cols] [ignore-case]",
+            "stdin [Row 1/128, Col 9/10] [Filter \"(?i)city|state|wa\": 2/10 cols] [ignore-case",
         ];
         let actual_buffer = terminal.backend().buffer().clone();
         let lines = to_lines(&actual_buffer);
@@ -2022,7 +2022,7 @@ mod tests {
             "    │                    │                                                                                              ",
             "    │                    │                                                                                              ",
             "────┴────────────────────┴──────────────────────────────────────────────────────────────────────────────────────────────",
-            "stdin [Row 97/128, Col 1/1] [Filter \"Salt Lake City\": 1/1] [Filter \"City\": 1/10 cols]                                   ",
+            "stdin [Row 97/128, Col 9/10] [Filter \"Salt Lake City\": 1/1] [Filter \"City\": 1/10 cols]                                  ",
         ];
         let actual_buffer = terminal.backend().buffer().clone();
         let lines = to_lines(&actual_buffer);
@@ -2187,7 +2187,7 @@ mod tests {
             "4  │  42      …   12              │                                             ",
             "5  │  43      …   48              │                                             ",
             "───┴──────────────────────────────┴─────────────────────────────────────────────",
-            "stdin [Row 1/128, Col 2/3] [Filter \"Lat\": 3/10 cols]                            ",
+            "stdin [Row 1/128, Col 2/10] [Filter \"Lat\": 3/10 cols]                           ",
         ];
         assert_eq!(lines, expected);
 
@@ -2413,7 +2413,7 @@ mod tests {
             "93  │  32      42      35      San Diego         │                              ",
             "91  │  37      46      47      San Francisco     │                              ",
             "────┴────────────────────────────────────────────┴──────────────────────────────",
-            "stdin [Row 96/128, Col 1/4] [Filter \"San\": 1/11] [Filter \"Lat|City\": 4/10 cols] ",
+            "stdin [Row 96/128, Col 1/10] [Filter \"San\": 1/11] [Filter \"Lat|City\": 4/10 cols]",
         ];
         assert_eq!(lines, expected);
 
@@ -2434,7 +2434,7 @@ mod tests {
             "89  │  33      45      35      Santa Ana        │                               ",
             "92  │  41      27      0       Sandusky         │                               ",
             "────┴───────────────────────────────────────────┴───────────────────────────────",
-            "stdin [Row 86/128, Col 4/4] [Filter \"San\": -/11] [Filter \"Lat|City\": 4/10 cols] ",
+            "stdin [Row 86/128, Col 9/10] [Filter \"San\": -/11] [Filter \"Lat|City\": 4/10 cols]",
         ];
         assert_eq!(lines, expected);
     }
@@ -2494,7 +2494,7 @@ mod tests {
             "4  │  42      16      12      │                                                 ",
             "5  │  43      37      48      │                                                 ",
             "───┴──────────────────────────┴─────────────────────────────────────────────────",
-            "stdin [Row 1/128, Col 1/3] [Filter \"Lat\": 3/10 cols]                            ",
+            "stdin [Row 1/128, Col 1/10] [Filter \"Lat\": 3/10 cols]                           ",
         ];
         let actual_buffer = terminal.backend().buffer().clone();
         let lines = to_lines(&actual_buffer);
@@ -2804,7 +2804,7 @@ mod tests {
             "   │          │                                   ",
             "   │          │                                   ",
             "───┴──────────┴───────────────────────────────────",
-            "stdin [Row 1/2, Col 1/1] [Filter \"x1\": 1/1] [Filte",
+            "stdin [Row 1/2, Col 1/2] [Filter \"x1\": 1/1] [Filte",
         ];
         let actual_buffer = terminal.backend().buffer().clone();
         let lines = to_lines(&actual_buffer);
@@ -2872,7 +2872,7 @@ mod tests {
             "4  │  N     Worcester          MA       │         ",
             "5  │  N     Wisconsin Dells    WI       │         ",
             "───┴────────────────────────────────────┴─────────",
-            "Select your city! [Row 1/128, Col 1/3] [Filter \"NS",
+            "Select your city! [Row 1/128, Col 4/10] [Filter \"N",
         ];
         assert_eq!(lines, expected);
     }

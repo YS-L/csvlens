@@ -816,37 +816,45 @@ impl<'a> CsvTable<'a> {
                         if use_selection_col =>
                     {
                         if let Some(col_idx) = selection.column.index() {
-                            // Ensure the calculated column doesn't exceed total_cols
-                            let calculated_col = state
-                                .cols_offset
-                                .get_filtered_column_index(col_idx)
-                                .saturating_add(1);
-                            std::cmp::min(calculated_col, state.total_cols as u64)
+                            // Get the filtered column index, then map to origin index
+                            let filtered_col_idx =
+                                state.cols_offset.get_filtered_column_index(col_idx) as usize;
+                            // Map to original column position (1-indexed)
+                            let origin_col = self
+                                .header
+                                .get(filtered_col_idx)
+                                .map(|h| h.origin_index + 1)
+                                .unwrap_or(filtered_col_idx + 1);
+                            std::cmp::min(origin_col as u64, state.total_cols as u64)
                         } else {
-                            // When no column is selected, show the first visible non-frozen column
-                            state
-                                .cols_offset
-                                .num_freeze
-                                .saturating_add(state.cols_offset.num_skip)
-                                .saturating_add(1)
+                            // When no column is selected, show the first visible non-frozen column origin index
+                            let filtered_col_idx = (state.cols_offset.num_freeze
+                                + state.cols_offset.num_skip)
+                                as usize;
+                            self.header
+                                .get(filtered_col_idx)
+                                .map(|h| (h.origin_index + 1) as u64)
+                                .unwrap_or((filtered_col_idx + 1) as u64)
                         }
                     }
                     _ => {
-                        // In row selection mode or when line wrap is on, show the first visible non-frozen column
-                        state
-                            .cols_offset
-                            .num_freeze
-                            .saturating_add(state.cols_offset.num_skip)
-                            .saturating_add(1)
+                        // In row selection mode or when line wrap is on, show the first visible non-frozen column origin index
+                        let filtered_col_idx =
+                            (state.cols_offset.num_freeze + state.cols_offset.num_skip) as usize;
+                        self.header
+                            .get(filtered_col_idx)
+                            .map(|h| (h.origin_index + 1) as u64)
+                            .unwrap_or((filtered_col_idx + 1) as u64)
                     }
                 }
             } else {
-                // When no selection, show the first visible non-frozen column
-                state
-                    .cols_offset
-                    .num_freeze
-                    .saturating_add(state.cols_offset.num_skip)
-                    .saturating_add(1)
+                // When no selection, show the first visible non-frozen column origin index
+                let filtered_col_idx =
+                    (state.cols_offset.num_freeze + state.cols_offset.num_skip) as usize;
+                self.header
+                    .get(filtered_col_idx)
+                    .map(|h| (h.origin_index + 1) as u64)
+                    .unwrap_or((filtered_col_idx + 1) as u64)
             };
 
             content += format!(
