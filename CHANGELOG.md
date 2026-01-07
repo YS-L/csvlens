@@ -1,3 +1,8 @@
+# (unreleased)
+
+* Fix potential blank table when streaming input from stdin (#183)
+* Fix incorrectly truncated fields when search regex is empty (#184)
+
 # v0.15.0
 
 * Add `--auto-reload` option to automatically reload content on file change (#79)
