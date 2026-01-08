@@ -755,7 +755,7 @@ impl App {
     fn get_marked_rows(&mut self) -> Option<String> {
         let marked = self.rows_view.marked_rows();
         if marked.is_empty() {
-            return Some(String::new());
+            return None;
         }
 
         let mut record_numbers: Vec<usize> = marked.iter().copied().collect();

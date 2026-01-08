@@ -197,7 +197,7 @@ impl InputHandler {
                 KeyCode::Left => Control::ScrollLeftMost,
                 KeyCode::Right => Control::ScrollRightMost,
                 KeyCode::Char('j') => Control::ToggleNaturalSort,
-                KeyCode::Char('m') => Control::SelectMarks,
+                KeyCode::Char('e') => Control::SelectMarks,
                 _ => Control::Nothing,
             },
             _ => Control::Nothing,

@@ -381,11 +381,10 @@ impl RowsView {
         }
 
         // marked rows store 1-based record numbers; convert to 0-based indices for fetching
-        let mut indices: Vec<u64> = record_numbers
+        let indices: Vec<u64> = record_numbers
             .iter()
             .map(|&n| n.saturating_sub(1) as u64)
             .collect();
-        indices.sort_unstable();
 
         let (mut rows, _) = self.reader.get_rows_for_indices(&indices)?;
 
