@@ -1,4 +1,4 @@
-# (unreleased)
+# v0.15.1
 
 * Fix potential blank table when streaming input from stdin (#183)
 * Fix incorrectly truncated fields when search regex is empty (#184)
