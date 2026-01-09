@@ -332,6 +332,11 @@ impl App {
             {
                 return Ok(Some(result));
             }
+            if matches!(control, Control::SelectMarks)
+                && let Some(result) = self.get_marked_rows()
+            {
+                return Ok(Some(result));
+            }
             if matches!(control, Control::Help) {
                 self.help_page_state.activate();
                 self.input_handler.enter_help_mode();
@@ -745,6 +750,27 @@ impl App {
             return Some(result);
         };
         None
+    }
+
+    fn get_marked_rows(&mut self) -> Option<String> {
+        let marked = self.rows_view.marked_rows();
+        if marked.is_empty() {
+            return None;
+        }
+
+        let mut record_numbers: Vec<usize> = marked.iter().copied().collect();
+        record_numbers.sort_unstable();
+
+        let headers_line = self.rows_view.get_headers_line();
+        match self.rows_view.get_rows_values(&record_numbers) {
+            Ok(lines) => {
+                let mut content_lines = Vec::with_capacity(lines.len().saturating_add(1));
+                content_lines.push(headers_line);
+                content_lines.extend(lines);
+                Some(content_lines.join("\n"))
+            }
+            Err(_) => None,
+        }
     }
 
     fn get_finder_starting_row_index(&self) -> usize {

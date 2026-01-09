@@ -31,6 +31,7 @@ Key | Action
 `Ctrl + l` | Scroll one window right
 `Ctrl + ←` | Scroll left to first column
 `Ctrl + →` | Scroll right to last column
+`Ctrl + e` | Print the marked lines to stdout and exit
 `G` (or `End`) | Go to bottom
 `g` (or `Home`) | Go to top
 `<n>G` | Go to line `n`

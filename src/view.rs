@@ -367,6 +367,34 @@ impl RowsView {
         None
     }
 
+    pub fn get_headers_line(&self) -> String {
+        self.headers()
+            .iter()
+            .map(|h| h.name.clone())
+            .collect::<Vec<_>>()
+            .join("\t")
+    }
+
+    pub fn get_rows_values(&mut self, record_numbers: &[usize]) -> CsvlensResult<Vec<String>> {
+        if record_numbers.is_empty() {
+            return Ok(vec![]);
+        }
+
+        // marked rows store 1-based record numbers; convert to 0-based indices for fetching
+        let indices: Vec<u64> = record_numbers
+            .iter()
+            .map(|&n| n.saturating_sub(1) as u64)
+            .collect();
+
+        let (mut rows, _) = self.reader.get_rows_for_indices(&indices)?;
+
+        if let Some(columns_filter) = &self.columns_filter {
+            rows = Self::subset_columns(&rows, columns_filter.indices());
+        }
+
+        Ok(rows.into_iter().map(|row| row.fields.join("\t")).collect())
+    }
+
     pub fn num_rows(&self) -> u64 {
         self.num_rows
     }
