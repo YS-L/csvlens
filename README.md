@@ -54,6 +54,7 @@ Key | Action
 `f<n>` | Freeze this number of columns from the left
 `m` | Mark / unmark the selected row visually
 `M` | Clear all row marks
+`Ctrl + e` | Print the marked rows (with header) to stdout and exit
 `r` | Reset to default view (clear all filters and custom column widths)
 `H` (or `?`) | Display help
 `q` | Exit
