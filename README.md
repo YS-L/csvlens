@@ -22,7 +22,7 @@ Pipe CSV data directly to `csvlens`:
 
 Key | Action
 --- | ---
-`hjkl` (or `← ↓ ↑→ `) | Scroll one row or column in the given direction
+`hjkl` (or `← ↓ ↑ →`) | Scroll one row or column in the given direction
 `Ctrl + f` (or `Page Down`) | Scroll one window down
 `Ctrl + b` (or `Page Up`) | Scroll one window up
 `Ctrl + d` (or `d`) | Scroll half a window down
