@@ -1,4 +1,4 @@
-extern crate qsv_sniffer;
+extern crate csv_nose;
 
 use crate::columns_filter::ColumnsFilter;
 use crate::csv;

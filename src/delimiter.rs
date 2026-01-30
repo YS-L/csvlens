@@ -61,8 +61,8 @@ impl Delimiter {
 
 /// Sniff the delimiter from the file
 pub fn sniff_delimiter(filename: &str) -> Option<u8> {
-    let mut sniffer = qsv_sniffer::Sniffer::new();
-    sniffer.sample_size(qsv_sniffer::SampleSize::Records(200));
+    let mut sniffer = csv_nose::Sniffer::new();
+    sniffer.sample_size(csv_nose::SampleSize::Records(200));
     if let Ok(metadata) = sniffer.sniff_path(filename) {
         return Some(metadata.dialect.delimiter);
     }
