@@ -86,8 +86,8 @@ struct Args {
     echo_column: Option<String>,
 
     /// Whether to display each column in a different color
-    #[arg(long, alias = "colorful", visible_alias = "colorful")]
-    color_columns: bool,
+    #[arg(long, alias = "no-color", visible_alias = "no-color")]
+    no_color_columns: bool,
 
     /// Show a custom prompt message in the status bar. Supports ANSI escape codes for colored or
     /// styled text.
@@ -159,7 +159,7 @@ impl From<Args> for CsvlensOptions {
             echo_column: args.echo_column,
             debug: args.debug,
             freeze_cols_offset: None,
-            color_columns: args.color_columns,
+            no_color_columns: args.no_color_columns,
             prompt: args.prompt,
             wrap_mode: Args::get_wrap_mode(args.wrap, args.wrap_chars, args.wrap_words),
             auto_reload: args.auto_reload,
@@ -183,7 +183,7 @@ pub struct CsvlensOptions {
     pub echo_column: Option<String>,
     pub debug: bool,
     pub freeze_cols_offset: Option<u64>,
-    pub color_columns: bool,
+    pub no_color_columns: bool,
     pub prompt: Option<String>,
     pub wrap_mode: Option<WrapMode>,
     pub auto_reload: bool,
@@ -272,7 +272,7 @@ pub fn run_csvlens_with_options(options: CsvlensOptions) -> CsvlensResult<Option
         options.filter,
         options.find,
         options.freeze_cols_offset,
-        options.color_columns,
+        options.no_color_columns,
         options.prompt,
         options.wrap_mode,
         options.auto_reload,
