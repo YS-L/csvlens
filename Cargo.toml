@@ -39,6 +39,7 @@ terminal-colorsaurus = "1.0"
 ansi-to-tui = "7.0.0"
 clap-cargo = {version = "0.18.3", optional = true}
 csv-core = "0.1.13"
+flate2 = "1"
 rand = { version = "0.8", optional = true }
 
 [target.'cfg(windows)'.dependencies]

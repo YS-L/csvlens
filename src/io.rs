@@ -2,6 +2,7 @@ use std::fs::{File, OpenOptions};
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use flate2::read::GzDecoder;
 use tempfile::NamedTempFile;
 
 use crate::csv::{CsvBaseConfig, CsvConfig, CsvlensRecordIterator};
@@ -72,9 +73,14 @@ impl SeekableFile {
                 std::io::ErrorKind::NotFound => CsvlensError::FileNotFound(filename.clone()),
                 _ => e.into(),
             })?;
-            // If not seekable, it most likely is due to process substitution using
-            // pipe - write out to a temp file to make it seekable
-            if f.seek(SeekFrom::Start(0)).is_err() {
+            if Self::is_gzip(filename) {
+                let inner_path = inner_file.path().to_owned();
+                let mut decoder = GzDecoder::new(f);
+                Self::chunked_copy_to_path(&mut decoder, inner_path)?;
+                inner_file_res = Some(inner_file);
+            } else if f.seek(SeekFrom::Start(0)).is_err() {
+                // If not seekable, it most likely is due to process substitution using
+                // pipe - write out to a temp file to make it seekable
                 prepare_inner_file();
                 inner_file_res = Some(inner_file);
             } else {
@@ -131,5 +137,44 @@ impl SeekableFile {
             .open(path)?;
 
         SeekableFile::chunked_copy(source, &mut file)
+    }
+
+    fn is_gzip(filename: &str) -> bool {
+        filename.ends_with(".gz")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_is_gzip() {
+        assert!(SeekableFile::is_gzip("data.csv.gz"));
+        assert!(SeekableFile::is_gzip("data.tsv.gz"));
+        assert!(SeekableFile::is_gzip("archive.gz"));
+        assert!(!SeekableFile::is_gzip("data.csv"));
+        assert!(!SeekableFile::is_gzip("data.gzip"));
+        assert!(!SeekableFile::is_gzip("data.gz.bak"));
+    }
+
+    #[test]
+    fn test_gzip_file() {
+        let filename = Some("tests/data/small.csv.gz".to_string());
+        let seekable = SeekableFile::new(&filename, false).unwrap();
+
+        let mut content = String::new();
+        File::open(seekable.filename())
+            .unwrap()
+            .read_to_string(&mut content)
+            .unwrap();
+
+        let mut expected = String::new();
+        File::open("tests/data/small.csv")
+            .unwrap()
+            .read_to_string(&mut expected)
+            .unwrap();
+
+        assert_eq!(content, expected);
     }
 }
