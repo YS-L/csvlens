@@ -4,10 +4,10 @@ use std::{
 };
 
 fn generate_random_csv(path: &str, rows: usize, cols: usize) {
-    use rand::Rng;
+    use rand::RngExt;
     std::fs::create_dir_all("benches/data").unwrap();
 
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let file = File::create(path).unwrap();
     let mut w = BufWriter::new(file);
 
@@ -25,7 +25,7 @@ fn generate_random_csv(path: &str, rows: usize, cols: usize) {
             if c > 0 {
                 write!(w, ",").unwrap();
             }
-            let val: i64 = rng.gen_range(0..1_000_000);
+            let val: i64 = rng.random_range(0..1_000_000);
             write!(w, "{val}").unwrap();
         }
         writeln!(w).unwrap();
