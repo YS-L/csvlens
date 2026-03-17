@@ -29,9 +29,9 @@ anyhow = "1.0"
 clap = { version = "4.5", features = ["derive", "wrap_help"], optional = true }
 tempfile = "3"
 regex = "1"
-csv-nose = { version = "0.8", default-features = false }
+csv-nose = { version = "1", default-features = false }
 tui-input = { version = "0.13", features = ["crossterm"] }
-arrow = {version = "56", default-features = false, features = ["csv"]}
+arrow = {version = "57", default-features = false, features = ["csv"]}
 sorted-vec = "0.8"
 arboard = { version = "3.6", default-features = false, features = ["wayland-data-control"], optional = true }
 thiserror = "2"
@@ -39,7 +39,7 @@ terminal-colorsaurus = "1.0"
 ansi-to-tui = "7.0.0"
 clap-cargo = {version = "0.18.3", optional = true}
 csv-core = "0.1.13"
-rand = { version = "0.8", optional = true }
+rand = { version = "0.10", optional = true }
 
 [target.'cfg(windows)'.dependencies]
 crossterm = "0.28"
@@ -63,8 +63,8 @@ debug = true
 
 [dev-dependencies]
 rstest = "0.26.1"
-criterion = "0.5.1"
-rand = "0.8"
+criterion = "0.8"
+rand = "0.10"
 
 [[bench]]
 name = "record_iterator"
