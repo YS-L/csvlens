@@ -22,6 +22,7 @@ use ratatui::widgets::Widget;
 use ratatui::widgets::{Block, Borders, StatefulWidget};
 use regex::Regex;
 use tui_input::Input;
+use unicode_width::UnicodeWidthStr;
 
 use std::cmp::{max, min};
 use std::collections::HashMap;
@@ -107,7 +108,7 @@ impl<'a> CsvTable<'a> {
                 column_widths.push(*w);
                 continue;
             } else {
-                column_widths.push(column_name.len() as u16);
+                column_widths.push(UnicodeWidthStr::width(column_name.as_str()) as u16);
             }
         }
 
@@ -123,7 +124,7 @@ impl<'a> CsvTable<'a> {
                 }
                 let v = column_widths.get_mut(i).unwrap();
                 value.split('\n').for_each(|x| {
-                    let value_len = x.len() as u16;
+                    let value_len = UnicodeWidthStr::width(x) as u16;
                     if *v < value_len {
                         *v = value_len;
                     }

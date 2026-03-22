@@ -728,6 +728,7 @@ dependencies = [
  "terminal-colorsaurus",
  "thiserror 2.0.18",
  "tui-input",
+ "unicode-width 0.2.0",
 ]
 
 [[package]]
