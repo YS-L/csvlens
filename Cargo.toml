@@ -35,6 +35,7 @@ arrow = {version = "57", default-features = false, features = ["csv"]}
 sorted-vec = "0.8"
 arboard = { version = "3.6", default-features = false, features = ["wayland-data-control"], optional = true }
 thiserror = "2"
+unicode-width = "0.2"
 terminal-colorsaurus = "1.0"
 ansi-to-tui = "8.0.1"
 clap-cargo = {version = "0.18.3", optional = true}
