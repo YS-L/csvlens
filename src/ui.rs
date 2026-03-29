@@ -452,7 +452,7 @@ impl<'a> CsvTable<'a> {
             }
             let effective_width = min(remaining_width, hlen);
             let mut content_style = Style::default();
-            if state.color_columns {
+            if !state.no_color_columns {
                 content_style = content_style
                     .fg(state.theme.column_colors[col_index % state.theme.column_colors.len()]);
             }
@@ -1323,7 +1323,7 @@ pub struct CsvTableState {
     pub column_width_overrides: ColumnWidthOverrides,
     pub cursor_xy: Option<(u16, u16)>,
     pub theme: Theme,
-    pub color_columns: bool,
+    pub no_color_columns: bool,
     pub prompt: Option<String>,
     pub last_autoreload_at: Option<Instant>,
     pub debug: String,
@@ -1335,7 +1335,7 @@ impl CsvTableState {
         total_cols: usize,
         echo_column: &Option<String>,
         ignore_case: bool,
-        color_columns: bool,
+        no_color_columns: bool,
         prompt: Option<String>,
     ) -> Self {
         Self {
@@ -1364,7 +1364,7 @@ impl CsvTableState {
             column_width_overrides: ColumnWidthOverrides::new(),
             cursor_xy: None,
             theme: Theme::default(),
-            color_columns,
+            no_color_columns,
             prompt,
             last_autoreload_at: None,
             debug: "".into(),
