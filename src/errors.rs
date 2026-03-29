@@ -34,4 +34,7 @@ pub enum CsvlensError {
 
     #[error(transparent)]
     Io(#[from] std::io::Error),
+
+    #[error("Draw error: {0}")]
+    DrawError(String),
 }

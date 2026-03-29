@@ -23,7 +23,7 @@ include = [
 
 [dependencies]
 csv = "1.4"
-ratatui = "0.29"
+ratatui = "0.30"
 crossterm = { version = "0.28", features = ["use-dev-tty"] }
 anyhow = "1.0"
 clap = { version = "4.5", features = ["derive", "wrap_help"], optional = true }
@@ -36,7 +36,7 @@ sorted-vec = "0.8"
 arboard = { version = "3.6", default-features = false, features = ["wayland-data-control"], optional = true }
 thiserror = "2"
 terminal-colorsaurus = "1.0"
-ansi-to-tui = "7.0.0"
+ansi-to-tui = "8.0.1"
 clap-cargo = {version = "0.18.3", optional = true}
 csv-core = "0.1.13"
 rand = { version = "0.10", optional = true }

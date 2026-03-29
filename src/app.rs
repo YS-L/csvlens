@@ -1101,9 +1101,12 @@ impl App {
 
     fn draw<B: Backend>(&mut self, terminal: &mut Terminal<B>) -> CsvlensResult<()> {
         let start = Instant::now();
-        terminal.draw(|f| {
+        let draw_result = terminal.draw(|f| {
             self.render_frame(f);
-        })?;
+        });
+        if let Err(e) = draw_result {
+            return Err(CsvlensError::DrawError(format!("{e}")));
+        }
         self.csv_table_state
             .debug_stats
             .render_elapsed(Some(start.elapsed()));
