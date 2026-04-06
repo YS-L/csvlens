@@ -92,12 +92,19 @@ impl<'a> CsvTable<'a> {
     }
 }
 
+fn apply_column_format(value: &str, col_name: &str, cfg: Option<&crate::format::ColumnFormatConfig>) -> Option<String> {
+    let cfg = cfg?;
+    let precision = cfg.precision();
+    cfg.get(col_name).map(|fmt| fmt.apply(value, precision))
+}
+
 impl<'a> CsvTable<'a> {
     fn get_column_widths(
         &self,
         area_width: u16,
         overrides: &ColumnWidthOverrides,
         sorter_state: &SorterState,
+        column_format_config: Option<&crate::format::ColumnFormatConfig>,
     ) -> Vec<u16> {
         let mut column_widths = Vec::new();
 
@@ -122,8 +129,12 @@ impl<'a> CsvTable<'a> {
                     continue;
                 }
                 let v = column_widths.get_mut(i).unwrap();
+                let col_name = self.header.get(i).map(|h| h.name.as_str()).unwrap_or("");
                 value.split('\n').for_each(|x| {
-                    let value_len = x.len() as u16;
+                    let display_len = apply_column_format(x, col_name, column_format_config)
+                        .map(|s| s.len())
+                        .unwrap_or(x.len());
+                    let value_len = display_len as u16;
                     if *v < value_len {
                         *v = value_len;
                     }
@@ -519,6 +530,16 @@ impl<'a> CsvTable<'a> {
                 }
                 active.target.is_match(content)
             };
+
+            // Apply number formatting for data rows (not header rows)
+            let formatted_value: Option<String> = if matches!(row_type, RowType::Record(_)) {
+                let col_name = self.header.get(col_index).map(|h| h.name.as_str()).unwrap_or("");
+                apply_column_format(hname.as_str(), col_name, state.column_format_config.as_deref())
+            } else {
+                None
+            };
+            let display_value: &str = formatted_value.as_deref().unwrap_or(hname.as_str());
+
             match &state.finder_state {
                 // TODO: seems like doing a bit too much of heavy lifting of
                 // checking for matches (finder's work)
@@ -547,7 +568,7 @@ impl<'a> CsvTable<'a> {
                     }
                     let spans = CsvTable::get_highlighted_spans(
                         active,
-                        hname,
+                        display_value,
                         content_style,
                         highlight_style,
                     );
@@ -563,7 +584,7 @@ impl<'a> CsvTable<'a> {
                     );
                 }
                 _ => {
-                    let span = Span::styled((*hname).as_str(), content_style);
+                    let span = Span::styled(display_value, content_style);
                     self.set_spans(
                         buf,
                         &[span],
@@ -625,10 +646,10 @@ impl<'a> CsvTable<'a> {
 
     fn get_highlighted_spans(
         active: &FinderActiveState,
-        hname: &'a str,
+        hname: &str,
         style: Style,
         highlight_style: Style,
-    ) -> Vec<Span<'a>> {
+    ) -> Vec<Span<'static>> {
         let mut spans = Vec::new();
         let mut last = 0;
 
@@ -638,18 +659,18 @@ impl<'a> CsvTable<'a> {
                 continue;
             }
             if last < s {
-                spans.push(Span::styled(&hname[last..s], style));
+                spans.push(Span::styled(hname[last..s].to_owned(), style));
             }
-            spans.push(Span::styled(&hname[s..e], highlight_style));
+            spans.push(Span::styled(hname[s..e].to_owned(), highlight_style));
             last = e;
         }
 
         if last < hname.len() {
-            spans.push(Span::styled(&hname[last..], style));
+            spans.push(Span::styled(hname[last..].to_owned(), style));
         }
 
         if spans.is_empty() {
-            spans.push(Span::styled(hname, style));
+            spans.push(Span::styled(hname.to_owned(), style));
         }
 
         spans
@@ -871,6 +892,7 @@ impl<'a> CsvTable<'a> {
             area.width.saturating_sub(row_num_section_width_with_spaces),
             &state.column_width_overrides,
             &state.sorter_state,
+            state.column_format_config.as_deref(),
         );
         let _tic = std::time::Instant::now();
         let row_heights = self.get_row_heights(
@@ -1327,6 +1349,7 @@ pub struct CsvTableState {
     pub prompt: Option<String>,
     pub last_autoreload_at: Option<Instant>,
     pub debug: String,
+    pub column_format_config: Option<Arc<crate::format::ColumnFormatConfig>>,
 }
 
 impl CsvTableState {
@@ -1368,6 +1391,7 @@ impl CsvTableState {
             prompt,
             last_autoreload_at: None,
             debug: "".into(),
+            column_format_config: None,
         }
     }
 

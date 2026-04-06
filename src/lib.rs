@@ -43,6 +43,7 @@ mod common;
 mod csv;
 mod delimiter;
 pub mod errors;
+pub mod format;
 mod find;
 mod help;
 mod history;
