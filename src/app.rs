@@ -183,6 +183,7 @@ pub struct App {
     sorter: Option<Arc<sort::Sorter>>,
     sort_order: SortOrder,
     wrap_mode: WrapMode,
+    column_format_config: Option<Arc<crate::format::ColumnFormatConfig>>,
     #[cfg(feature = "clipboard")]
     clipboard: Result<Clipboard>,
     _seekable_file: SeekableFile,
@@ -206,6 +207,7 @@ impl App {
         wrap_mode: Option<WrapMode>,
         auto_reload: bool,
         no_streaming_stdin: bool,
+        column_format_config: Option<crate::format::ColumnFormatConfig>,
     ) -> CsvlensResult<Self> {
         // TODO: pass a base_config to wait for header properly?
         let seekable_file = SeekableFile::new(&original_filename, no_streaming_stdin)?;
@@ -270,6 +272,15 @@ impl App {
             Err(e) => Err(anyhow::anyhow!(e)),
         };
 
+        // Warn if --column-format is used with --no-headers: named column formats will never match.
+        if no_headers {
+            if let Some(ref cfg) = column_format_config {
+                if cfg.has_named() {
+                    eprintln!("Warning: --column-format has no effect when --no-headers is used (columns have no names)");
+                }
+            }
+        }
+
         let mut app = App {
             input_handler,
             num_rows_not_visible,
@@ -288,6 +299,7 @@ impl App {
             sorter: None,
             sort_order: SortOrder::Ascending,
             wrap_mode: WrapMode::default(),
+            column_format_config: column_format_config.map(Arc::new),
             #[cfg(feature = "clipboard")]
             clipboard,
             _seekable_file: seekable_file,
@@ -1093,6 +1105,7 @@ impl App {
 
         let rows = self.rows_view.rows();
         let csv_table = CsvTable::new(self.rows_view.headers(), rows);
+        self.csv_table_state.column_format_config = self.column_format_config.clone();
         f.render_stateful_widget(csv_table, size, &mut self.csv_table_state);
         if let Some((x, y)) = self.csv_table_state.cursor_xy {
             f.set_cursor_position(Position::new(x, y));
@@ -1131,6 +1144,7 @@ mod tests {
         find_regex: Option<String>,
         prompt: Option<String>,
         wrap_mode: Option<WrapMode>,
+        column_format_config: Option<crate::format::ColumnFormatConfig>,
     }
 
     impl AppBuilder {
@@ -1147,6 +1161,7 @@ mod tests {
                 find_regex: None,
                 prompt: Some("stdin".to_owned()),
                 wrap_mode: None,
+                column_format_config: None,
             }
         }
 
@@ -1167,6 +1182,7 @@ mod tests {
                 self.wrap_mode,
                 false,
                 false,
+                self.column_format_config,
             )
         }
 
@@ -1212,6 +1228,11 @@ mod tests {
 
         fn wrap_mode(mut self, wrap_mode: Option<WrapMode>) -> Self {
             self.wrap_mode = wrap_mode;
+            self
+        }
+
+        pub fn column_format_config(mut self, config: crate::format::ColumnFormatConfig) -> Self {
+            self.column_format_config = Some(config);
             self
         }
     }
