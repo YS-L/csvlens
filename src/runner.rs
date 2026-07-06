@@ -117,6 +117,30 @@ struct Args {
     /// Disable streaming stdin (load entire input before displaying)
     #[clap(long)]
     pub no_streaming_stdin: bool,
+
+    /// Format numbers in all columns using the specified format.
+    ///
+    /// Supported formats: thousands, scientific, si, fixed
+    ///
+    /// Example: --number-format fixed
+    #[arg(long, value_name = "FORMAT")]
+    pub number_format: Option<String>,
+
+    /// Format numbers in a specific column.
+    ///
+    /// Format: COL=FMT where FMT is one of: thousands, scientific, si, fixed
+    /// Can be specified multiple times for different columns.
+    ///
+    /// Example: --column-format "price=thousands" --column-format "value=fixed"
+    #[arg(long, value_name = "COL=FMT")]
+    pub column_format: Vec<String>,
+
+    /// Number of decimal places for fixed/scientific/si formats (default: 2).
+    /// Applies to all columns. Requires --number-format or --column-format to have any effect.
+    ///
+    /// Example: --number-format fixed --precision 4
+    #[arg(long, value_name = "N")]
+    pub precision: Option<usize>,
 }
 
 #[cfg(feature = "cli")]
@@ -144,8 +168,57 @@ impl Args {
 }
 
 #[cfg(feature = "cli")]
+fn parse_column_format_config(
+    column_format: &[String],
+    number_format: Option<&str>,
+    precision: Option<usize>,
+) -> Option<crate::format::ColumnFormatConfig> {
+    use crate::format::{ColumnFormatConfig, NumberFormat};
+
+    let mut config = ColumnFormatConfig::new();
+
+    // Parse global format
+    if let Some(fmt_str) = number_format {
+        if let Some(fmt) = NumberFormat::from_str(fmt_str) {
+            config.set_global(fmt);
+        } else {
+            eprintln!("Warning: unknown number format '{}', ignoring", fmt_str);
+        }
+    }
+
+    // Parse per-column format "col=fmt"
+    for s in column_format {
+        if let Some((col, fmt_str)) = s.split_once('=') {
+            if let Some(fmt) = NumberFormat::from_str(fmt_str) {
+                config.insert_named(col.to_string(), fmt);
+            } else {
+                eprintln!("Warning: unknown column format '{}' for column '{}', ignoring", fmt_str, col);
+            }
+        } else {
+            eprintln!("Warning: invalid --column-format '{}', expected COL=FMT format, ignoring", s);
+        }
+    }
+
+    // Warn early (before set_precision) so config.is_empty() still reflects format-only state.
+    if precision.is_some() && number_format.is_none() && column_format.is_empty() {
+        eprintln!("Warning: --precision has no effect without --number-format or --column-format");
+    }
+
+    if let Some(p) = precision {
+        config.set_precision(p);
+    }
+
+    if config.is_empty() { None } else { Some(config) }
+}
+
+#[cfg(feature = "cli")]
 impl From<Args> for CsvlensOptions {
     fn from(args: Args) -> Self {
+        let column_format_config = parse_column_format_config(
+            &args.column_format,
+            args.number_format.as_deref(),
+            args.precision,
+        );
         Self {
             filename: args.filename,
             delimiter: args.delimiter,
@@ -164,6 +237,7 @@ impl From<Args> for CsvlensOptions {
             wrap_mode: Args::get_wrap_mode(args.wrap, args.wrap_chars, args.wrap_words),
             auto_reload: args.auto_reload,
             no_streaming_stdin: args.no_streaming_stdin,
+            column_format_config,
         }
     }
 }
@@ -188,6 +262,7 @@ pub struct CsvlensOptions {
     pub wrap_mode: Option<WrapMode>,
     pub auto_reload: bool,
     pub no_streaming_stdin: bool,
+    pub column_format_config: Option<crate::format::ColumnFormatConfig>,
 }
 
 struct AppRunner {
@@ -277,6 +352,7 @@ pub fn run_csvlens_with_options(options: CsvlensOptions) -> CsvlensResult<Option
         options.wrap_mode,
         options.auto_reload,
         options.no_streaming_stdin,
+        options.column_format_config,
     )?;
 
     let mut app_runner = AppRunner::new(app);
