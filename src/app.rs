@@ -201,7 +201,7 @@ impl App {
         filter_regex: Option<String>,
         find_regex: Option<String>,
         freeze_cols_offset: Option<u64>,
-        color_columns: bool,
+        no_color_columns: bool,
         prompt: Option<String>,
         wrap_mode: Option<WrapMode>,
         auto_reload: bool,
@@ -254,7 +254,7 @@ impl App {
             rows_view.headers().len(),
             &echo_column,
             ignore_case,
-            color_columns,
+            no_color_columns,
             prompt,
         );
 
