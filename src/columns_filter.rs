@@ -6,7 +6,6 @@ pub struct ColumnsFilter {
     indices: Vec<usize>,
     filtered_headers: Vec<String>,
     filtered_flags: Vec<bool>,
-    num_columns_before_filter: usize,
     disabled_because_no_match: bool,
 }
 
@@ -37,7 +36,6 @@ impl ColumnsFilter {
             indices,
             filtered_headers,
             filtered_flags,
-            num_columns_before_filter: headers.len(),
             disabled_because_no_match,
         }
     }
@@ -56,10 +54,6 @@ impl ColumnsFilter {
 
     pub fn num_filtered(&self) -> usize {
         self.indices.len()
-    }
-
-    pub fn num_original(&self) -> usize {
-        self.num_columns_before_filter
     }
 
     pub fn disabled_because_no_match(&self) -> bool {

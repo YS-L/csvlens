@@ -799,12 +799,67 @@ impl<'a> CsvTable<'a> {
                 Some(row) => row.record_num.to_string(),
                 _ => "-".to_owned(),
             };
+
+            // Show the selected column when:
+            // - Line wrap is off
+            // - We're in cell or column selection mode
+            // Otherwise fall back to the scroll offset.
+            let use_selection_col = !state.enable_line_wrap
+                && matches!(
+                    state.selection.as_ref().map(|s| s.selection_type()),
+                    Some(view::SelectionType::Cell | view::SelectionType::Column)
+                );
+
+            let current_col = if let Some(selection) = &state.selection {
+                match selection.selection_type() {
+                    view::SelectionType::Column | view::SelectionType::Cell
+                        if use_selection_col =>
+                    {
+                        if let Some(col_idx) = selection.column.index() {
+                            // Get the filtered column index, then map to origin index
+                            let filtered_col_idx =
+                                state.cols_offset.get_filtered_column_index(col_idx) as usize;
+                            // Map to original column position (1-indexed)
+                            let origin_col = self
+                                .header
+                                .get(filtered_col_idx)
+                                .map(|h| h.origin_index + 1)
+                                .unwrap_or(filtered_col_idx + 1);
+                            std::cmp::min(origin_col as u64, state.total_cols as u64)
+                        } else {
+                            // When no column is selected, show the first visible non-frozen column origin index
+                            let filtered_col_idx = (state.cols_offset.num_freeze
+                                + state.cols_offset.num_skip)
+                                as usize;
+                            self.header
+                                .get(filtered_col_idx)
+                                .map(|h| (h.origin_index + 1) as u64)
+                                .unwrap_or((filtered_col_idx + 1) as u64)
+                        }
+                    }
+                    _ => {
+                        // In row selection mode or when line wrap is on, show the first visible non-frozen column origin index
+                        let filtered_col_idx =
+                            (state.cols_offset.num_freeze + state.cols_offset.num_skip) as usize;
+                        self.header
+                            .get(filtered_col_idx)
+                            .map(|h| (h.origin_index + 1) as u64)
+                            .unwrap_or((filtered_col_idx + 1) as u64)
+                    }
+                }
+            } else {
+                // When no selection, show the first visible non-frozen column origin index
+                let filtered_col_idx =
+                    (state.cols_offset.num_freeze + state.cols_offset.num_skip) as usize;
+                self.header
+                    .get(filtered_col_idx)
+                    .map(|h| (h.origin_index + 1) as u64)
+                    .unwrap_or((filtered_col_idx + 1) as u64)
+            };
+
             content += format!(
                 " [Row {}/{}, Col {}/{}]",
-                row_num,
-                total_str,
-                state.cols_offset.num_skip + 1,
-                state.total_cols,
+                row_num, total_str, current_col, state.total_cols,
             )
             .as_str();
 
@@ -818,7 +873,28 @@ impl<'a> CsvTable<'a> {
             }
 
             // Filter columns
-            if let FilterColumnsState::Enabled(info) = &state.filter_columns_state {
+            if let FilterColumnsState::Enabled(mut info) = state.filter_columns_state.clone() {
+                // Calculate the current filtered column index (1-indexed)
+                let filtered_col_idx = if let Some(selection) = &state.selection {
+                    match selection.selection_type() {
+                        view::SelectionType::Column | view::SelectionType::Cell
+                            if use_selection_col =>
+                        {
+                            if let Some(col_idx) = selection.column.index() {
+                                state.cols_offset.get_filtered_column_index(col_idx) as usize + 1
+                            } else {
+                                (state.cols_offset.num_freeze + state.cols_offset.num_skip) as usize
+                                    + 1
+                            }
+                        }
+                        _ => {
+                            (state.cols_offset.num_freeze + state.cols_offset.num_skip) as usize + 1
+                        }
+                    }
+                } else {
+                    (state.cols_offset.num_freeze + state.cols_offset.num_skip) as usize + 1
+                };
+                info.current_filtered_col = filtered_col_idx;
                 content += format!(" {}", info.status_line()).as_str();
             }
 
@@ -1136,6 +1212,7 @@ impl FinderActiveState {
     }
 }
 
+#[derive(Clone)]
 pub enum FilterColumnsState {
     Disabled,
     Enabled(FilterColumnsInfo),
@@ -1147,8 +1224,8 @@ impl FilterColumnsState {
             Self::Enabled(FilterColumnsInfo {
                 pattern: columns_filter.pattern(),
                 shown: columns_filter.num_filtered(),
-                total: columns_filter.num_original(),
                 disabled_because_no_match: columns_filter.disabled_because_no_match(),
+                current_filtered_col: 1, // Will be updated when rendering status bar
             })
         } else {
             Self::Disabled
@@ -1156,11 +1233,12 @@ impl FilterColumnsState {
     }
 }
 
+#[derive(Clone)]
 pub struct FilterColumnsInfo {
     pattern: Regex,
     shown: usize,
-    total: usize,
     disabled_because_no_match: bool,
+    current_filtered_col: usize,
 }
 
 impl FilterColumnsInfo {
@@ -1170,7 +1248,7 @@ impl FilterColumnsInfo {
         if self.disabled_because_no_match {
             line += "no match, showing all columns]";
         } else {
-            line += format!("{}/{} cols]", self.shown, self.total).as_str();
+            line += format!("{}/{} cols]", self.current_filtered_col, self.shown).as_str();
         }
         line
     }
