@@ -89,6 +89,10 @@ struct Args {
     #[arg(long, alias = "colorful", visible_alias = "colorful")]
     color_columns: bool,
 
+    /// Show spreadsheet-style column letters (A, B, C, ...) in the header
+    #[arg(long)]
+    spreadsheet: bool,
+
     /// Show a custom prompt message in the status bar. Supports ANSI escape codes for colored or
     /// styled text.
     #[arg(long, value_name = "prompt")]
@@ -160,6 +164,7 @@ impl From<Args> for CsvlensOptions {
             debug: args.debug,
             freeze_cols_offset: None,
             color_columns: args.color_columns,
+            spreadsheet: args.spreadsheet,
             prompt: args.prompt,
             wrap_mode: Args::get_wrap_mode(args.wrap, args.wrap_chars, args.wrap_words),
             auto_reload: args.auto_reload,
@@ -184,6 +189,7 @@ pub struct CsvlensOptions {
     pub debug: bool,
     pub freeze_cols_offset: Option<u64>,
     pub color_columns: bool,
+    pub spreadsheet: bool,
     pub prompt: Option<String>,
     pub wrap_mode: Option<WrapMode>,
     pub auto_reload: bool,
@@ -273,6 +279,7 @@ pub fn run_csvlens_with_options(options: CsvlensOptions) -> CsvlensResult<Option
         options.find,
         options.freeze_cols_offset,
         options.color_columns,
+        options.spreadsheet,
         options.prompt,
         options.wrap_mode,
         options.auto_reload,

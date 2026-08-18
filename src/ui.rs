@@ -34,6 +34,19 @@ const NUM_SPACES_AFTER_LINE_NUMBER: u16 = 2;
 const NUM_SPACES_BETWEEN_COLUMNS: u16 = 4;
 const MAX_COLUMN_WIDTH_FRACTION: f32 = 0.3;
 
+/// Convert a zero-based column index into its spreadsheet-style letters, e.g.
+/// 0 -> "A", 25 -> "Z", 26 -> "AA".
+fn column_index_to_letters(index: usize) -> String {
+    let mut n = index + 1;
+    let mut letters = String::new();
+    while n > 0 {
+        let rem = (n - 1) % 26;
+        letters.insert(0, (b'A' + rem as u8) as char);
+        n = (n - 1) / 26;
+    }
+    letters
+}
+
 pub fn set_line_safe(
     buf: &mut Buffer,
     x: u16,
@@ -97,12 +110,18 @@ impl<'a> CsvTable<'a> {
         &self,
         area_width: u16,
         overrides: &ColumnWidthOverrides,
+        spreadsheet: bool,
         sorter_state: &SorterState,
     ) -> Vec<u16> {
         let mut column_widths = Vec::new();
 
         for h in self.header {
-            let column_name = self.get_effective_column_name(h.name.as_str(), sorter_state);
+            let column_name = self.get_effective_column_name(
+                h.name.as_str(),
+                h.origin_index,
+                spreadsheet,
+                sorter_state,
+            );
             if let Some(w) = overrides.get(h.origin_index) {
                 column_widths.push(*w);
                 continue;
@@ -396,7 +415,14 @@ impl<'a> CsvTable<'a> {
         }
     }
 
-    fn get_effective_column_name(&self, column_name: &str, sorter_state: &SorterState) -> String {
+    fn get_effective_column_name(
+        &self,
+        column_name: &str,
+        origin_index: usize,
+        spreadsheet: bool,
+        sorter_state: &SorterState,
+    ) -> String {
+        let mut effective = column_name.to_string();
         if let SorterState::Enabled(info) = sorter_state
             && info.status == sort::SorterStatus::Finished
             && info.column_name == column_name
@@ -410,9 +436,12 @@ impl<'a> CsvTable<'a> {
                 SortType::Natural => "N",
                 _ => "",
             };
-            return format!("{} [{}{}]", column_name, indicator, sort_type_indicator);
+            effective = format!("{} [{}{}]", column_name, indicator, sort_type_indicator);
         }
-        column_name.to_string()
+        if spreadsheet {
+            effective = format!("[{}] {}", column_index_to_letters(origin_index), effective);
+        }
+        effective
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -870,6 +899,7 @@ impl<'a> CsvTable<'a> {
         let column_widths = self.get_column_widths(
             area.width.saturating_sub(row_num_section_width_with_spaces),
             &state.column_width_overrides,
+            state.spreadsheet,
             &state.sorter_state,
         );
         let _tic = std::time::Instant::now();
@@ -953,7 +983,14 @@ impl StatefulWidget for CsvTable<'_> {
             &self
                 .header
                 .iter()
-                .map(|h| self.get_effective_column_name(h.name.as_str(), &state.sorter_state))
+                .map(|h| {
+                    self.get_effective_column_name(
+                        h.name.as_str(),
+                        h.origin_index,
+                        state.spreadsheet,
+                        &state.sorter_state,
+                    )
+                })
                 .collect::<Vec<String>>(),
             None,
             &layout,
@@ -1324,6 +1361,7 @@ pub struct CsvTableState {
     pub cursor_xy: Option<(u16, u16)>,
     pub theme: Theme,
     pub color_columns: bool,
+    pub spreadsheet: bool,
     pub prompt: Option<String>,
     pub last_autoreload_at: Option<Instant>,
     pub debug: String,
@@ -1336,6 +1374,7 @@ impl CsvTableState {
         echo_column: &Option<String>,
         ignore_case: bool,
         color_columns: bool,
+        spreadsheet: bool,
         prompt: Option<String>,
     ) -> Self {
         Self {
@@ -1365,6 +1404,7 @@ impl CsvTableState {
             cursor_xy: None,
             theme: Theme::default(),
             color_columns,
+            spreadsheet,
             prompt,
             last_autoreload_at: None,
             debug: "".into(),
@@ -1454,5 +1494,16 @@ mod tests {
 
         let status_line_lex = info_lex.status_line();
         assert!(status_line_lex.contains("Sorting by test_column (auto based on type)"));
+    }
+
+    #[test]
+    fn test_column_index_to_letters() {
+        assert_eq!(column_index_to_letters(0), "A");
+        assert_eq!(column_index_to_letters(25), "Z");
+        assert_eq!(column_index_to_letters(26), "AA");
+        assert_eq!(column_index_to_letters(27), "AB");
+        assert_eq!(column_index_to_letters(51), "AZ");
+        assert_eq!(column_index_to_letters(701), "ZZ");
+        assert_eq!(column_index_to_letters(702), "AAA");
     }
 }
