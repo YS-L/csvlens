@@ -105,6 +105,11 @@ Key | Action
 
 * `--color-columns` (or `--colorful`): Display each column in a different color.
 
+* `--spreadsheet`: Show spreadsheet-style column letters (`A`, `B`, `C`, ...) alongside
+  the column names in the header, so columns can be referred to by letter as in a
+  spreadsheet. The letters follow the original column position in the file, so they stay
+  stable when scrolling horizontally or filtering columns.
+
 ## Installation
 
 ### Direct download

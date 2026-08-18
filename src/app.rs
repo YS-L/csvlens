@@ -202,6 +202,7 @@ impl App {
         find_regex: Option<String>,
         freeze_cols_offset: Option<u64>,
         color_columns: bool,
+        spreadsheet: bool,
         prompt: Option<String>,
         wrap_mode: Option<WrapMode>,
         auto_reload: bool,
@@ -255,6 +256,7 @@ impl App {
             &echo_column,
             ignore_case,
             color_columns,
+            spreadsheet,
             prompt,
         );
 
@@ -1131,6 +1133,7 @@ mod tests {
         find_regex: Option<String>,
         prompt: Option<String>,
         wrap_mode: Option<WrapMode>,
+        spreadsheet: bool,
     }
 
     impl AppBuilder {
@@ -1147,6 +1150,7 @@ mod tests {
                 find_regex: None,
                 prompt: Some("stdin".to_owned()),
                 wrap_mode: None,
+                spreadsheet: false,
             }
         }
 
@@ -1163,6 +1167,7 @@ mod tests {
                 self.find_regex,
                 None,
                 false,
+                self.spreadsheet,
                 self.prompt,
                 self.wrap_mode,
                 false,
@@ -1212,6 +1217,11 @@ mod tests {
 
         fn wrap_mode(mut self, wrap_mode: Option<WrapMode>) -> Self {
             self.wrap_mode = wrap_mode;
+            self
+        }
+
+        fn spreadsheet(mut self, spreadsheet: bool) -> Self {
+            self.spreadsheet = spreadsheet;
             self
         }
     }
@@ -1280,6 +1290,32 @@ mod tests {
             "8  │  A8    B8    │           ",
             "───┴──────────────┴───────────",
             "stdin [Row 8/5000, Col 1/2]   ",
+        ];
+        let actual_buffer = terminal.backend().buffer().clone();
+        let lines = to_lines(&actual_buffer);
+        assert_eq!(lines, expected);
+    }
+
+    #[test]
+    fn test_spreadsheet_column_letters() {
+        let mut app = AppBuilder::new("tests/data/simple.csv")
+            .spreadsheet(true)
+            .build()
+            .unwrap();
+        till_app_ready(&app);
+
+        let backend = TestBackend::new(35, 7);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        step_and_draw(&mut app, &mut terminal, Control::Nothing);
+        let expected = vec![
+            "───────────────────────────────────",
+            "      [A] a    [B] b               ",
+            "───┬────────────────────┬──────────",
+            "1  │  A1       B1       │          ",
+            "2  │  A2       B2       │          ",
+            "───┴────────────────────┴──────────",
+            "stdin [Row 1/5000, Col 1/2]        ",
         ];
         let actual_buffer = terminal.backend().buffer().clone();
         let lines = to_lines(&actual_buffer);
