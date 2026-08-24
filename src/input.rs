@@ -47,6 +47,7 @@ pub enum Control {
     ToggleNaturalSort,
     Reset,
     Help,
+    ShowCellView,
     UnknownOption(String),
     UserError(String),
     FileChanged,
@@ -120,6 +121,8 @@ impl InputHandler {
         }
         if self.is_help_mode() {
             self.handler_help(key)
+        } else if self.is_cell_view_mode() {
+            self.handler_cell_view(key)
         } else if self.is_input_buffering() {
             self.handler_buffering(key)
         } else {
@@ -176,6 +179,7 @@ impl InputHandler {
                 KeyCode::Char('#') => Control::FindLikeCell,
                 KeyCode::Char('@') => Control::FilterLikeCell,
                 KeyCode::Char('y') => Control::CopySelection,
+                KeyCode::Char('v') => Control::ShowCellView,
                 KeyCode::Char('m') => Control::ToggleMark,
                 _ => Control::Nothing,
             },
@@ -331,6 +335,15 @@ impl InputHandler {
         }
     }
 
+    fn handler_cell_view(&mut self, key_event: KeyEvent) -> Control {
+        match key_event.code {
+            KeyCode::Char('q' | 'v') | KeyCode::Esc => Control::Quit,
+            KeyCode::Char('j') | KeyCode::Down => Control::ScrollDown,
+            KeyCode::Char('k') | KeyCode::Up => Control::ScrollUp,
+            _ => Control::Nothing,
+        }
+    }
+
     fn is_input_buffering(&self) -> bool {
         matches!(self.buffer_state, BufferState::Active(_))
     }
@@ -360,5 +373,17 @@ impl InputHandler {
 
     fn is_help_mode(&mut self) -> bool {
         self.mode == InputMode::Help
+    }
+
+    pub fn enter_cell_view_mode(&mut self) {
+        self.mode = InputMode::CellView;
+    }
+
+    pub fn exit_cell_view_mode(&mut self) {
+        self.mode = InputMode::Default;
+    }
+
+    fn is_cell_view_mode(&mut self) -> bool {
+        self.mode == InputMode::CellView
     }
 }

@@ -1,5 +1,6 @@
 extern crate csv_nose;
 
+use crate::cell_view;
 use crate::columns_filter::ColumnsFilter;
 use crate::csv;
 use crate::delimiter::{Delimiter, sniff_delimiter};
@@ -180,6 +181,7 @@ pub struct App {
     echo_column: Option<String>,
     ignore_case: bool,
     help_page_state: help::HelpPageState,
+    cell_view_state: cell_view::CellViewState,
     sorter: Option<Arc<sort::Sorter>>,
     sort_order: SortOrder,
     wrap_mode: WrapMode,
@@ -263,6 +265,7 @@ impl App {
 
         let transient_message: Option<String> = None;
         let help_page_state = help::HelpPageState::new();
+        let cell_view_state = cell_view::CellViewState::new();
 
         #[cfg(feature = "clipboard")]
         let clipboard = match Clipboard::new() {
@@ -285,6 +288,7 @@ impl App {
             echo_column,
             ignore_case,
             help_page_state,
+            cell_view_state,
             sorter: None,
             sort_order: SortOrder::Ascending,
             wrap_mode: WrapMode::default(),
@@ -323,6 +327,9 @@ impl App {
                 if self.help_page_state.is_active() {
                     self.help_page_state.deactivate();
                     self.input_handler.exit_help_mode();
+                } else if self.cell_view_state.is_active() {
+                    self.cell_view_state.deactivate();
+                    self.input_handler.exit_cell_view_mode();
                 } else {
                     return Ok(None);
                 }
@@ -359,9 +366,44 @@ impl App {
         Ok(())
     }
 
+    fn step_cell_view(&mut self, control: &Control) -> CsvlensResult<()> {
+        match &control {
+            Control::ScrollDown => {
+                self.cell_view_state.scroll_down();
+            }
+            Control::ScrollUp => {
+                self.cell_view_state.scroll_up();
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+
+    fn open_cell_view(&mut self) {
+        // Prefer the selected cell, falling back to the whole row when a specific cell isn't
+        // selected. Same idea as copying with 'y'.
+        let content = self
+            .rows_view
+            .get_cell_value_from_selection()
+            .or_else(|| self.rows_view.get_row_value().map(|(_, row)| row));
+        if let Some(content) = content {
+            self.cell_view_state.activate(content);
+            self.input_handler.enter_cell_view_mode();
+        }
+    }
+
     fn step(&mut self, control: &Control) -> CsvlensResult<()> {
         if self.help_page_state.is_active() {
             return self.step_help(control);
+        }
+
+        if self.cell_view_state.is_active() {
+            return self.step_cell_view(control);
+        }
+
+        if matches!(control, Control::ShowCellView) {
+            self.open_cell_view();
+            return Ok(());
         }
 
         // Clear message without changing other states on any action. FileChanged is excluded since
@@ -1096,6 +1138,11 @@ impl App {
         f.render_stateful_widget(csv_table, size, &mut self.csv_table_state);
         if let Some((x, y)) = self.csv_table_state.cursor_xy {
             f.set_cursor_position(Position::new(x, y));
+        }
+
+        // Cell content pop-up is drawn on top of the table.
+        if self.cell_view_state.is_active() {
+            f.render_stateful_widget(cell_view::CellView::new(), size, &mut self.cell_view_state);
         }
     }
 
@@ -3296,5 +3343,41 @@ mod tests {
         let actual_buffer = terminal.backend().buffer().clone();
         let lines = to_lines(&actual_buffer);
         assert_eq!(lines, expected);
+    }
+
+    #[test]
+    fn test_cell_view_popup() {
+        let mut app = AppBuilder::new("tests/data/simple.csv").build().unwrap();
+        till_app_ready(&app);
+
+        let backend = TestBackend::new(30, 10);
+        let mut terminal = Terminal::new(backend).unwrap();
+        step_and_draw(&mut app, &mut terminal, Control::Nothing);
+
+        // Row -> Column -> Cell so that a specific cell (A1) is selected.
+        step_and_draw(&mut app, &mut terminal, Control::ToggleSelectionType);
+        step_and_draw(&mut app, &mut terminal, Control::ToggleSelectionType);
+
+        step_and_draw(&mut app, &mut terminal, Control::ShowCellView);
+        assert!(app.cell_view_state.is_active());
+
+        let expected = vec![
+            "──────────────────────────────",
+            "      a     b                 ",
+            "───┬──────────────┬───────────",
+            "1  │  A1    B1    │           ",
+            "2  │  A2  ┌Cell────┐          ",
+            "3  │  A3  │A1      │          ",
+            "4  │  A4  └────────┘          ",
+            "5  │  A5    B5    │           ",
+            "───┴──────────────┴───────────",
+            "stdin [Row 1/5000, Col 1/2]   ",
+        ];
+        let actual_buffer = terminal.backend().buffer().clone();
+        let lines = to_lines(&actual_buffer);
+        assert_eq!(lines, expected);
+
+        app.cell_view_state.deactivate();
+        assert!(!app.cell_view_state.is_active());
     }
 }
