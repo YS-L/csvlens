@@ -1,4 +1,5 @@
 use ratatui::text::{Line, Span};
+use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
 pub struct LineWrapper<'a> {
     spans: &'a [Span<'a>],
@@ -34,39 +35,38 @@ impl<'a> LineWrapper<'a> {
                 self.index += 1;
             }
             if let Some(span) = span {
-                let chars_count = span.content.chars().count();
-                let newline_pos = span.content.chars().position(|c| c == '\n');
-                if let Some((pos, true)) = newline_pos.map(|x| (x, x <= remaining_width)) {
-                    out_spans.push(Span::styled(
-                        span.content.chars().take(pos).collect::<String>(),
-                        span.style,
-                    ));
-                    self.pending = Some(Span::styled(
-                        span.content.chars().skip(pos + 1).collect::<String>(),
-                        span.style,
-                    ));
+                let content: &str = &span.content;
+                let newline_pos = content
+                    .find('\n')
+                    .map(|pos| (pos, content[..pos].width() <= remaining_width));
+                if let Some((pos, true)) = newline_pos {
+                    out_spans.push(Span::styled(content[..pos].to_string(), span.style));
+                    self.pending = Some(Span::styled(content[pos + 1..].to_string(), span.style));
                     // Technically this might not be zero, but this is to force the loop to break -
                     // we must wrap now.
                     remaining_width = 0;
-                } else if chars_count <= remaining_width {
-                    remaining_width = remaining_width.saturating_sub(chars_count);
+                } else if content.width() <= remaining_width {
+                    remaining_width = remaining_width.saturating_sub(content.width());
                     out_spans.push(span);
                 } else {
-                    let mut current: String = span.content.chars().take(remaining_width).collect();
-                    let pending: String;
+                    // A character wider than max_width can never fit. Take it anyway at the start
+                    // of a line, otherwise wrapping would never make progress.
+                    let force_one = remaining_width == self.max_width && self.max_width > 0;
+                    let (front, rest) = split_at_width(content, remaining_width, force_one);
+                    let mut current = front.to_string();
+                    let mut pending = rest;
 
-                    if self.word_wrap {
-                        if let Some(wrapped) = LineWrapper::wrap_by_whitespace(current.as_str()) {
-                            current = wrapped;
-                            pending = span.content.chars().skip(current.chars().count()).collect();
-                        } else {
-                            pending = span.content.chars().skip(remaining_width).collect();
-                        }
-                    } else {
-                        pending = span.content.chars().skip(remaining_width).collect();
+                    if self.word_wrap
+                        && let Some(wrapped) = LineWrapper::wrap_by_whitespace(front)
+                    {
+                        pending = &content[wrapped.len()..];
+                        current = wrapped;
                     }
                     out_spans.push(Span::styled(current, span.style));
-                    self.pending = Some(Span::styled(pending, span.style));
+                    // pending is empty only when force_one took the last character
+                    if !pending.is_empty() {
+                        self.pending = Some(Span::styled(pending.to_string(), span.style));
+                    }
                     remaining_width = 0;
                 }
             } else {
@@ -97,6 +97,22 @@ impl<'a> LineWrapper<'a> {
             None
         }
     }
+}
+
+/// Split `s` so that the front part fits in `max_width` terminal columns.
+/// With `force_one`, the front part contains at least one character.
+fn split_at_width(s: &str, max_width: usize, force_one: bool) -> (&str, &str) {
+    let mut width = 0;
+    for (i, c) in s.char_indices() {
+        width += c.width().unwrap_or(0);
+        if width > max_width {
+            if i == 0 && force_one {
+                return s.split_at(c.len_utf8());
+            }
+            return s.split_at(i);
+        }
+    }
+    (s, "")
 }
 
 #[cfg(test)]
@@ -315,5 +331,58 @@ mod tests {
         assert_eq!(wrapper.next(), Some(Line::from(vec![Span::raw("")])));
         assert_eq!(wrapper.next(), Some(Line::from(vec![Span::raw("")])));
         assert_eq!(wrapper.finished(), false);
+    }
+    #[test]
+    fn test_wide_chars() {
+        let s = Span::raw("日本語です");
+        let spans = vec![s.clone()];
+        let mut wrapper = LineWrapper::new(&spans, 4, false);
+        assert_eq!(wrapper.next(), Some(Line::from(vec![Span::raw("日本")])));
+        assert_eq!(wrapper.next(), Some(Line::from(vec![Span::raw("語で")])));
+        assert_eq!(wrapper.next(), Some(Line::from(vec![Span::raw("す")])));
+        assert_eq!(wrapper.next(), None);
+    }
+
+    #[test]
+    fn test_wide_char_does_not_fit_in_remaining_width() {
+        let s = Span::raw("ab日本");
+        let spans = vec![s.clone()];
+        let mut wrapper = LineWrapper::new(&spans, 3, false);
+        assert_eq!(wrapper.next(), Some(Line::from(vec![Span::raw("ab")])));
+        assert_eq!(wrapper.next(), Some(Line::from(vec![Span::raw("日")])));
+        assert_eq!(wrapper.next(), Some(Line::from(vec![Span::raw("本")])));
+        assert_eq!(wrapper.next(), None);
+    }
+
+    #[test]
+    fn test_wide_chars_with_newline() {
+        let s = Span::raw("日本\n語");
+        let spans = vec![s.clone()];
+        let mut wrapper = LineWrapper::new(&spans, 3, false);
+        assert_eq!(wrapper.next(), Some(Line::from(vec![Span::raw("日")])));
+        assert_eq!(wrapper.next(), Some(Line::from(vec![Span::raw("本")])));
+        assert_eq!(wrapper.next(), Some(Line::from(vec![Span::raw("語")])));
+        assert_eq!(wrapper.next(), None);
+    }
+
+    #[test]
+    fn test_wide_chars_word_wrap() {
+        let s = Span::raw("日本 語です");
+        let spans = vec![s.clone()];
+        let mut wrapper = LineWrapper::new(&spans, 6, true);
+        assert_eq!(wrapper.next(), Some(Line::from(vec![Span::raw("日本 ")])));
+        assert_eq!(wrapper.next(), Some(Line::from(vec![Span::raw("語です")])));
+        assert_eq!(wrapper.next(), None);
+    }
+
+    #[test]
+    fn test_wide_char_wider_than_max_width() {
+        // A character that can never fit is still emitted, one per line, so wrapping terminates
+        let s = Span::raw("日本");
+        let spans = vec![s.clone()];
+        let mut wrapper = LineWrapper::new(&spans, 1, false);
+        assert_eq!(wrapper.next(), Some(Line::from(vec![Span::raw("日")])));
+        assert_eq!(wrapper.next(), Some(Line::from(vec![Span::raw("本")])));
+        assert_eq!(wrapper.next(), None);
     }
 }
