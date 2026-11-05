@@ -31,13 +31,13 @@ tempfile = "3"
 regex = "1"
 csv-nose = { version = "1", default-features = false }
 tui-input = { version = "0.15", features = ["crossterm"] }
-arrow = {version = "59", default-features = false, features = ["csv"]}
+arrow = {version = "60", default-features = false, features = ["csv"]}
 sorted-vec = "0.8"
 arboard = { version = "3.6", default-features = false, features = ["wayland-data-control"], optional = true }
 thiserror = "2"
 terminal-colorsaurus = "1.0"
 ansi-to-tui = "8.0.1"
-clap-cargo = {version = "0.18.3", optional = true}
+clap-cargo = {version = "0.19", optional = true}
 csv-core = "0.1.13"
 rand = { version = "0.10", optional = true }
 
